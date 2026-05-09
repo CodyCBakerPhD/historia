@@ -4,6 +4,7 @@ import historia
 import historia._cli
 import historia.data
 import historia.project
+import historia.project.update
 
 
 @pytest.mark.ai_generated
@@ -36,6 +37,7 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
         (historia.project, "create_project_page"),
         (historia.project, "move_done_to_history"),
         (historia.project, "update_project_item_dates"),
+        (historia.project.update, "update_project_item_dates"),
     ],
 )
 def test_submodule_exports_remain_available(module: object, attribute_name: str) -> None:
