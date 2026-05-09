@@ -20,6 +20,7 @@ def add_to_project(
     Items that are already present in the project are automatically skipped.
 
     For each new item:
+
     - If ``status`` is provided, all items are assigned that status value.
     - Otherwise, the status is derived from the item type and state:
       - If the Issue or PR is closed, it is given the 'Done' status.
@@ -560,6 +561,7 @@ def update_project_item_dates(
     Update the start and end date fields on all items already added to a GitHub Project (v2).
 
     For each item in the project:
+
     - The start date field ("Start date") is set to the item's creation date.
     - The end date field ("End date") is set to the item's closed date (if closed),
       or to ``end_date_placeholder_days`` days after the creation date otherwise.
