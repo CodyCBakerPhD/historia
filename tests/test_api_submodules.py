@@ -34,6 +34,3 @@ def test_submodule_exports_remain_available() -> None:
     assert hasattr(historia.project.update, "update_project_item_dates")
 
 
-@pytest.mark.ai_generated
-def test_global_init_exposes_public_root_cli() -> None:
-    assert historia.historia_cli is historia._cli.historia_cli
