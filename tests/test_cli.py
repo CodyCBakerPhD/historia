@@ -1,4 +1,5 @@
 import pathlib
+from collections.abc import Callable
 
 import click.testing
 import pytest
@@ -19,27 +20,21 @@ def test_root_cli_help_shows_nested_groups() -> None:
 
 
 @pytest.mark.ai_generated
-def test_data_subgroup_help_shows_commands() -> None:
+@pytest.mark.parametrize(
+    ("group", "expected_commands"),
+    [
+        ("data", ["update", "minify"]),
+        ("project", ["create", "populate", "update", "transition"]),
+    ],
+)
+def test_subgroup_help_shows_commands(group: str, expected_commands: list[str]) -> None:
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(historia.historia_cli, ["data", "--help"])
+    result = runner.invoke(historia.historia_cli, [group, "--help"])
 
     assert result.exit_code == 0
-    assert "update" in result.output
-    assert "minify" in result.output
-
-
-@pytest.mark.ai_generated
-def test_project_subgroup_help_shows_commands() -> None:
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(historia.historia_cli, ["project", "--help"])
-
-    assert result.exit_code == 0
-    assert "create" in result.output
-    assert "populate" in result.output
-    assert "update" in result.output
-    assert "transition" in result.output
+    for cmd in expected_commands:
+        assert cmd in result.output
 
 
 @pytest.mark.ai_generated
@@ -172,35 +167,6 @@ def test_project_populate_command_invokes_add_to_project(
 
 
 @pytest.mark.ai_generated
-@pytest.mark.parametrize("exception_type", [ValueError, RuntimeError])
-def test_project_populate_command_shows_error_on_exception(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, exception_type: type[Exception]
-) -> None:
-    def _fake_add_to_project(
-        directory: pathlib.Path, project_url: str, status: str | None, end_date_placeholder_days: int
-    ) -> None:
-        raise exception_type("something went wrong")
-
-    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "populate",
-            "--directory",
-            str(tmp_path),
-            "--project-url",
-            "https://github.com/users/octocat/projects/1",
-        ],
-    )
-
-    assert result.exit_code == 1
-    assert "something went wrong" in result.output
-
-
-@pytest.mark.ai_generated
 def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, str | int] = {}
 
@@ -227,32 +193,6 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
     assert result.exit_code == 0
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
     assert called_args["end_date_placeholder_days"] == 200
-
-
-@pytest.mark.ai_generated
-@pytest.mark.parametrize("exception_type", [ValueError, RuntimeError])
-def test_project_update_dates_command_shows_error_on_exception(
-    monkeypatch: pytest.MonkeyPatch, exception_type: type[Exception]
-) -> None:
-    def _fake_update_project_item_dates(project_url: str, end_date_placeholder_days: int) -> None:
-        raise exception_type("date update failed")
-
-    monkeypatch.setattr(historia._cli, "update_project_item_dates", _fake_update_project_item_dates)
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "update",
-            "dates",
-            "--project-url",
-            "https://github.com/users/octocat/projects/1",
-        ],
-    )
-
-    assert result.exit_code == 1
-    assert "date update failed" in result.output
 
 
 @pytest.mark.ai_generated
@@ -283,26 +223,57 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
 
 @pytest.mark.ai_generated
 @pytest.mark.parametrize("exception_type", [ValueError, RuntimeError])
-def test_project_transition_command_shows_error_on_exception(
-    monkeypatch: pytest.MonkeyPatch, exception_type: type[Exception]
+@pytest.mark.parametrize(
+    ("attr_name", "make_cli_args"),
+    [
+        (
+            "add_to_project",
+            lambda tmp_path: [
+                "project",
+                "populate",
+                "--directory",
+                str(tmp_path),
+                "--project-url",
+                "https://github.com/users/octocat/projects/1",
+            ],
+        ),
+        (
+            "update_project_item_dates",
+            lambda _: [
+                "project",
+                "update",
+                "dates",
+                "--project-url",
+                "https://github.com/users/octocat/projects/1",
+            ],
+        ),
+        (
+            "move_done_to_history",
+            lambda _: [
+                "project",
+                "transition",
+                "--project-url",
+                "https://github.com/users/octocat/projects/1",
+                "--status",
+                "DONE",
+            ],
+        ),
+    ],
+)
+def test_project_command_shows_error_on_exception(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    exception_type: type[Exception],
+    attr_name: str,
+    make_cli_args: Callable[[pathlib.Path], list[str]],
 ) -> None:
-    def _fake_move_done_to_history(project_url: str) -> None:
-        raise exception_type("transition failed")
+    def _fake(*args: object, **kwargs: object) -> None:
+        raise exception_type("something went wrong")
 
-    monkeypatch.setattr(historia._cli, "move_done_to_history", _fake_move_done_to_history)
+    monkeypatch.setattr(historia._cli, attr_name, _fake)
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "transition",
-            "--project-url",
-            "https://github.com/users/octocat/projects/1",
-            "--status",
-            "DONE",
-        ],
-    )
+    result = runner.invoke(historia.historia_cli, make_cli_args(tmp_path))
 
     assert result.exit_code == 1
-    assert "transition failed" in result.output
+    assert "something went wrong" in result.output
