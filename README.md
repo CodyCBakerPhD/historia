@@ -6,7 +6,6 @@
   <a href="https://codecov.io/gh/CodyCBakerPhD/historia"><img alt="codecov" src="https://codecov.io/gh/CodyCBakerPhD/historia/branch/main/graph/badge.svg"></a>
 </p>
 <p align="center">
-  <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/testing.yml"><img alt="Testing" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/testing.yml/badge.svg"></a>
   <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml"><img alt="Daily tests" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml/badge.svg"></a>
   <a href="https://github.com/CodyCBakerPhD/historia/blob/main/LICENSE.txt"><img alt="License" src="https://img.shields.io/pypi/l/historia.svg"></a>
 </p>
