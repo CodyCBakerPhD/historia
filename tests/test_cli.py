@@ -3,6 +3,7 @@ import pathlib
 import click.testing
 import pytest
 
+import historia
 import historia._cli
 
 
@@ -10,7 +11,7 @@ import historia._cli
 def test_root_cli_help_shows_nested_groups() -> None:
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(historia._cli.historia_cli, ["--help"])
+    result = runner.invoke(historia.historia_cli, ["--help"])
 
     assert result.exit_code == 0
     assert "data" in result.output
