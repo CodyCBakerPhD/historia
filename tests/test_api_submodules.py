@@ -21,7 +21,7 @@ import historia.project.update
     ],
 )
 def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
-    assert hasattr(historia, attribute_name) is is_exposed
+    assert hasattr(historia, attribute_name) == is_exposed
 
 
 @pytest.mark.ai_generated
@@ -39,4 +39,4 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
     ],
 )
 def test_submodule_exports_remain_available(module: object, attribute_name: str) -> None:
-    assert hasattr(module, attribute_name) is True
+    assert hasattr(module, attribute_name)
