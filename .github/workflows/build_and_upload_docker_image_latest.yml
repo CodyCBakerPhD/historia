@@ -1,9 +1,10 @@
 name: Build and upload latest release Docker image to GHCR
 
 on:
-  release:
-    types:
-      - published
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Release to PyPI]
+    types: [completed]
 
 jobs:
   release-image:
