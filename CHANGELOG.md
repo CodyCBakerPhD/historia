@@ -4,6 +4,7 @@
 
 #### 🚀 Enhancement
 
+- Added the Historia logo to the README and documentation landing page via the GitHub user-attachments CDN URL. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
 - Added a centered README badge block for PyPI version, supported Python versions, CI workflows, coverage, and license status. ([#37](https://github.com/CodyCBakerPhD/historia/pull/37))
 - Removed REST request modes and related logic so data collection now consistently uses GitHub GraphQL APIs. ([#6](https://github.com/CodyCBakerPhD/historia/pull/6))
 - Reorganized the CLI into nested `data` and `project` command groups, including `historia project update dates`, so operations were grouped by type and better mirrored API structure. ([#12](https://github.com/CodyCBakerPhD/historia/pull/12))
