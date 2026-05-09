@@ -3,7 +3,7 @@ import pathlib
 import rich_click
 
 from .data import minify as _minify
-from .data.update import github as update_github
+from .data.github import update as update_github
 from .project import add_to_project, create_project_page, move_done_to_history, update_project_item_dates
 
 

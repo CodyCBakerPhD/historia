@@ -43,7 +43,7 @@ def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: p
 
     monkeypatch.setattr(historia._dump, "fetch_info_for_date", _mock_fetch_info_for_date)
 
-    historia.data.dump_info_for_date(
+    historia.data.github.dump_info_for_date(
         directory=test_directory,
         date="2026-01-05",
         username=username,
