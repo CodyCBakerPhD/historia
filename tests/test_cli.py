@@ -15,7 +15,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
     result = runner.invoke(historia.historia_cli, ["--help"])
 
     assert result.exit_code == 0
-    assert "data" in result.output
+    assert "github" in result.output
     assert "project" in result.output
 
 
@@ -23,7 +23,6 @@ def test_root_cli_help_shows_nested_groups() -> None:
 @pytest.mark.parametrize(
     ("group", "expected_commands"),
     [
-        ("data", ["update", "minify"]),
         ("project", ["create", "populate", "update", "transition"]),
         ("github", ["data"]),
     ],
@@ -59,7 +58,7 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
 
     result = runner.invoke(
         historia.historia_cli,
-        ["data", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
+        ["github", "data", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
     )
 
     assert result.exit_code == 0
@@ -80,7 +79,7 @@ def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp
 
     result = runner.invoke(
         historia.historia_cli,
-        ["data", "minify", "--directory", str(tmp_path)],
+        ["github", "data", "minify", "--directory", str(tmp_path)],
     )
 
     assert result.exit_code == 0

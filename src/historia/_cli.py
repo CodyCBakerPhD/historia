@@ -19,17 +19,13 @@ def _historia_github_cli():
     pass
 
 
-# historia data
-@historia_cli.group(name="data")
+# historia github data
+@_historia_github_cli.group(name="data")
 def _historia_data_cli():
     pass
 
 
-# historia github data
-_historia_github_cli.add_command(_historia_data_cli, name="data")
-
-
-# historia data update
+# historia github data update
 @_historia_data_cli.command(name="update")
 @rich_click.option("--directory", type=str, required=True, help="Directory to save the data to.")
 @rich_click.option("--username", type=str, required=True, help="GitHub username to fetch information about.")
@@ -50,7 +46,7 @@ def _historia_data_update_cli(
     update(directory=directory, username=username, past_number_of_days=past_number_of_days)
 
 
-# historia data minify
+# historia github data minify
 @_historia_data_cli.command(name="minify")
 @rich_click.option(
     "--directory",
