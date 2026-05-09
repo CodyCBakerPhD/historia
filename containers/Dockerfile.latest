@@ -1,21 +1,9 @@
-FROM python:3.13-slim AS builder
-
-COPY LICENSE.txt README.md pyproject.toml /tmp/historia/
-COPY src /tmp/historia/src
-
-RUN python -m pip install build \
-    && cd /tmp/historia \
-    && python -m build --wheel
-
 FROM python:3.13-slim
 
 LABEL org.opencontainers.image.source="https://github.com/CodyCBakerPhD/historia"
 LABEL org.opencontainers.image.description="A Docker image of the latest released version of Historia."
 
-COPY --from=builder /tmp/historia/dist /tmp/dist
-
-RUN python -m pip install --no-cache-dir /tmp/dist/*.whl \
-    && rm -rf /tmp/dist
+RUN pip install --no-cache-dir nwb2bids
 
 ENTRYPOINT ["historia"]
 CMD ["--help"]
