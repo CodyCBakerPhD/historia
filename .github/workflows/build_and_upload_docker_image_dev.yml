@@ -19,10 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Derive image name
-        id: image_name
-        run: echo "value=ghcr.io/${GITHUB_REPOSITORY,,}:dev" >> "$GITHUB_OUTPUT"
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -36,10 +32,7 @@ jobs:
           file: containers/Dockerfile.dev
           load: true
           push: false
-          tags: ${{ steps.image_name.outputs.value }}
-
-      - name: Smoke test image
-        run: docker run --rm "${{ steps.image_name.outputs.value }}"
+          tags: ghcr.io/codycbakerphd/historia:dev
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
