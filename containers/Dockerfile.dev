@@ -1,7 +1,7 @@
 FROM python:3.13-slim
 
 LABEL org.opencontainers.image.source="https://github.com/CodyCBakerPhD/historia"
-LABEL org.opencontainers.image.description="A Docker image of the latest development version of historia."
+LABEL org.opencontainers.image.description="A Docker image of the latest development version of Historia."
 
 WORKDIR /opt/historia
 

@@ -1,22 +1,20 @@
 FROM python:3.13-slim AS builder
 
-WORKDIR /opt/historia
+COPY LICENSE.txt README.md pyproject.toml /tmp/historia/
+COPY src /tmp/historia/src
 
-COPY LICENSE.txt README.md pyproject.toml ./
-COPY src ./src
-
-RUN python -m pip install --upgrade pip build \
+RUN python -m pip install build \
+    && cd /tmp/historia \
     && python -m build --wheel
 
 FROM python:3.13-slim
 
 LABEL org.opencontainers.image.source="https://github.com/CodyCBakerPhD/historia"
-LABEL org.opencontainers.image.description="A Docker image of the latest released version of historia."
+LABEL org.opencontainers.image.description="A Docker image of the latest released version of Historia."
 
-COPY --from=builder /opt/historia/dist /tmp/dist
+COPY --from=builder /tmp/historia/dist /tmp/dist
 
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --no-cache-dir /tmp/dist/*.whl \
+RUN python -m pip install --no-cache-dir /tmp/dist/*.whl \
     && rm -rf /tmp/dist
 
 ENTRYPOINT ["historia"]
