@@ -27,3 +27,4 @@
 - Added Codecov integration to track test coverage on every pull request. ([#18](https://github.com/CodyCBakerPhD/historia/pull/18))
 - Set Sphinx Python signature rendering options to use Black-style wrapping behavior in API docs output. ([#19](https://github.com/CodyCBakerPhD/historia/pull/19))
 - Added a scheduled daily testing workflow that reuses the shared testing workflow via `workflow_call` to avoid duplicate CI configuration. ([#29](https://github.com/CodyCBakerPhD/historia/pull/29))
+- Added email notification to the daily tests workflow to alert on failures via `dawidd6/action-send-mail`. ([#40](https://github.com/CodyCBakerPhD/historia/pull/40))
