@@ -32,5 +32,3 @@ def test_submodule_exports_remain_available() -> None:
     assert hasattr(historia.project, "create_project_page")
     assert hasattr(historia.project, "move_done_to_history")
     assert hasattr(historia.project.update, "update_project_item_dates")
-
-
