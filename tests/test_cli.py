@@ -22,7 +22,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
 def test_data_subgroup_help_shows_commands() -> None:
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(historia._cli.historia_cli, ["data", "--help"])
+    result = runner.invoke(historia.historia_cli, ["data", "--help"])
 
     assert result.exit_code == 0
     assert "update" in result.output
@@ -33,7 +33,7 @@ def test_data_subgroup_help_shows_commands() -> None:
 def test_project_subgroup_help_shows_commands() -> None:
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(historia._cli.historia_cli, ["project", "--help"])
+    result = runner.invoke(historia.historia_cli, ["project", "--help"])
 
     assert result.exit_code == 0
     assert "create" in result.output
@@ -62,7 +62,7 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         ["data", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
     )
 
@@ -83,7 +83,7 @@ def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         ["data", "minify", "--directory", str(tmp_path)],
     )
 
@@ -104,7 +104,7 @@ def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) 
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         ["project", "create", "--owner", "octocat", "--title", "Work Board"],
     )
 
@@ -123,7 +123,7 @@ def test_project_create_command_shows_failure_message_when_none_returned(monkeyp
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         ["project", "create", "--owner", "octocat", "--title", "Work Board"],
     )
 
@@ -149,7 +149,7 @@ def test_project_populate_command_invokes_add_to_project(
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         [
             "project",
             "populate",
@@ -185,7 +185,7 @@ def test_project_populate_command_shows_error_on_exception(
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         [
             "project",
             "populate",
@@ -212,7 +212,7 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         [
             "project",
             "update",
@@ -241,7 +241,7 @@ def test_project_update_dates_command_shows_error_on_exception(
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         [
             "project",
             "update",
@@ -266,7 +266,7 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         [
             "project",
             "transition",
@@ -293,7 +293,7 @@ def test_project_transition_command_shows_error_on_exception(
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         [
             "project",
             "transition",
