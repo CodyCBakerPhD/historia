@@ -1,0 +1,15 @@
+name: Daily tests
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  DailyTests:
+    uses: ./.github/workflows/testing.yml
+    with:
+      pytest_markexpr: "not remote"
+      os_list: '["ubuntu-latest"]'
+      python_list: '["3.10","3.11","3.12","3.13","3.14"]'
+    secrets: inherit
