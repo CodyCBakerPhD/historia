@@ -119,7 +119,7 @@ def test_add_to_project_raises_without_token(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
     with pytest.raises(ValueError, match="GITHUB_TOKEN"):
-        historia.add_to_project(
+        historia.project.add_to_project(
             directory=pathlib.Path("/tmp/nonexistent"),
             project_url=_TEST_PROJECT_URL,
         )
@@ -130,7 +130,7 @@ def test_add_to_project_warns_when_no_urls(monkeypatch: pytest.MonkeyPatch, tmp_
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
     with pytest.warns(UserWarning, match="No URLs found"):
-        historia.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
 
 
 @pytest.mark.ai_generated
@@ -523,7 +523,7 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence):
-        historia.add_to_project(
+        historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
         )
@@ -581,7 +581,7 @@ def test_add_to_project_skips_url_with_null_resource(monkeypatch: pytest.MonkeyP
     ):
         with _warnings_module.catch_warnings():
             _warnings_module.simplefilter("error")
-            historia.add_to_project(
+            historia.project.add_to_project(
                 directory=tmp_path,
                 project_url="https://github.com/users/testuser/projects/1",
             )
@@ -668,7 +668,7 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        historia.add_to_project(
+        historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
             status="In Progress",
@@ -747,7 +747,7 @@ def test_add_to_project_status_override_unknown_status_warns(
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence):
         with pytest.warns(UserWarning, match="not found in project"):
-            historia.add_to_project(
+            historia.project.add_to_project(
                 directory=tmp_path,
                 project_url="https://github.com/users/testuser/projects/1",
                 status="NonExistentStatus",
@@ -862,7 +862,7 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        historia.add_to_project(
+        historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
         )
@@ -962,7 +962,7 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        historia.add_to_project(
+        historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
             end_date_placeholder_days=30,
@@ -1305,7 +1305,7 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        historia.add_to_project(
+        historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
         )
@@ -1527,7 +1527,7 @@ def test_move_done_to_history_moves_only_done_items(monkeypatch: pytest.MonkeyPa
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        historia.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
 
     # 4 calls: project_info, list_items, set_status×2
     assert mock_post.call_count == 4
@@ -1591,7 +1591,7 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
     }
 
     with unittest.mock.patch("requests.post", side_effect=[project_info_response, list_items_response]) as mock_post:
-        historia.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
 
     # Only 2 calls: project_info and list_items; no set_status calls
     assert mock_post.call_count == 2
@@ -1641,7 +1641,7 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     # Capture warnings so they appear in the failure message if the assertion fails.
     with _warnings_module.catch_warnings(record=True) as caught_warnings:
         _warnings_module.simplefilter("always")
-        historia.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
     warning_messages = [str(w.message) for w in caught_warnings]
 
     # Poll for the newly-added item with retries to handle GitHub API replication lag.
