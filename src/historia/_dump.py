@@ -36,7 +36,7 @@ def dump_specific_info(
         Whether the GitHub API rate limit was hit during the query.
     """
     year, month, day = date.split("-")
-    version = importlib.metadata.distribution("my_work_history").version
+    version = importlib.metadata.distribution("historia").version
     major, minor, _ = version.split(".")
 
     subdir = (

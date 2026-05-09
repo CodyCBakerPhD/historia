@@ -8,8 +8,8 @@ import warnings as _warnings_module
 import pytest
 import requests
 
-import my_work_history
-from my_work_history._add_to_project import (
+import historia
+from historia._add_to_project import (
     _add_item_to_project,
     _check_graphql_response,
     _collect_unique_urls,
@@ -23,7 +23,6 @@ from my_work_history._add_to_project import (
     move_done_to_history,
     update_project_item_dates,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers shared across integration tests
@@ -120,7 +119,7 @@ def test_add_to_project_raises_without_token(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
     with pytest.raises(ValueError, match="GITHUB_TOKEN"):
-        my_work_history.add_to_project(
+        historia.add_to_project(
             directory=pathlib.Path("/tmp/nonexistent"),
             project_url=_TEST_PROJECT_URL,
         )
@@ -131,7 +130,7 @@ def test_add_to_project_warns_when_no_urls(monkeypatch: pytest.MonkeyPatch, tmp_
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
     with pytest.warns(UserWarning, match="No URLs found"):
-        my_work_history.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+        historia.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
 
 
 @pytest.mark.ai_generated
@@ -400,15 +399,11 @@ def test_get_item_info_classifies_issue() -> None:
 def test_add_item_to_project_returns_item_id() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}
-    }
+    mock_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}}
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        item_id = _add_item_to_project(
-            project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers
-        )
+        item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
 
     assert item_id == "PVTI_item_id"
 
@@ -422,9 +417,7 @@ def test_add_item_to_project_returns_none_on_403() -> None:
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
         with pytest.warns(UserWarning):
-            item_id = _add_item_to_project(
-                project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers
-            )
+            item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
 
     assert item_id is None
 
@@ -504,9 +497,7 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
@@ -529,19 +520,23 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
         }
     }
 
-    response_sequence = [project_info_response, empty_project_response, item_info_response, add_item_response, set_status_response]
+    response_sequence = [
+        project_info_response,
+        empty_project_response,
+        item_info_response,
+        add_item_response,
+        set_status_response,
+    ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence):
-        my_work_history.add_to_project(
+        historia.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
         )
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_skips_url_with_null_resource(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_add_to_project_skips_url_with_null_resource(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """Items that return a null resource are silently skipped."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -592,7 +587,7 @@ def test_add_to_project_skips_url_with_null_resource(
     ):
         with _warnings_module.catch_warnings():
             _warnings_module.simplefilter("error")
-            my_work_history.add_to_project(
+            historia.add_to_project(
                 directory=tmp_path,
                 project_url="https://github.com/users/testuser/projects/1",
             )
@@ -647,9 +642,7 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
@@ -672,10 +665,16 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
         }
     }
 
-    response_sequence = [project_info_response, empty_project_response, item_info_response, add_item_response, set_status_response]
+    response_sequence = [
+        project_info_response,
+        empty_project_response,
+        item_info_response,
+        add_item_response,
+        set_status_response,
+    ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        my_work_history.add_to_project(
+        historia.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
             status="In Progress",
@@ -733,9 +732,7 @@ def test_add_to_project_status_override_unknown_status_warns(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     empty_project_response = unittest.mock.MagicMock()
     empty_project_response.status_code = 200
@@ -756,7 +753,7 @@ def test_add_to_project_status_override_unknown_status_warns(
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence):
         with pytest.warns(UserWarning, match="not found in project"):
-            my_work_history.add_to_project(
+            historia.add_to_project(
                 directory=tmp_path,
                 project_url="https://github.com/users/testuser/projects/1",
                 status="NonExistentStatus",
@@ -791,9 +788,7 @@ def test_set_item_date_calls_mutation() -> None:
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_sets_dates_when_fields_present(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """When the project has Start date / End date fields, they are set on added items."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -838,9 +833,7 @@ def test_add_to_project_sets_dates_when_fields_present(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_field_response = unittest.mock.MagicMock()
     set_field_response.status_code = 200
@@ -875,12 +868,13 @@ def test_add_to_project_sets_dates_when_fields_present(
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        my_work_history.add_to_project(
+        historia.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
         )
 
-    # 7 calls total: project_info, list_project_item_content_urls, item_info, add_item, set_status, set_start_date, set_end_date
+    # 7 calls total: project_info, list_project_item_content_urls, item_info,
+    # add_item, set_status, set_start_date, set_end_date
     assert mock_post.call_count == 7
     # Check start date call (6th call, index 5)
     start_date_call = mock_post.call_args_list[5]
@@ -941,9 +935,7 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_field_response = unittest.mock.MagicMock()
     set_field_response.status_code = 200
@@ -976,7 +968,7 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        my_work_history.add_to_project(
+        historia.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
             end_date_placeholder_days=30,
@@ -1240,9 +1232,7 @@ def test_list_project_item_content_urls_returns_empty_set_when_no_items() -> Non
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_skips_items_already_in_project(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """Items whose URLs are already in the project are excluded and not re-added."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -1303,9 +1293,7 @@ def test_add_to_project_skips_items_already_in_project(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
@@ -1323,7 +1311,7 @@ def test_add_to_project_skips_items_already_in_project(
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        my_work_history.add_to_project(
+        historia.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
         )
@@ -1510,26 +1498,16 @@ def test_move_done_to_history_moves_only_done_items(monkeypatch: pytest.MonkeyPa
                         "nodes": [
                             {
                                 "id": "PVTI_done_1",
-                                "fieldValues": {
-                                    "nodes": [
-                                        {"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}
-                                    ]
-                                },
+                                "fieldValues": {"nodes": [{"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}]},
                             },
                             {
                                 "id": "PVTI_done_2",
-                                "fieldValues": {
-                                    "nodes": [
-                                        {"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}
-                                    ]
-                                },
+                                "fieldValues": {"nodes": [{"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}]},
                             },
                             {
                                 "id": "PVTI_in_progress",
                                 "fieldValues": {
-                                    "nodes": [
-                                        {"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}
-                                    ]
+                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}]
                                 },
                             },
                         ],
@@ -1555,7 +1533,7 @@ def test_move_done_to_history_moves_only_done_items(monkeypatch: pytest.MonkeyPa
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        my_work_history.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        historia.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
 
     # 4 calls: project_info, list_items, set_status×2
     assert mock_post.call_count == 4
@@ -1619,7 +1597,7 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
     }
 
     with unittest.mock.patch("requests.post", side_effect=[project_info_response, list_items_response]) as mock_post:
-        my_work_history.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        historia.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
 
     # Only 2 calls: project_info and list_items; no set_status calls
     assert mock_post.call_count == 2
@@ -1669,7 +1647,7 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     # Capture warnings so they appear in the failure message if the assertion fails.
     with _warnings_module.catch_warnings(record=True) as caught_warnings:
         _warnings_module.simplefilter("always")
-        my_work_history.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+        historia.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
     warning_messages = [str(w.message) for w in caught_warnings]
 
     # Poll for the newly-added item with retries to handle GitHub API replication lag.
@@ -1688,9 +1666,9 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     )
 
     try:
-        assert added_item_id is not None, (
-            f"Expected {_KNOWN_CLOSED_PR_URL!r} to be present in the project after add_to_project.\n{diagnostic}"
-        )
+        assert (
+            added_item_id is not None
+        ), f"Expected {_KNOWN_CLOSED_PR_URL!r} to be present in the project after add_to_project.\n{diagnostic}"
     finally:
         # Always clean up, even if the assertion fails.
         if added_item_id is not None:

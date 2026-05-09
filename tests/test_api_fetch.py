@@ -1,10 +1,11 @@
-import my_work_history
 import pytest
+
+import historia
 
 
 @pytest.mark.ai_generated
 def test_fetch_info_graphql() -> None:
-    test_info, _ = my_work_history.fetch_info_for_date(
+    test_info, _ = historia.fetch_info_for_date(
         info_type="issues_opened",
         date="2026-01-05",
         username="codycbakerphd",

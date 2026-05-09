@@ -2,13 +2,14 @@ import importlib.metadata
 import json
 import pathlib
 
-import my_work_history
 import pytest
+
+import historia
 
 
 @pytest.mark.ai_generated
 def test_dump_info_for_date_graphql(tmp_path: pathlib.Path) -> None:
-    version = importlib.metadata.distribution("my_work_history").version
+    version = importlib.metadata.distribution("historia").version
     major, minor, _ = version.split(".")
     username = "codycbakerphd"
 
@@ -21,7 +22,7 @@ def test_dump_info_for_date_graphql(tmp_path: pathlib.Path) -> None:
     expected_version_directory = expected_directory / "version-0+1"  # Use static version since assertions are relative
     expected_request_directory = expected_version_directory / f"username-{username}" / "request-graphql"
 
-    my_work_history.dump_info_for_date(
+    historia.dump_info_for_date(
         directory=test_directory,
         date="2026-01-05",
         username=username,
