@@ -6,4 +6,3 @@ API reference
 
    historia.data
    historia.project
-   historia.project.update
