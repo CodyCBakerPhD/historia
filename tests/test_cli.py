@@ -25,7 +25,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
     [
         ("data", ["update", "minify"]),
         ("project", ["create", "populate", "update", "transition"]),
-        ("github", ["data", "project"]),
+        ("github", ["data"]),
     ],
 )
 def test_subgroup_help_shows_commands(group: str, expected_commands: list[str]) -> None:

@@ -73,10 +73,6 @@ def _historia_project_cli():
     pass
 
 
-# historia github project
-_historia_github_cli.add_command(_historia_project_cli, name="project")
-
-
 # historia project create
 @_historia_project_cli.command(name="create")
 @rich_click.option("--owner", type=str, required=True, help="GitHub user or organization login to own the project.")
