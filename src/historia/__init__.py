@@ -1,16 +1,8 @@
-from ._add_to_project import add_to_project, move_done_to_history, update_project_item_dates
-from ._create_project import create_project_page
-from ._fetch_info import fetch_info_for_date
-from ._dump import dump_specific_info, dump_info_for_date
-from ._update import update
+from . import data, project
+from ._cli import historia_cli
 
 __all__ = [
-    "add_to_project",
-    "create_project_page",
-    "dump_specific_info",
-    "dump_info_for_date",
-    "fetch_info_for_date",
-    "move_done_to_history",
-    "update",
-    "update_project_item_dates",
+    "data",
+    "historia_cli",
+    "project",
 ]

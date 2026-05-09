@@ -2,20 +2,26 @@ import pathlib
 
 import rich_click
 
-from ._add_to_project import add_to_project, move_done_to_history, update_project_item_dates
-from ._create_project import create_project_page
-from ._minify import _minify
-from ._update import update
+from .data import minify as _minify
+from .data import update
+from .project import add_to_project, create_project_page, move_done_to_history
+from .project.update import update_project_item_dates
 
 
-# mywork
-@rich_click.group(name="mywork")
-def _mywork_cli():
+# historia
+@rich_click.group(name="historia")
+def historia_cli():
     pass
 
 
-# mywork update
-@_mywork_cli.command(name="update")
+# historia data
+@historia_cli.group(name="data")
+def _historia_data_cli():
+    pass
+
+
+# historia data update
+@_historia_data_cli.command(name="update")
 @rich_click.option("--directory", type=str, required=True, help="Directory to save the data to.")
 @rich_click.option("--username", type=str, required=True, help="GitHub username to fetch information about.")
 @rich_click.option(
@@ -25,7 +31,7 @@ def _mywork_cli():
     required=True,
     help="Number of most recent days to fetch. Smart updating still applies.",
 )
-def _mywork_update_cli(
+def _historia_data_update_cli(
     directory: str,
     username: str,
     past_number_of_days: int,
@@ -35,8 +41,8 @@ def _mywork_update_cli(
     update(directory=directory, username=username, past_number_of_days=past_number_of_days)
 
 
-# mywork minify
-@_mywork_cli.command(name="minify")
+# historia data minify
+@_historia_data_cli.command(name="minify")
 @rich_click.option(
     "--directory",
     type=str,
@@ -46,17 +52,23 @@ def _mywork_update_cli(
         "E.g., `/path/to/version-0+1/username-codycbakerphd/request-graphql`."
     ),
 )
-def _mywork_minify_cli(directory: str) -> None:
+def _historia_data_minify_cli(directory: str) -> None:
     directory = pathlib.Path(directory)
 
     _minify(directory=directory)
 
 
-# mywork create
-@_mywork_cli.command(name="create")
+# historia project
+@historia_cli.group(name="project")
+def _historia_project_cli():
+    pass
+
+
+# historia project create
+@_historia_project_cli.command(name="create")
 @rich_click.option("--owner", type=str, required=True, help="GitHub user or organization login to own the project.")
 @rich_click.option("--title", type=str, required=True, help="Title of the new GitHub Project.")
-def _mywork_create_project_cli(owner: str, title: str) -> None:
+def _historia_project_create_cli(owner: str, title: str) -> None:
     project = create_project_page(owner=owner, title=title)
     if project:
         message = f"Project created successfully!\nID: {project['id']}\nURL: {project['url']}"
@@ -66,8 +78,8 @@ def _mywork_create_project_cli(owner: str, title: str) -> None:
         rich_click.echo(rich_click.style(message, fg="red"))
 
 
-# mywork populate
-@_mywork_cli.command(name="populate")
+# historia project populate
+@_historia_project_cli.command(name="populate")
 @rich_click.option(
     "--directory",
     type=str,
@@ -108,7 +120,9 @@ def _mywork_create_project_cli(owner: str, title: str) -> None:
         "when the item has not yet been closed. Default is 180 (approximately 6 months)."
     ),
 )
-def _mywork_populate_cli(directory: str, project_url: str, status: str | None, end_date_placeholder_days: int) -> None:
+def _historia_project_populate_cli(
+    directory: str, project_url: str, status: str | None, end_date_placeholder_days: int
+) -> None:
     try:
         add_to_project(
             directory=pathlib.Path(directory),
@@ -121,8 +135,14 @@ def _mywork_populate_cli(directory: str, project_url: str, status: str | None, e
         raise SystemExit(1)
 
 
-# mywork update-dates
-@_mywork_cli.command(name="update-dates")
+# historia project update
+@_historia_project_cli.group(name="update")
+def _historia_project_update_cli():
+    pass
+
+
+# historia project update dates
+@_historia_project_update_cli.command(name="dates")
 @rich_click.option(
     "--project-url",
     type=str,
@@ -144,7 +164,7 @@ def _mywork_populate_cli(directory: str, project_url: str, status: str | None, e
         "when the item has not yet been closed. Default is 180 (approximately 6 months)."
     ),
 )
-def _mywork_update_dates_cli(project_url: str, end_date_placeholder_days: int) -> None:
+def _historia_project_update_dates_cli(project_url: str, end_date_placeholder_days: int) -> None:
     try:
         update_project_item_dates(project_url=project_url, end_date_placeholder_days=end_date_placeholder_days)
     except (ValueError, RuntimeError) as e:
@@ -152,8 +172,8 @@ def _mywork_update_dates_cli(project_url: str, end_date_placeholder_days: int) -
         raise SystemExit(1)
 
 
-# mywork transition
-@_mywork_cli.command(name="transition")
+# historia project transition
+@_historia_project_cli.command(name="transition")
 @rich_click.option(
     "--project-url",
     type=str,
@@ -170,10 +190,13 @@ def _mywork_update_dates_cli(project_url: str, end_date_placeholder_days: int) -
     required=True,
     help="The current status of items to transition. Currently only 'DONE' is supported.",
 )
-def _mywork_transition_cli(project_url: str, status: str) -> None:
+def _historia_project_transition_cli(project_url: str, status: str) -> None:
     try:
         if status == "DONE":
             move_done_to_history(project_url=project_url)
     except (ValueError, RuntimeError) as e:
         rich_click.echo(rich_click.style(str(e), fg="red"))
         raise SystemExit(1)
+
+
+_mywork_cli = historia_cli
