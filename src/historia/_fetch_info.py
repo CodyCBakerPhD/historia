@@ -11,8 +11,7 @@ def fetch_info_for_date(
     info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
     date: str,
     username: str,
-    request_type: typing.Literal["rest", "graphql"],
-) -> tuple[list[dict[str, typing.Any | list[dict[str, typing.Any]]]], bool]:
+) -> tuple[list[str], bool]:
     """
     Fetch GitHub info (issues, PRs, etc.) created by a specific user on a specific date.
 
@@ -27,8 +26,8 @@ def fetch_info_for_date(
 
     Returns
     -------
-    list[dict]
-        A list of dictionaries containing the GitHub info for the specified date and user.
+    list[str]
+        A list of GitHub issue or pull request URLs for the specified date and user.
     bool
         Whether or not the GitHub API rate limit was hit during the query.
     """
@@ -43,81 +42,18 @@ def fetch_info_for_date(
         )
         raise ValueError(message)
 
-    if request_type == "rest":
-        result, hit_rate_limit = _fetch_info_for_date_rest(
-            info_type=info_type,
-            date=date,
-            username=username,
-            token=github_token,
-        )
-    else:
-        result, hit_rate_limit = _fetch_info_for_date_graphql(
-            info_type=info_type,
-            date=date,
-            username=username,
-            token=github_token,
-        )
+    result, hit_rate_limit = _fetch_info_for_date_graphql(
+        info_type=info_type,
+        date=date,
+        username=username,
+        token=github_token,
+    )
 
     return result, hit_rate_limit
 
 
 @functools.cache
-def _format_rest_queries(date: str, username: str) -> dict[str, dict[str, str]]:
-    entities_to_url_and_rest_query_mapping = {
-        "prs_opened": {
-            "url": "https://api.github.com/search/issues",
-            "query": f"author:{username} type:pr created:{date}T00:00:00..{date}T23:59:59",
-        },
-        "prs_assigned": {
-            "url": "https://api.github.com/search/issues",
-            "query": f"assignee:{username} type:pr assigned:{date}T00:00:00..{date}T23:59:59",
-        },
-        "issues_opened": {
-            "url": "https://api.github.com/search/issues",
-            "query": f"author:{username} type:issue created:{date}T00:00:00..{date}T23:59:59",
-        },
-        "issues_assigned": {
-            "url": "https://api.github.com/search/issues",
-            "query": f"assignee:{username} type:issue assigned:{date}T00:00:00..{date}T23:59:59",
-        },
-    }
-    return entities_to_url_and_rest_query_mapping
-
-
-def _fetch_info_for_date_rest(
-    info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
-    date: str,
-    username: str,
-    token: str,
-) -> tuple[list[dict[str, typing.Any | list[dict[str, typing.Any]]]], bool]:
-    entities_to_url_and_rest_query_mapping = _format_rest_queries(date=date, username=username)
-
-    url = entities_to_url_and_rest_query_mapping[info_type]["url"]
-    query = entities_to_url_and_rest_query_mapping[info_type]["query"]
-    response = requests.get(url=url, headers={"Authorization": f"token {token}"}, params={"q": query})
-    status = response.status_code
-    result = response.json()
-
-    if result["incomplete_results"] is True:
-        message = (
-            f"GitHub REST API query `{query}` to URL `{url}` returned incomplete results! Please investigate."
-            f"\nStatus code {status}: {result}"
-        )
-        raise RuntimeError(message)
-
-    message = f"GitHub REST API query `{query}` to URL `{url}` failed!\n" f"Status code {status}: {result}"
-    hit_rate_limit = False
-    if status == 403:
-        hit_rate_limit = True
-        warnings.warn(message=message, stacklevel=2)
-    elif status != 200:
-        raise RuntimeError(message)
-
-    return result, hit_rate_limit
-
-
-@functools.cache
-def _format_graphql_queries(date: str, username: str) -> dict[str, dict[str, str]]:
+def _format_graphql_queries(date: str, username: str) -> dict[str, str]:
     entities_to_graphql_query_template = {
         "prs_opened": """
 query OpenPRs($first: Int!) {
@@ -190,7 +126,7 @@ def _fetch_info_for_date_graphql(
     date: str,
     username: str,
     token: str,
-) -> tuple[list[dict[str, typing.Any | list[dict[str, typing.Any]]]], bool]:
+) -> tuple[list[str], bool]:
     entities_to_graphql_query_mapping = _format_graphql_queries(date=date, username=username)
 
     query = entities_to_graphql_query_mapping[info_type]

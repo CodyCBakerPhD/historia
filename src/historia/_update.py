@@ -1,6 +1,5 @@
 import datetime
 import pathlib
-import typing
 
 import tqdm
 
@@ -11,7 +10,6 @@ def update(
     directory: pathlib.Path,
     username: str,
     past_number_of_days: int,
-    request_type: typing.Literal["rest", "graphql"],
 ) -> None:
     today = datetime.date.today()
 
@@ -25,6 +23,4 @@ def update(
             date = (today - datetime.timedelta(days=day)).strftime("%Y-%m-%d")
             progress_bar.set_postfix(date=date)
             overwrite = day < 2
-            dump_info_for_date(
-                directory=directory, date=date, username=username, request_type=request_type, overwrite=overwrite
-            )
+            dump_info_for_date(directory=directory, date=date, username=username, overwrite=overwrite)

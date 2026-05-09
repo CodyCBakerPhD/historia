@@ -6,7 +6,6 @@ import my_work_history
 import pytest
 
 
-
 @pytest.mark.ai_generated
 def test_dump_info_for_date_graphql(tmp_path: pathlib.Path) -> None:
     version = importlib.metadata.distribution("my_work_history").version
@@ -26,7 +25,6 @@ def test_dump_info_for_date_graphql(tmp_path: pathlib.Path) -> None:
         directory=test_directory,
         date="2026-01-05",
         username=username,
-        request_type="graphql",
     )
 
     test_file_paths = sorted(list(test_request_directory.rglob(pattern="*.json")))
