@@ -1,0 +1,106 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/historia"]
+
+
+
+[project]
+name = "historia"
+version = "0.1.0"
+authors = [
+  { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
+]
+description = "Collects GitHub activity for use in project dashboards."
+readme = "README.md"
+keywords = [
+    "GitHub",
+    "work history",
+    "data collection",
+    "project management",
+]
+license = {file = "LICENSE.txt"}
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "tqdm",
+    "pytest",
+    "pre-commit",
+    "ipython",
+    "rich-click",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.scripts]
+mywork = "historia._cli:_historia_cli"
+
+
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.toml
+  |\.yml
+  |\.txt
+  |\.sh
+  |\.git
+  |\.ini
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+exclude = [
+  "*/__init__.py",
+]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F", "E", "I"]
+ignore = [
+    "PTH123",
+    "D203",
+    "D212",
+    "T201",
+    "FIX002",
+    "TD003",
+    "TD002",
+    "S101",
+    "ICN001",
+    "INP001",
+]
+fixable = ["ALL"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "ai_generated: mark test as AI-generated",
+]
+
+[tool.ruff.lint.isort]
+relative-imports-order = "closest-to-furthest"

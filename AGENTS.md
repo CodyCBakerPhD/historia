@@ -1,0 +1,10 @@
+# Agent instructions
+
+-   Always run `pre-commit` before committing and pushing changes
+-   To the best of your ability, ensure tests are passing
+-   Follow assertion style (actual on left, expected on right)
+-   Always mark AI-generated tests with `ai_generated` Pytest marker
+-   Always bump the version in `pyproject.toml` appropriately when any file under `src/` (except `tests/` or `docs/`)
+-   Leave a short description of the change or addition in the top `## Upcoming` section of the `CHANGELOG.md` under the appropriate subsection (`#### 🚀 Enhancement`, `#### 🐛 Bug Fix`, or `#### 🏠 Internal`); create the subsection if it does not yet exist; include the GitHub PR link at the end of each entry in the format `([#N](https://github.com/stamped-principles/stamped-checklist/pull/N))`
+-   PR titles should be human-readable and in the past tense; they should NOT use conventional commit style
+-   Always add new imports to the top of the file rather than locally scoped inside a function; the only exception is if it is needed to avoid a circular dependency
