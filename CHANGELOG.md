@@ -10,7 +10,7 @@
 - Limited top-level `historia` exports to submodules (`historia.data`, `historia.project`) so package imports consistently follow domain-grouped API paths. ([#12](https://github.com/CodyCBakerPhD/historia/pull/12))
 - Renamed the root CLI function to `historia_cli` and exposed it for plugin integrations as both `historia._cli.historia_cli` and `historia.historia_cli`, while preserving private aliases. ([#12](https://github.com/CodyCBakerPhD/historia/pull/12))
 - Added Sphinx documentation scaffolding with the PyData theme, API autodocs, and Read the Docs configuration for hosted docs builds. ([#19](https://github.com/CodyCBakerPhD/historia/pull/19))
-- Unpacked project date updates to `historia.project.update_project_item_dates` and simplified API docs navigation by removing the extra `historia.project.update` layer. ([#N](https://github.com/stamped-principles/stamped-checklist/pull/N))
+- Unpacked project date updates to `historia.project.update_project_item_dates` and simplified API docs navigation by removing the extra `historia.project.update` layer. ([#34](https://github.com/CodyCBakerPhD/historia/pull/34))
 
 #### 🐛 Bug Fix
 
