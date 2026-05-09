@@ -155,7 +155,7 @@ def test_collect_unique_urls_reads_json_files(tmp_path: pathlib.Path) -> None:
 @pytest.mark.ai_generated
 def test_collect_unique_urls_ignores_non_list_json(tmp_path: pathlib.Path) -> None:
     """GraphQL-only collection should ignore legacy dict-shaped payloads."""
-    non_list_payload = {
+    legacy_rest_response = {
         "total_count": 2,
         "incomplete_results": False,
         "search_type": "lexical",
@@ -164,7 +164,7 @@ def test_collect_unique_urls_ignores_non_list_json(tmp_path: pathlib.Path) -> No
             {"html_url": "https://github.com/owner/repo/issues/20", "other_field": "ignored"},
         ],
     }
-    (tmp_path / "legacy-rest.json").write_text(json.dumps(non_list_payload))
+    (tmp_path / "legacy-rest.json").write_text(json.dumps(legacy_rest_response))
 
     result = _collect_unique_urls(directory=tmp_path)
 
@@ -175,14 +175,14 @@ def test_collect_unique_urls_ignores_non_list_json(tmp_path: pathlib.Path) -> No
 def test_collect_unique_urls_mixed_formats(tmp_path: pathlib.Path) -> None:
     """A directory with mixed payload shapes should only use GraphQL list URLs."""
     graphql_urls = ["https://github.com/owner/repo/pull/1"]
-    non_list_payload = {
+    legacy_rest_response = {
         "total_count": 1,
         "incomplete_results": False,
         "search_type": "lexical",
         "items": [{"html_url": "https://github.com/owner/repo/issues/2"}],
     }
     (tmp_path / "graphql.json").write_text(json.dumps(graphql_urls))
-    (tmp_path / "legacy-rest.json").write_text(json.dumps(non_list_payload))
+    (tmp_path / "legacy-rest.json").write_text(json.dumps(legacy_rest_response))
 
     result = _collect_unique_urls(directory=tmp_path)
 

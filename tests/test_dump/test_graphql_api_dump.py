@@ -25,7 +25,7 @@ def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: p
     expected_version_directory = expected_directory / "version-0+1"  # Use static version since assertions are relative
     expected_request_directory = expected_version_directory / f"username-{username}" / "request-graphql"
 
-    def _fake_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
+    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
         assert date == "2026-01-05"
         assert username == "codycbakerphd"
         if info_type == "issues_opened":
@@ -41,7 +41,7 @@ def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: p
             )
         return ([], False)
 
-    monkeypatch.setattr(historia._dump, "fetch_info_for_date", _fake_fetch_info_for_date)
+    monkeypatch.setattr(historia._dump, "fetch_info_for_date", _mock_fetch_info_for_date)
 
     historia.dump_info_for_date(
         directory=test_directory,
