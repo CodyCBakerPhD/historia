@@ -1,7 +1,7 @@
 Historia Documentation
 ======================
 
-.. image:: https://github.com/user-attachments/assets/7314926e-e6b6-4c26-b579-fc245c5ee79a
+.. image:: https://raw.githubusercontent.com/CodyCBakerPhD/historia/main/docs/assets/historia-logo.png
    :alt: Historia logo
    :align: center
    :width: 320px

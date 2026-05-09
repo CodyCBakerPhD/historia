@@ -1,7 +1,7 @@
 # Historia
 
 <p align="center">
-  <img alt="Historia logo" src="https://github.com/user-attachments/assets/7314926e-e6b6-4c26-b579-fc245c5ee79a" width="320">
+  <img alt="Historia logo" src="https://raw.githubusercontent.com/CodyCBakerPhD/historia/main/docs/assets/historia-logo.png" width="320">
 </p>
 
 <p align="center">
