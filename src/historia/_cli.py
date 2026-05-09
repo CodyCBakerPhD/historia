@@ -10,16 +10,16 @@ from .project.update import update_project_item_dates
 
 # historia
 @rich_click.group(name="historia")
-def _historia_cli():
+def historia_cli():
     pass
 
 
-# Public root CLI command for plugin integrations.
-historia_cli = _historia_cli
+# Backward-compatible alias.
+_historia_cli = historia_cli
 
 
 # historia data
-@_historia_cli.group(name="data")
+@historia_cli.group(name="data")
 def _historia_data_cli():
     pass
 
@@ -63,7 +63,7 @@ def _historia_data_minify_cli(directory: str) -> None:
 
 
 # historia project
-@_historia_cli.group(name="project")
+@historia_cli.group(name="project")
 def _historia_project_cli():
     pass
 
@@ -203,4 +203,4 @@ def _historia_project_transition_cli(project_url: str, status: str) -> None:
         raise SystemExit(1)
 
 
-_mywork_cli = _historia_cli
+_mywork_cli = historia_cli

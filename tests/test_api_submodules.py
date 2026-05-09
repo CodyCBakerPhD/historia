@@ -1,6 +1,7 @@
 import pytest
 
 import historia
+import historia._cli
 import historia.data
 import historia.project
 import historia.project.update
@@ -9,6 +10,7 @@ import historia.project.update
 @pytest.mark.ai_generated
 def test_global_init_exposes_submodules() -> None:
     assert hasattr(historia, "data")
+    assert hasattr(historia, "historia_cli")
     assert hasattr(historia, "project")
 
 
@@ -30,3 +32,8 @@ def test_submodule_exports_remain_available() -> None:
     assert hasattr(historia.project, "create_project_page")
     assert hasattr(historia.project, "move_done_to_history")
     assert hasattr(historia.project.update, "update_project_item_dates")
+
+
+@pytest.mark.ai_generated
+def test_global_init_exposes_public_root_cli() -> None:
+    assert historia.historia_cli is historia._cli.historia_cli
