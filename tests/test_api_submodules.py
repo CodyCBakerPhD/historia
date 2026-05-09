@@ -8,6 +8,9 @@ import historia.project.update
 
 @pytest.mark.ai_generated
 def test_data_submodule_matches_top_level_api() -> None:
+    assert historia.data.dump_info_for_date is historia.dump_info_for_date
+    assert historia.data.dump_specific_info is historia.dump_specific_info
+    assert historia.data.fetch_info_for_date is historia.fetch_info_for_date
     assert historia.data.update is historia.update
 
 
