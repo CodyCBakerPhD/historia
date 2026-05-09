@@ -3,8 +3,8 @@ import json
 import pathlib
 import typing
 
-from ..._globals import INFO_TYPES
 from ._fetch_info import fetch_info_for_date
+from ..._globals import INFO_TYPES
 
 
 def dump_specific_info(
