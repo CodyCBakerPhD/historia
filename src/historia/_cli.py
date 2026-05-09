@@ -10,12 +10,18 @@ from ._update import update
 
 # mywork
 @rich_click.group(name="mywork")
-def _mywork_cli():
+def _historia_cli():
     pass
 
 
-# mywork update
-@_mywork_cli.command(name="update")
+# mywork request
+@_historia_cli.group(name="request")
+def _mywork_request_cli():
+    pass
+
+
+# mywork request update
+@_mywork_request_cli.command(name="update")
 @rich_click.option("--directory", type=str, required=True, help="Directory to save the data to.")
 @rich_click.option("--username", type=str, required=True, help="GitHub username to fetch information about.")
 @rich_click.option(
@@ -35,8 +41,8 @@ def _mywork_update_cli(
     update(directory=directory, username=username, past_number_of_days=past_number_of_days)
 
 
-# mywork minify
-@_mywork_cli.command(name="minify")
+# mywork request minify
+@_mywork_request_cli.command(name="minify")
 @rich_click.option(
     "--directory",
     type=str,
@@ -52,8 +58,14 @@ def _mywork_minify_cli(directory: str) -> None:
     _minify(directory=directory)
 
 
-# mywork create
-@_mywork_cli.command(name="create")
+# mywork project
+@_historia_cli.group(name="project")
+def _mywork_project_cli():
+    pass
+
+
+# mywork project create
+@_mywork_project_cli.command(name="create")
 @rich_click.option("--owner", type=str, required=True, help="GitHub user or organization login to own the project.")
 @rich_click.option("--title", type=str, required=True, help="Title of the new GitHub Project.")
 def _mywork_create_project_cli(owner: str, title: str) -> None:
@@ -66,8 +78,8 @@ def _mywork_create_project_cli(owner: str, title: str) -> None:
         rich_click.echo(rich_click.style(message, fg="red"))
 
 
-# mywork populate
-@_mywork_cli.command(name="populate")
+# mywork project populate
+@_mywork_project_cli.command(name="populate")
 @rich_click.option(
     "--directory",
     type=str,
@@ -121,8 +133,8 @@ def _mywork_populate_cli(directory: str, project_url: str, status: str | None, e
         raise SystemExit(1)
 
 
-# mywork update-dates
-@_mywork_cli.command(name="update-dates")
+# mywork project update-dates
+@_mywork_project_cli.command(name="update-dates")
 @rich_click.option(
     "--project-url",
     type=str,
@@ -152,8 +164,8 @@ def _mywork_update_dates_cli(project_url: str, end_date_placeholder_days: int) -
         raise SystemExit(1)
 
 
-# mywork transition
-@_mywork_cli.command(name="transition")
+# mywork project transition
+@_mywork_project_cli.command(name="transition")
 @rich_click.option(
     "--project-url",
     type=str,
