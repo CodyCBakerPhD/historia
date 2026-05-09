@@ -5,3 +5,5 @@ uv*
 *.DS_Store
 coverage.xml
 .coverage
+docs/_build/
+docs/api/generated/
