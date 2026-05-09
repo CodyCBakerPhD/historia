@@ -10,12 +10,12 @@ from ._update import update
 
 # mywork
 @rich_click.group(name="mywork")
-def _historia_cli():
+def _mywork_cli():
     pass
 
 
 # mywork request
-@_historia_cli.group(name="request")
+@_mywork_cli.group(name="request")
 def _historia_request_cli():
     pass
 
@@ -59,7 +59,7 @@ def _mywork_minify_cli(directory: str) -> None:
 
 
 # mywork project
-@_historia_cli.group(name="project")
+@_mywork_cli.group(name="project")
 def _historia_project_cli():
     pass
 
@@ -189,3 +189,6 @@ def _mywork_transition_cli(project_url: str, status: str) -> None:
     except (ValueError, RuntimeError) as e:
         rich_click.echo(rich_click.style(str(e), fg="red"))
         raise SystemExit(1)
+
+
+_historia_cli = _mywork_cli
