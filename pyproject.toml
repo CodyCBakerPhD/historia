@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.5.1"
+version = "0.5.2"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -51,6 +51,12 @@ classifiers = [
 [project.scripts]
 historia = "historia._cli:historia_cli"
 mywork = "historia._cli:historia_cli"
+
+[dependency-groups]
+docs = [
+    "sphinx>=8.0,<9",
+    "pydata-sphinx-theme>=0.16,<0.17",
+]
 
 
 
