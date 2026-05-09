@@ -15,6 +15,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
     result = runner.invoke(historia.historia_cli, ["--help"])
 
     assert result.exit_code == 0
+    assert "data" in result.output
     assert "github" in result.output
     assert "project" in result.output
 
@@ -23,6 +24,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
 @pytest.mark.parametrize(
     ("group", "expected_commands"),
     [
+        ("data", ["minify"]),
         ("project", ["create", "populate", "update", "transition"]),
         ("github", ["data"]),
     ],
@@ -79,7 +81,7 @@ def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp
 
     result = runner.invoke(
         historia.historia_cli,
-        ["github", "data", "minify", "--directory", str(tmp_path)],
+        ["data", "minify", "--directory", str(tmp_path)],
     )
 
     assert result.exit_code == 0
@@ -87,22 +89,14 @@ def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp
 
 
 @pytest.mark.ai_generated
-def test_github_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    called_args: dict[str, pathlib.Path] = {}
-
-    def _fake_minify(directory: pathlib.Path) -> None:
-        called_args["directory"] = directory
-
-    monkeypatch.setattr(historia._cli, "_minify", _fake_minify)
+def test_github_data_help_shows_update_only() -> None:
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(
-        historia.historia_cli,
-        ["github", "data", "minify", "--directory", str(tmp_path)],
-    )
+    result = runner.invoke(historia.historia_cli, ["github", "data", "--help"])
 
     assert result.exit_code == 0
-    assert called_args["directory"] == tmp_path
+    assert "update" in result.output
+    assert "minify" not in result.output
 
 
 @pytest.mark.ai_generated
