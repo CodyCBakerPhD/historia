@@ -14,8 +14,6 @@ def historia_cli():
     pass
 
 
-# Backward-compatible alias.
-_historia_cli = historia_cli
 
 
 # historia data
