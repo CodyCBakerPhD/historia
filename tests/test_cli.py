@@ -1,9 +1,11 @@
 import pathlib
+from collections.abc import Callable
 
 import click.testing
 import pytest
 
 import historia
+import historia._cli
 
 
 @pytest.mark.ai_generated
@@ -15,6 +17,24 @@ def test_root_cli_help_shows_nested_groups() -> None:
     assert result.exit_code == 0
     assert "data" in result.output
     assert "project" in result.output
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("group", "expected_commands"),
+    [
+        ("data", ["update", "minify"]),
+        ("project", ["create", "populate", "update", "transition"]),
+    ],
+)
+def test_subgroup_help_shows_commands(group: str, expected_commands: list[str]) -> None:
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(historia.historia_cli, [group, "--help"])
+
+    assert result.exit_code == 0
+    for cmd in expected_commands:
+        assert cmd in result.output
 
 
 @pytest.mark.ai_generated
@@ -37,7 +57,7 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         ["data", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
     )
 
@@ -45,6 +65,25 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
     assert called_args["directory"] == tmp_path
     assert called_args["username"] == "octocat"
     assert called_args["past_number_of_days"] == 3
+
+
+@pytest.mark.ai_generated
+def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    called_args: dict[str, pathlib.Path] = {}
+
+    def _fake_minify(directory: pathlib.Path) -> None:
+        called_args["directory"] = directory
+
+    monkeypatch.setattr(historia._cli, "_minify", _fake_minify)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        ["data", "minify", "--directory", str(tmp_path)],
+    )
+
+    assert result.exit_code == 0
+    assert called_args["directory"] == tmp_path
 
 
 @pytest.mark.ai_generated
@@ -60,7 +99,7 @@ def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) 
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         ["project", "create", "--owner", "octocat", "--title", "Work Board"],
     )
 
@@ -68,6 +107,63 @@ def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) 
     assert called_args["owner"] == "octocat"
     assert called_args["title"] == "Work Board"
     assert "Project created successfully!" in result.output
+
+
+@pytest.mark.ai_generated
+def test_project_create_command_shows_failure_message_when_none_returned(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake_create(owner: str, title: str) -> None:
+        pass
+
+    monkeypatch.setattr(historia._cli, "create_project_page", _fake_create)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        ["project", "create", "--owner", "octocat", "--title", "Work Board"],
+    )
+
+    assert result.exit_code == 0
+    assert "Project creation failed" in result.output
+
+
+@pytest.mark.ai_generated
+def test_project_populate_command_invokes_add_to_project(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    called_args: dict[str, pathlib.Path | str | int | None] = {}
+
+    def _fake_add_to_project(
+        directory: pathlib.Path, project_url: str, status: str | None, end_date_placeholder_days: int
+    ) -> None:
+        called_args["directory"] = directory
+        called_args["project_url"] = project_url
+        called_args["status"] = status
+        called_args["end_date_placeholder_days"] = end_date_placeholder_days
+
+    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "populate",
+            "--directory",
+            str(tmp_path),
+            "--project-url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "In Progress",
+            "--end-date-placeholder-days",
+            "90",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called_args["directory"] == tmp_path
+    assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
+    assert called_args["status"] == "In Progress"
+    assert called_args["end_date_placeholder_days"] == 90
 
 
 @pytest.mark.ai_generated
@@ -82,7 +178,7 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli.historia_cli,
+        historia.historia_cli,
         [
             "project",
             "update",
@@ -97,3 +193,87 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
     assert result.exit_code == 0
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
     assert called_args["end_date_placeholder_days"] == 200
+
+
+@pytest.mark.ai_generated
+def test_project_transition_command_invokes_move_done_to_history(monkeypatch: pytest.MonkeyPatch) -> None:
+    called_args: dict[str, str] = {}
+
+    def _fake_move_done_to_history(project_url: str) -> None:
+        called_args["project_url"] = project_url
+
+    monkeypatch.setattr(historia._cli, "move_done_to_history", _fake_move_done_to_history)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "transition",
+            "--project-url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "DONE",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize("exception_type", [ValueError, RuntimeError])
+@pytest.mark.parametrize(
+    ("attr_name", "make_cli_args"),
+    [
+        (
+            "add_to_project",
+            lambda tmp_path: [
+                "project",
+                "populate",
+                "--directory",
+                str(tmp_path),
+                "--project-url",
+                "https://github.com/users/octocat/projects/1",
+            ],
+        ),
+        (
+            "update_project_item_dates",
+            lambda _: [
+                "project",
+                "update",
+                "dates",
+                "--project-url",
+                "https://github.com/users/octocat/projects/1",
+            ],
+        ),
+        (
+            "move_done_to_history",
+            lambda _: [
+                "project",
+                "transition",
+                "--project-url",
+                "https://github.com/users/octocat/projects/1",
+                "--status",
+                "DONE",
+            ],
+        ),
+    ],
+)
+def test_project_command_shows_error_on_exception(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    exception_type: type[Exception],
+    attr_name: str,
+    make_cli_args: Callable[[pathlib.Path], list[str]],
+) -> None:
+    def _fake(*args: object, **kwargs: object) -> None:
+        raise exception_type("something went wrong")
+
+    monkeypatch.setattr(historia._cli, attr_name, _fake)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(historia.historia_cli, make_cli_args(tmp_path))
+
+    assert result.exit_code == 1
+    assert "something went wrong" in result.output
