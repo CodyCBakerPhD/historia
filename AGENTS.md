@@ -4,6 +4,7 @@
 -   To the best of your ability, ensure tests are passing
 -   Follow assertion style (actual on left, expected on right)
 -   Always mark AI-generated tests with `ai_generated` Pytest marker
+-   Attempt to utilize `pytest.mark.parametrize` wherever appropriate to reduce duplication in test cases
 -   Always bump the version in `pyproject.toml` appropriately when any file under `src/` (except `tests/` or `docs/`), only once per pull request
 -   Leave a short description of the change or addition in the top `## Upcoming` section of the `CHANGELOG.md` under the appropriate subsection (`#### 🚀 Enhancement`, `#### 🐛 Bug Fix`, or `#### 🏠 Internal`); create the subsection if it does not yet exist; include the GitHub PR link at the end of each entry in the format `([#N](https://github.com/stamped-principles/stamped-checklist/pull/N))`
 -   PR titles should be human-readable and in the past tense; they should NOT use conventional commit style
