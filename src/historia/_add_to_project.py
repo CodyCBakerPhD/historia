@@ -590,7 +590,7 @@ def update_project_item_dates(
     if start_date_field_id is None and end_date_field_id is None:
         warnings.warn(
             message=(
-                f"Project `{project_url}` has no 'Start date' or 'End date' fields. " "No date updates were performed."
+                f"Project `{project_url}` has no 'Start date' or 'End date' fields. No date updates were performed."
             ),
             stacklevel=2,
         )
