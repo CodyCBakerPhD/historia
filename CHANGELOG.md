@@ -4,6 +4,7 @@
 
 #### 🚀 Enhancement
 
+- Exposed the `historia data update` CLI subgroup as a public module-level object (`historia._cli.historia_data_update_cli`) and updated GitHub update dispatch to use `from .data import github` with `github.update(...)` for plugin-oriented extension patterns. ([#38](https://github.com/CodyCBakerPhD/historia/pull/38))
 - Added platform-aware data-update routing at `historia data update github ...`, with GitHub-specific data APIs nested under `historia.data.github` (including `historia.data.github.update(...)`) while keeping `historia data minify ...` and `historia project ...`. ([#38](https://github.com/CodyCBakerPhD/historia/pull/38))
 - Added a centered README badge block for PyPI version, supported Python versions, CI workflows, coverage, and license status. ([#37](https://github.com/CodyCBakerPhD/historia/pull/37))
 - Removed REST request modes and related logic so data collection now consistently uses GitHub GraphQL APIs. ([#6](https://github.com/CodyCBakerPhD/historia/pull/6))
