@@ -89,7 +89,7 @@ def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp
 
 
 @pytest.mark.ai_generated
-def test_github_data_help_shows_update_only() -> None:
+def test_github_data_update_available_minify_excluded() -> None:
     runner = click.testing.CliRunner()
 
     result = runner.invoke(historia.historia_cli, ["github", "data", "--help"])
