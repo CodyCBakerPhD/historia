@@ -4,7 +4,6 @@ import click.testing
 import pytest
 
 import historia
-import historia._cli
 
 
 @pytest.mark.ai_generated
