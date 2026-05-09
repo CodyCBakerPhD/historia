@@ -4,7 +4,7 @@
 
 #### 🚀 Enhancement
 
-- Added platform-aware CLI routing with GitHub data updates under `historia github data update ...`, while keeping platform-independent minification at `historia data minify ...` and project commands at `historia project ...`. ([#38](https://github.com/CodyCBakerPhD/historia/pull/38))
+- Added platform-aware data-update routing at `historia data update github ...`, with mirrored API entrypoint `historia.data.update.github(...)`, while keeping `historia data minify ...` and `historia project ...`. ([#38](https://github.com/CodyCBakerPhD/historia/pull/38))
 - Added a centered README badge block for PyPI version, supported Python versions, CI workflows, coverage, and license status. ([#37](https://github.com/CodyCBakerPhD/historia/pull/37))
 - Removed REST request modes and related logic so data collection now consistently uses GitHub GraphQL APIs. ([#6](https://github.com/CodyCBakerPhD/historia/pull/6))
 - Reorganized the CLI into nested `data` and `project` command groups, including `historia project update dates`, so operations were grouped by type and better mirrored API structure. ([#12](https://github.com/CodyCBakerPhD/historia/pull/12))

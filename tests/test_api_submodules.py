@@ -3,6 +3,7 @@ import pytest
 import historia
 import historia._cli
 import historia.data
+import historia.data.update
 import historia.project
 
 
@@ -32,6 +33,7 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
         (historia.data, "dump_specific_info"),
         (historia.data, "fetch_info_for_date"),
         (historia.data, "update"),
+        (historia.data.update, "github"),
         (historia.project, "add_to_project"),
         (historia.project, "create_project_page"),
         (historia.project, "move_done_to_history"),

@@ -3,7 +3,7 @@ import pathlib
 import rich_click
 
 from .data import minify as _minify
-from .data import update
+from .data.update import github as update_github
 from .project import add_to_project, create_project_page, move_done_to_history, update_project_item_dates
 
 
@@ -13,26 +13,20 @@ def historia_cli():
     pass
 
 
-# historia github
-@historia_cli.group(name="github")
-def _historia_github_cli():
-    pass
-
-
 # historia data
 @historia_cli.group(name="data")
 def _historia_data_cli():
     pass
 
 
-# historia github data
-@_historia_github_cli.group(name="data")
-def _historia_github_data_cli():
+# historia data update
+@_historia_data_cli.group(name="update")
+def _historia_data_update_cli():
     pass
 
 
-# historia github data update
-@_historia_github_data_cli.command(name="update")
+# historia data update github
+@_historia_data_update_cli.command(name="github")
 @rich_click.option("--directory", type=str, required=True, help="Directory to save the data to.")
 @rich_click.option("--username", type=str, required=True, help="GitHub username to fetch information about.")
 @rich_click.option(
@@ -42,14 +36,14 @@ def _historia_github_data_cli():
     required=True,
     help="Number of most recent days to fetch. Smart updating still applies.",
 )
-def _historia_data_update_cli(
+def _historia_data_update_github_cli(
     directory: str,
     username: str,
     past_number_of_days: int,
 ) -> None:
     directory = pathlib.Path(directory)
 
-    update(directory=directory, username=username, past_number_of_days=past_number_of_days)
+    update_github(directory=directory, username=username, past_number_of_days=past_number_of_days)
 
 
 # historia data minify
