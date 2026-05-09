@@ -18,9 +18,9 @@ def test_root_cli_help_shows_nested_groups() -> None:
 
 
 @pytest.mark.ai_generated
-def test_public_root_cli_aliases_private_root() -> None:
+def test_public_root_cli_aliases_compat_root() -> None:
     actual_public = historia._cli.historia_cli
-    expected_alias = historia._cli._historia_cli
+    expected_alias = historia._cli._mywork_cli
     assert actual_public is expected_alias
 
 

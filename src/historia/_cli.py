@@ -14,8 +14,6 @@ def historia_cli():
     pass
 
 
-
-
 # historia data
 @historia_cli.group(name="data")
 def _historia_data_cli():
