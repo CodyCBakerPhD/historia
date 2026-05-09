@@ -8,27 +8,35 @@ import historia.project.update
 
 
 @pytest.mark.ai_generated
-def test_global_init_exposes_submodules() -> None:
-    assert hasattr(historia, "data")
-    assert hasattr(historia, "historia_cli")
-    assert hasattr(historia, "project")
+@pytest.mark.parametrize(
+    ("attribute_name", "is_exposed"),
+    [
+        ("data", True),
+        ("historia_cli", True),
+        ("project", True),
+        ("add_to_project", False),
+        ("dump_info_for_date", False),
+        ("fetch_info_for_date", False),
+        ("update", False),
+    ],
+)
+def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
+    assert hasattr(historia, attribute_name) is is_exposed
 
 
 @pytest.mark.ai_generated
-def test_global_init_does_not_expose_bound_functions() -> None:
-    assert hasattr(historia, "add_to_project") is False
-    assert hasattr(historia, "dump_info_for_date") is False
-    assert hasattr(historia, "fetch_info_for_date") is False
-    assert hasattr(historia, "update") is False
-
-
-@pytest.mark.ai_generated
-def test_submodule_exports_remain_available() -> None:
-    assert hasattr(historia.data, "dump_info_for_date")
-    assert hasattr(historia.data, "dump_specific_info")
-    assert hasattr(historia.data, "fetch_info_for_date")
-    assert hasattr(historia.data, "update")
-    assert hasattr(historia.project, "add_to_project")
-    assert hasattr(historia.project, "create_project_page")
-    assert hasattr(historia.project, "move_done_to_history")
-    assert hasattr(historia.project.update, "update_project_item_dates")
+@pytest.mark.parametrize(
+    ("module", "attribute_name"),
+    [
+        (historia.data, "dump_info_for_date"),
+        (historia.data, "dump_specific_info"),
+        (historia.data, "fetch_info_for_date"),
+        (historia.data, "update"),
+        (historia.project, "add_to_project"),
+        (historia.project, "create_project_page"),
+        (historia.project, "move_done_to_history"),
+        (historia.project.update, "update_project_item_dates"),
+    ],
+)
+def test_submodule_exports_remain_available(module: object, attribute_name: str) -> None:
+    assert hasattr(module, attribute_name) is True
