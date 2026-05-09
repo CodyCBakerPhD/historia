@@ -7,7 +7,7 @@ build:
   jobs:
     install:
       - pip install --upgrade pip
-      - pip install ".[docs]"
+      - pip install . --group docs
 
 sphinx:
    configuration: docs/conf.py
