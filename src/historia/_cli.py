@@ -2,10 +2,10 @@ import pathlib
 
 import rich_click
 
-from ._add_to_project import add_to_project, move_done_to_history, update_project_item_dates
-from ._create_project import create_project_page
-from ._minify import _minify
-from ._update import update
+from .data import minify as _minify
+from .data import update
+from .project import add_to_project, create_project_page, move_done_to_history
+from .project.update import update_project_item_dates
 
 
 # historia
