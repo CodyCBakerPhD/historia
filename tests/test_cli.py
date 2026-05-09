@@ -13,12 +13,12 @@ def test_root_cli_help_shows_nested_groups() -> None:
     result = runner.invoke(historia._cli._historia_cli, ["--help"])
 
     assert result.exit_code == 0
-    assert "request" in result.output
+    assert "data" in result.output
     assert "project" in result.output
 
 
 @pytest.mark.ai_generated
-def test_request_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     called_args: dict[str, pathlib.Path | str | int] = {}
 
     def _fake_update(directory: pathlib.Path, username: str, past_number_of_days: int) -> None:
@@ -31,7 +31,7 @@ def test_request_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, 
 
     result = runner.invoke(
         historia._cli._historia_cli,
-        ["request", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
+        ["data", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
     )
 
     assert result.exit_code == 0

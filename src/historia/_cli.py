@@ -14,14 +14,14 @@ def _historia_cli():
     pass
 
 
-# historia request
-@_historia_cli.group(name="request")
-def _historia_request_cli():
+# historia data
+@_historia_cli.group(name="data")
+def _historia_data_cli():
     pass
 
 
-# historia request update
-@_historia_request_cli.command(name="update")
+# historia data update
+@_historia_data_cli.command(name="update")
 @rich_click.option("--directory", type=str, required=True, help="Directory to save the data to.")
 @rich_click.option("--username", type=str, required=True, help="GitHub username to fetch information about.")
 @rich_click.option(
@@ -31,7 +31,7 @@ def _historia_request_cli():
     required=True,
     help="Number of most recent days to fetch. Smart updating still applies.",
 )
-def _historia_request_update_cli(
+def _historia_data_update_cli(
     directory: str,
     username: str,
     past_number_of_days: int,
@@ -41,8 +41,8 @@ def _historia_request_update_cli(
     update(directory=directory, username=username, past_number_of_days=past_number_of_days)
 
 
-# historia request minify
-@_historia_request_cli.command(name="minify")
+# historia data minify
+@_historia_data_cli.command(name="minify")
 @rich_click.option(
     "--directory",
     type=str,
@@ -52,7 +52,7 @@ def _historia_request_update_cli(
         "E.g., `/path/to/version-0+1/username-codycbakerphd/request-graphql`."
     ),
 )
-def _historia_request_minify_cli(directory: str) -> None:
+def _historia_data_minify_cli(directory: str) -> None:
     directory = pathlib.Path(directory)
 
     _minify(directory=directory)
