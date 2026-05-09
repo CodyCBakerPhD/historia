@@ -89,14 +89,14 @@ def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp
 
 
 @pytest.mark.ai_generated
-def test_github_data_update_available_and_minify_excluded() -> None:
+@pytest.mark.parametrize(("command", "expected_present"), [("update", True), ("minify", False)])
+def test_github_data_help_commands(command: str, expected_present: bool) -> None:
     runner = click.testing.CliRunner()
 
     result = runner.invoke(historia.historia_cli, ["github", "data", "--help"])
 
     assert result.exit_code == 0
-    assert "update" in result.output
-    assert "minify" not in result.output
+    assert (command in result.output) is expected_present
 
 
 @pytest.mark.ai_generated
