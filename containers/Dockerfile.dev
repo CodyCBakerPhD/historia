@@ -1,0 +1,10 @@
+FROM python:3.13-slim
+
+LABEL org.opencontainers.image.source="https://github.com/CodyCBakerPhD/historia"
+LABEL org.opencontainers.image.description="A Docker image of the latest development version of Historia."
+
+ADD ./ historia
+RUN cd historia && python -m pip install --no-cache-dir .
+
+ENTRYPOINT ["historia"]
+CMD ["--help"]

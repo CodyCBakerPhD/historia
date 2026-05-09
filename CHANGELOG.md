@@ -21,6 +21,7 @@
 
 #### 🏠 Internal
 
+- Added GHCR Dockerfiles and GitHub Actions workflows to publish `dev` and release-tagged `latest` container images. ([#36](https://github.com/CodyCBakerPhD/historia/pull/36))
 - Added a GitHub Actions release workflow to automatically build and publish packages to PyPI when a release is published. ([#32](https://github.com/CodyCBakerPhD/historia/pull/32))
 - Enhanced CLI tests to cover all commands (`data minify`, `project populate`, `project transition`), failure/error paths, and subgroup help output, using parametrize for exception-type variants. ([#33](https://github.com/CodyCBakerPhD/historia/pull/33))
 - Rewrote repetitive API export tests to use pytest parametrization and reduce duplication. ([#17](https://github.com/CodyCBakerPhD/historia/pull/17))
