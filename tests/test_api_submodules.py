@@ -4,7 +4,6 @@ import historia
 import historia._cli
 import historia.data
 import historia.project
-import historia.project.update
 
 
 @pytest.mark.ai_generated
@@ -17,6 +16,7 @@ import historia.project.update
         ("add_to_project", False),
         ("dump_info_for_date", False),
         ("fetch_info_for_date", False),
+        ("update_project_item_dates", False),
         ("update", False),
     ],
 )
@@ -35,7 +35,7 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
         (historia.project, "add_to_project"),
         (historia.project, "create_project_page"),
         (historia.project, "move_done_to_history"),
-        (historia.project.update, "update_project_item_dates"),
+        (historia.project, "update_project_item_dates"),
     ],
 )
 def test_submodule_exports_remain_available(module: object, attribute_name: str) -> None:
