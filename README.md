@@ -1,5 +1,14 @@
 # Historia
 
-[![codecov](https://codecov.io/gh/CodyCBakerPhD/historia/branch/main/graph/badge.svg)](https://codecov.io/gh/CodyCBakerPhD/historia)
+<p align="center">
+  <a href="https://pypi.org/project/historia/"><img alt="PyPI latest release version" src="https://badge.fury.io/py/historia.svg"></a>
+  <a href="https://pypi.org/project/historia/"><img alt="Supported Python versions" src="https://img.shields.io/pypi/pyversions/historia.svg"></a>
+  <a href="https://codecov.io/gh/CodyCBakerPhD/historia"><img alt="codecov" src="https://codecov.io/gh/CodyCBakerPhD/historia/branch/main/graph/badge.svg"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/testing.yml"><img alt="Testing" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/testing.yml/badge.svg"></a>
+  <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml"><img alt="Daily tests" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml/badge.svg"></a>
+  <a href="https://github.com/CodyCBakerPhD/historia/blob/main/LICENSE.txt"><img alt="License" src="https://img.shields.io/pypi/l/historia.svg"></a>
+</p>
 
 A command-line tool for backing up records of GitHub activity for use in creating dashboard reports of work history.
