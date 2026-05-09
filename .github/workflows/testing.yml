@@ -2,6 +2,7 @@ name: Testing
 
 on:
   pull_request:
+  workflow_call:
 
 env:
   GITHUB_TOKEN: ${{ secrets._GITHUB_API_KEY }}
