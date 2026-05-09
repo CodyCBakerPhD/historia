@@ -14,6 +14,10 @@ def _historia_cli():
     pass
 
 
+# Public root CLI command for plugin integrations.
+historia_cli = _historia_cli
+
+
 # historia data
 @_historia_cli.group(name="data")
 def _historia_data_cli():

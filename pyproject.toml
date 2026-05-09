@@ -49,8 +49,8 @@ classifiers = [
 ]
 
 [project.scripts]
-historia = "historia._cli:_historia_cli"
-mywork = "historia._cli:_historia_cli"
+historia = "historia._cli:historia_cli"
+mywork = "historia._cli:historia_cli"
 
 
 

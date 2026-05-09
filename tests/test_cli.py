@@ -10,11 +10,16 @@ import historia._cli
 def test_root_cli_help_shows_nested_groups() -> None:
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(historia._cli._historia_cli, ["--help"])
+    result = runner.invoke(historia._cli.historia_cli, ["--help"])
 
     assert result.exit_code == 0
     assert "data" in result.output
     assert "project" in result.output
+
+
+@pytest.mark.ai_generated
+def test_public_root_cli_aliases_private_root() -> None:
+    assert historia._cli.historia_cli is historia._cli._historia_cli
 
 
 @pytest.mark.ai_generated
@@ -30,7 +35,7 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli._historia_cli,
+        historia._cli.historia_cli,
         ["data", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
     )
 
@@ -53,7 +58,7 @@ def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) 
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli._historia_cli,
+        historia._cli.historia_cli,
         ["project", "create", "--owner", "octocat", "--title", "Work Board"],
     )
 
@@ -75,7 +80,7 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
-        historia._cli._historia_cli,
+        historia._cli.historia_cli,
         [
             "project",
             "update",
