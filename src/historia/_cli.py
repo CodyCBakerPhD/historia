@@ -13,10 +13,20 @@ def historia_cli():
     pass
 
 
+# historia github
+@historia_cli.group(name="github")
+def _historia_github_cli():
+    pass
+
+
 # historia data
 @historia_cli.group(name="data")
 def _historia_data_cli():
     pass
+
+
+# historia github data
+_historia_github_cli.add_command(_historia_data_cli, name="data")
 
 
 # historia data update
@@ -61,6 +71,10 @@ def _historia_data_minify_cli(directory: str) -> None:
 @historia_cli.group(name="project")
 def _historia_project_cli():
     pass
+
+
+# historia github project
+_historia_github_cli.add_command(_historia_project_cli, name="project")
 
 
 # historia project create
