@@ -149,6 +149,7 @@ def _fetch_info_for_date_graphql(
     if status == 403:
         hit_rate_limit = True
         warnings.warn(message=message, stacklevel=2)
+        return [], hit_rate_limit
     elif "errors" in result or status != 200:
         raise RuntimeError(message)
 

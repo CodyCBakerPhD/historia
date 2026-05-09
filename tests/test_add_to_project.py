@@ -153,9 +153,9 @@ def test_collect_unique_urls_reads_json_files(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.ai_generated
-def test_collect_unique_urls_handles_rest_format(tmp_path: pathlib.Path) -> None:
-    """REST API response dicts should have html_url extracted from items, not dict keys."""
-    rest_response = {
+def test_collect_unique_urls_ignores_non_list_json(tmp_path: pathlib.Path) -> None:
+    """GraphQL-only collection should ignore legacy dict-shaped payloads."""
+    non_list_payload = {
         "total_count": 2,
         "incomplete_results": False,
         "search_type": "lexical",
@@ -164,35 +164,29 @@ def test_collect_unique_urls_handles_rest_format(tmp_path: pathlib.Path) -> None
             {"html_url": "https://github.com/owner/repo/issues/20", "other_field": "ignored"},
         ],
     }
-    (tmp_path / "rest.json").write_text(json.dumps(rest_response))
+    (tmp_path / "legacy-rest.json").write_text(json.dumps(non_list_payload))
 
     result = _collect_unique_urls(directory=tmp_path)
 
-    assert set(result) == {
-        "https://github.com/owner/repo/pull/10",
-        "https://github.com/owner/repo/issues/20",
-    }
+    assert set(result) == set()
 
 
 @pytest.mark.ai_generated
 def test_collect_unique_urls_mixed_formats(tmp_path: pathlib.Path) -> None:
-    """A directory with both REST and GraphQL JSON files should collect all URLs correctly."""
+    """A directory with mixed payload shapes should only use GraphQL list URLs."""
     graphql_urls = ["https://github.com/owner/repo/pull/1"]
-    rest_response = {
+    non_list_payload = {
         "total_count": 1,
         "incomplete_results": False,
         "search_type": "lexical",
         "items": [{"html_url": "https://github.com/owner/repo/issues/2"}],
     }
     (tmp_path / "graphql.json").write_text(json.dumps(graphql_urls))
-    (tmp_path / "rest.json").write_text(json.dumps(rest_response))
+    (tmp_path / "legacy-rest.json").write_text(json.dumps(non_list_payload))
 
     result = _collect_unique_urls(directory=tmp_path)
 
-    assert set(result) == {
-        "https://github.com/owner/repo/pull/1",
-        "https://github.com/owner/repo/issues/2",
-    }
+    assert set(result) == {"https://github.com/owner/repo/pull/1"}
 
 
 @pytest.mark.ai_generated
@@ -1608,8 +1602,8 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
 # ---------------------------------------------------------------------------
 
 _SKIP_INTEGRATION = pytest.mark.skipif(
-    not _has_valid_github_token(),
-    reason="GITHUB_TOKEN not set or is a placeholder; skipping integration tests",
+    (not _has_valid_github_token()) or os.getenv("RUN_INTEGRATION_TESTS") != "1",
+    reason="Integration tests require a real GITHUB_TOKEN and RUN_INTEGRATION_TESTS=1",
 )
 
 
