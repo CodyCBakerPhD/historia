@@ -152,21 +152,16 @@ def add_to_project(
 
 
 def _collect_unique_urls(directory: pathlib.Path) -> list[str]:
-    """Collect all unique URLs from JSON files under the given directory."""
+    """Collect all unique URLs from GraphQL JSON files under the given directory."""
     all_info_file_paths = list(directory.rglob(pattern="*.json"))
     all_urls: set[str] = set()
     for info_file_path in all_info_file_paths:
         with info_file_path.open(mode="r") as file_stream:
             info = json.load(file_stream)
-        if isinstance(info, dict):
-            # REST API format: {"total_count": ..., "items": [{"html_url": ...}, ...], ...}
-            for item in info.get("items", []):
-                if isinstance(item, dict) and "html_url" in item:
-                    all_urls.add(item["html_url"])
-        else:
-            # GraphQL format: a list of URL strings
+        if isinstance(info, list):
             for value in info:
-                all_urls.add(value)
+                if isinstance(value, str):
+                    all_urls.add(value)
     return list(all_urls)
 
 
@@ -595,8 +590,7 @@ def update_project_item_dates(
     if start_date_field_id is None and end_date_field_id is None:
         warnings.warn(
             message=(
-                f"Project `{project_url}` has no 'Start date' or 'End date' fields. "
-                "No date updates were performed."
+                f"Project `{project_url}` has no 'Start date' or 'End date' fields. No date updates were performed."
             ),
             stacklevel=2,
         )
@@ -1039,4 +1033,3 @@ def move_done_to_history(project_url: str) -> None:
             option_id=history_option_id,
             headers=headers,
         )
-

@@ -2,13 +2,16 @@ import importlib.metadata
 import json
 import pathlib
 
-import historia
 import pytest
 
+import historia
+import historia._dump
 
 
 @pytest.mark.ai_generated
-def test_dump_info_for_date_graphql(tmp_path: pathlib.Path) -> None:
+def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
     version = importlib.metadata.distribution("historia").version
     major, minor, _ = version.split(".")
     username = "codycbakerphd"
@@ -22,11 +25,28 @@ def test_dump_info_for_date_graphql(tmp_path: pathlib.Path) -> None:
     expected_version_directory = expected_directory / "version-0+1"  # Use static version since assertions are relative
     expected_request_directory = expected_version_directory / f"username-{username}" / "request-graphql"
 
+    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
+        assert date == "2026-01-05"
+        assert username == "codycbakerphd"
+        if info_type == "issues_opened":
+            return (["https://github.com/con/nwb2bids/issues/252"], False)
+        if info_type == "prs_opened":
+            return (
+                [
+                    "https://github.com/con/nwb2bids/pull/254",
+                    "https://github.com/con/nwb2bids/pull/253",
+                    "https://github.com/con/nwb2bids/pull/251",
+                ],
+                False,
+            )
+        return ([], False)
+
+    monkeypatch.setattr(historia._dump, "fetch_info_for_date", _mock_fetch_info_for_date)
+
     historia.dump_info_for_date(
         directory=test_directory,
         date="2026-01-05",
         username=username,
-        request_type="graphql",
     )
 
     test_file_paths = sorted(list(test_request_directory.rglob(pattern="*.json")))

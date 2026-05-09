@@ -24,7 +24,6 @@ from historia._add_to_project import (
     update_project_item_dates,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers shared across integration tests
 # ---------------------------------------------------------------------------
@@ -154,9 +153,9 @@ def test_collect_unique_urls_reads_json_files(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.ai_generated
-def test_collect_unique_urls_handles_rest_format(tmp_path: pathlib.Path) -> None:
-    """REST API response dicts should have html_url extracted from items, not dict keys."""
-    rest_response = {
+def test_collect_unique_urls_ignores_non_list_json(tmp_path: pathlib.Path) -> None:
+    """GraphQL-only collection should ignore legacy dict-shaped payloads."""
+    legacy_rest_response = {
         "total_count": 2,
         "incomplete_results": False,
         "search_type": "lexical",
@@ -165,35 +164,29 @@ def test_collect_unique_urls_handles_rest_format(tmp_path: pathlib.Path) -> None
             {"html_url": "https://github.com/owner/repo/issues/20", "other_field": "ignored"},
         ],
     }
-    (tmp_path / "rest.json").write_text(json.dumps(rest_response))
+    (tmp_path / "legacy-rest.json").write_text(json.dumps(legacy_rest_response))
 
     result = _collect_unique_urls(directory=tmp_path)
 
-    assert set(result) == {
-        "https://github.com/owner/repo/pull/10",
-        "https://github.com/owner/repo/issues/20",
-    }
+    assert set(result) == set()
 
 
 @pytest.mark.ai_generated
 def test_collect_unique_urls_mixed_formats(tmp_path: pathlib.Path) -> None:
-    """A directory with both REST and GraphQL JSON files should collect all URLs correctly."""
+    """A directory with mixed payload shapes should only use GraphQL list URLs."""
     graphql_urls = ["https://github.com/owner/repo/pull/1"]
-    rest_response = {
+    legacy_rest_response = {
         "total_count": 1,
         "incomplete_results": False,
         "search_type": "lexical",
         "items": [{"html_url": "https://github.com/owner/repo/issues/2"}],
     }
     (tmp_path / "graphql.json").write_text(json.dumps(graphql_urls))
-    (tmp_path / "rest.json").write_text(json.dumps(rest_response))
+    (tmp_path / "legacy-rest.json").write_text(json.dumps(legacy_rest_response))
 
     result = _collect_unique_urls(directory=tmp_path)
 
-    assert set(result) == {
-        "https://github.com/owner/repo/pull/1",
-        "https://github.com/owner/repo/issues/2",
-    }
+    assert set(result) == {"https://github.com/owner/repo/pull/1"}
 
 
 @pytest.mark.ai_generated
@@ -400,15 +393,11 @@ def test_get_item_info_classifies_issue() -> None:
 def test_add_item_to_project_returns_item_id() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}
-    }
+    mock_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}}
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        item_id = _add_item_to_project(
-            project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers
-        )
+        item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
 
     assert item_id == "PVTI_item_id"
 
@@ -422,9 +411,7 @@ def test_add_item_to_project_returns_none_on_403() -> None:
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
         with pytest.warns(UserWarning):
-            item_id = _add_item_to_project(
-                project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers
-            )
+            item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
 
     assert item_id is None
 
@@ -504,9 +491,7 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
@@ -529,7 +514,13 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
         }
     }
 
-    response_sequence = [project_info_response, empty_project_response, item_info_response, add_item_response, set_status_response]
+    response_sequence = [
+        project_info_response,
+        empty_project_response,
+        item_info_response,
+        add_item_response,
+        set_status_response,
+    ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence):
         historia.add_to_project(
@@ -539,9 +530,7 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_skips_url_with_null_resource(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_add_to_project_skips_url_with_null_resource(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """Items that return a null resource are silently skipped."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -647,9 +636,7 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
@@ -672,7 +659,13 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
         }
     }
 
-    response_sequence = [project_info_response, empty_project_response, item_info_response, add_item_response, set_status_response]
+    response_sequence = [
+        project_info_response,
+        empty_project_response,
+        item_info_response,
+        add_item_response,
+        set_status_response,
+    ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
         historia.add_to_project(
@@ -733,9 +726,7 @@ def test_add_to_project_status_override_unknown_status_warns(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     empty_project_response = unittest.mock.MagicMock()
     empty_project_response.status_code = 200
@@ -791,9 +782,7 @@ def test_set_item_date_calls_mutation() -> None:
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_sets_dates_when_fields_present(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """When the project has Start date / End date fields, they are set on added items."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -838,9 +827,7 @@ def test_add_to_project_sets_dates_when_fields_present(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_field_response = unittest.mock.MagicMock()
     set_field_response.status_code = 200
@@ -880,7 +867,8 @@ def test_add_to_project_sets_dates_when_fields_present(
             project_url="https://github.com/users/testuser/projects/1",
         )
 
-    # 7 calls total: project_info, list_project_item_content_urls, item_info, add_item, set_status, set_start_date, set_end_date
+    # 7 calls total: project_info, list_project_item_content_urls, item_info,
+    # add_item, set_status, set_start_date, set_end_date
     assert mock_post.call_count == 7
     # Check start date call (6th call, index 5)
     start_date_call = mock_post.call_args_list[5]
@@ -941,9 +929,7 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_field_response = unittest.mock.MagicMock()
     set_field_response.status_code = 200
@@ -1240,9 +1226,7 @@ def test_list_project_item_content_urls_returns_empty_set_when_no_items() -> Non
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_skips_items_already_in_project(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
-) -> None:
+def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """Items whose URLs are already in the project are excluded and not re-added."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -1303,9 +1287,7 @@ def test_add_to_project_skips_items_already_in_project(
 
     add_item_response = unittest.mock.MagicMock()
     add_item_response.status_code = 200
-    add_item_response.json.return_value = {
-        "data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}
-    }
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
@@ -1510,26 +1492,16 @@ def test_move_done_to_history_moves_only_done_items(monkeypatch: pytest.MonkeyPa
                         "nodes": [
                             {
                                 "id": "PVTI_done_1",
-                                "fieldValues": {
-                                    "nodes": [
-                                        {"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}
-                                    ]
-                                },
+                                "fieldValues": {"nodes": [{"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}]},
                             },
                             {
                                 "id": "PVTI_done_2",
-                                "fieldValues": {
-                                    "nodes": [
-                                        {"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}
-                                    ]
-                                },
+                                "fieldValues": {"nodes": [{"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}]},
                             },
                             {
                                 "id": "PVTI_in_progress",
                                 "fieldValues": {
-                                    "nodes": [
-                                        {"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}
-                                    ]
+                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}]
                                 },
                             },
                         ],
@@ -1630,8 +1602,8 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
 # ---------------------------------------------------------------------------
 
 _SKIP_INTEGRATION = pytest.mark.skipif(
-    not _has_valid_github_token(),
-    reason="GITHUB_TOKEN not set or is a placeholder; skipping integration tests",
+    (not _has_valid_github_token()) or os.getenv("RUN_INTEGRATION_TESTS") != "1",
+    reason="Integration tests require a real GITHUB_TOKEN and RUN_INTEGRATION_TESTS=1",
 )
 
 
@@ -1688,9 +1660,9 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     )
 
     try:
-        assert added_item_id is not None, (
-            f"Expected {_KNOWN_CLOSED_PR_URL!r} to be present in the project after add_to_project.\n{diagnostic}"
-        )
+        assert (
+            added_item_id is not None
+        ), f"Expected {_KNOWN_CLOSED_PR_URL!r} to be present in the project after add_to_project.\n{diagnostic}"
     finally:
         # Always clean up, even if the assertion fails.
         if added_item_id is not None:

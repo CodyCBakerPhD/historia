@@ -12,7 +12,6 @@ def dump_specific_info(
     info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
     date: str,
     username: str,
-    request_type: typing.Literal["rest", "graphql"],
     overwrite: bool = False,
 ) -> bool:
     """
@@ -26,8 +25,6 @@ def dump_specific_info(
         The date to fetch information for, in the format "YYYY-MM-DD".
     username : str
         The GitHub username to fetch information about.
-    request_type : "rest" or "graphql"
-        The type of API request to use when fetching information (e.g., "rest" or "graphql").
     overwrite : bool, default=False
         Whether to overwrite existing files.
         If False, existing files will be left unchanged.
@@ -46,7 +43,7 @@ def dump_specific_info(
         directory
         / f"version-{major}+{minor}"
         / f"username-{username}"
-        / f"request-{request_type}"
+        / "request-graphql"
         / f"year-{year}"
         / f"month-{month}"
         / f"day-{day}"
@@ -56,15 +53,11 @@ def dump_specific_info(
     if overwrite is False and file_path.exists():
         return False
 
-    info, hit_rate_limit = fetch_info_for_date(
-        info_type=info_type, date=date, username=username, request_type=request_type
-    )
+    info, hit_rate_limit = fetch_info_for_date(info_type=info_type, date=date, username=username)
 
     if hit_rate_limit:
         return hit_rate_limit
-    if request_type == "rest" and info["total_count"] == 0:
-        return False
-    if request_type == "graphql" and len(info) == 0:
+    if len(info) == 0:
         return False
 
     subdir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +71,6 @@ def dump_info_for_date(
     directory: pathlib.Path,
     date: str,
     username: str,
-    request_type: typing.Literal["rest", "graphql"],
     overwrite: bool = False,
 ) -> None:
     """
@@ -90,8 +82,6 @@ def dump_info_for_date(
         The date to fetch information for, in the format "YYYY-MM-DD".
     username : str
         The GitHub username to fetch information about.
-    request_type : "rest" or "graphql"
-        The type of API request to use when fetching information (e.g., "rest" or "graphql").
     overwrite : bool, default=False
         Whether to overwrite existing files.
         If False, existing files will be left unchanged.
@@ -108,7 +98,6 @@ def dump_info_for_date(
             info_type=info_type,
             date=date,
             username=username,
-            request_type=request_type,
             overwrite=overwrite,
         )
         if hit_rate_limit:

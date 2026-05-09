@@ -1,5 +1,4 @@
 import pathlib
-import typing
 
 import rich_click
 
@@ -26,22 +25,14 @@ def _mywork_cli():
     required=True,
     help="Number of most recent days to fetch. Smart updating still applies.",
 )
-@rich_click.option(
-    "--request",
-    "request_type",
-    type=rich_click.Choice(["rest", "graphql"], case_sensitive=False),
-    required=True,
-    help="The type of API request to use when fetching information (e.g., 'rest' or 'graphql').",
-)
 def _mywork_update_cli(
     directory: str,
     username: str,
     past_number_of_days: int,
-    request_type: typing.Literal["rest", "graphql"],
 ) -> None:
     directory = pathlib.Path(directory)
 
-    update(directory=directory, username=username, past_number_of_days=past_number_of_days, request_type=request_type)
+    update(directory=directory, username=username, past_number_of_days=past_number_of_days)
 
 
 # mywork minify
@@ -51,7 +42,7 @@ def _mywork_update_cli(
     type=str,
     required=True,
     help=(
-        "The specific subdirectory to minify; should be for a specific version, username, and request type. "
+        "The specific subdirectory to minify; should be for a specific version and username. "
         "E.g., `/path/to/version-0+1/username-codycbakerphd/request-graphql`."
     ),
 )
@@ -82,8 +73,8 @@ def _mywork_create_project_cli(owner: str, title: str) -> None:
     type=str,
     required=True,
     help=(
-        "The specific subdirectory containing derivatives JSON files; should be for a specific version, username, "
-        "and request type. E.g., `/path/to/version-0+1/username-codycbakerphd/request-graphql`."
+        "The specific subdirectory containing derivatives JSON files; should be for a specific version and username. "
+        "E.g., `/path/to/version-0+1/username-codycbakerphd/request-graphql`."
     ),
 )
 @rich_click.option(
