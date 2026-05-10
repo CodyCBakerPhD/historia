@@ -161,11 +161,11 @@ def test_project_populate_command_invokes_add_to_project(
             "populate",
             "--directory",
             str(tmp_path),
-            "--project-url",
+            "--projecturl",
             "https://github.com/users/octocat/projects/1",
             "--status",
             "In Progress",
-            "--end-date-placeholder-days",
+            "--enddateplaceholderdays",
             "90",
         ],
     )
@@ -194,9 +194,9 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
             "project",
             "update",
             "dates",
-            "--project-url",
+            "--projecturl",
             "https://github.com/users/octocat/projects/1",
-            "--end-date-placeholder-days",
+            "--enddateplaceholderdays",
             "200",
         ],
     )
@@ -221,7 +221,7 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
         [
             "project",
             "transition",
-            "--project-url",
+            "--projecturl",
             "https://github.com/users/octocat/projects/1",
             "--status",
             "DONE",
@@ -244,7 +244,7 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
                 "populate",
                 "--directory",
                 str(tmp_path),
-                "--project-url",
+                "--projecturl",
                 "https://github.com/users/octocat/projects/1",
             ],
         ),
@@ -254,7 +254,7 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
                 "project",
                 "update",
                 "dates",
-                "--project-url",
+                "--projecturl",
                 "https://github.com/users/octocat/projects/1",
             ],
         ),
@@ -263,7 +263,7 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
             lambda _: [
                 "project",
                 "transition",
-                "--project-url",
+                "--projecturl",
                 "https://github.com/users/octocat/projects/1",
                 "--status",
                 "DONE",
@@ -288,3 +288,24 @@ def test_project_command_shows_error_on_exception(
 
     assert result.exit_code == 1
     assert "something went wrong" in result.output
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("command", "expected_flags"),
+    [
+        ("populate", ["--projecturl", "--enddateplaceholderdays"]),
+        ("update dates", ["--projecturl", "--enddateplaceholderdays"]),
+        ("transition", ["--projecturl"]),
+    ],
+)
+def test_project_commands_use_one_word_flags(command: str, expected_flags: list[str]) -> None:
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(historia.historia_cli, ["project", *command.split(), "--help"])
+
+    assert result.exit_code == 0
+    for expected_flag in expected_flags:
+        assert expected_flag in result.output
+    assert "--project-url" not in result.output
+    assert "--end-date-placeholder-days" not in result.output
