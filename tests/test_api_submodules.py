@@ -3,6 +3,7 @@ import pytest
 import historia
 import historia._cli
 import historia.data
+import historia.data.github
 import historia.project
 
 
@@ -26,17 +27,23 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
 
 @pytest.mark.ai_generated
 @pytest.mark.parametrize(
-    ("module", "attribute_name"),
+    ("module", "attribute_name", "is_exposed"),
     [
-        (historia.data, "dump_info_for_date"),
-        (historia.data, "dump_specific_info"),
-        (historia.data, "fetch_info_for_date"),
-        (historia.data, "update"),
-        (historia.project, "add_to_project"),
-        (historia.project, "create_project_page"),
-        (historia.project, "move_done_to_history"),
-        (historia.project, "update_project_item_dates"),
+        (historia.data, "minify", True),
+        (historia.data, "github", True),
+        (historia.data, "dump_info_for_date", False),
+        (historia.data, "dump_specific_info", False),
+        (historia.data, "fetch_info_for_date", False),
+        (historia.data, "update", False),
+        (historia.data.github, "dump_info_for_date", True),
+        (historia.data.github, "dump_specific_info", True),
+        (historia.data.github, "fetch_info_for_date", True),
+        (historia.data.github, "update", True),
+        (historia.project, "add_to_project", True),
+        (historia.project, "create_project_page", True),
+        (historia.project, "move_done_to_history", True),
+        (historia.project, "update_project_item_dates", True),
     ],
 )
-def test_submodule_exports_remain_available(module: object, attribute_name: str) -> None:
-    assert hasattr(module, attribute_name)
+def test_submodule_exports_remain_available(module: object, attribute_name: str, is_exposed: bool) -> None:
+    assert hasattr(module, attribute_name) == is_exposed
