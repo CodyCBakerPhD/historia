@@ -6,6 +6,10 @@
 
 - Added a Step 6 to the tutorial showing an example scheduled GitHub Actions workflow that runs the full Historia maintenance loop (data fetch, commit, minified `min` branch refresh, and project board update) on a CRON schedule, and moved the optional minify step out of the numbered flow into a `note` admonition at the bottom of the page. ([#75](https://github.com/CodyCBakerPhD/historia/pull/75))
 
+### 🐛 Bug Fix
+
+- Fixed an `IndexError` when a short-form GitHub Project URL (e.g. `https://github.com/{login}/projects/{number}`) was passed to any project command; a new `_parse_project_url` helper now handles both the short user format and the long `users`/`orgs` formats. ([#77](https://github.com/CodyCBakerPhD/historia/pull/77))
+
 ### 🚀 Enhancement
 
 - Removed the now-unused `request-graphql/` directory level from the dump layout (between `username-<login>/` and `year-<yyyy>/`). All Historia data is fetched via GraphQL, so the REST/GraphQL distinction is no longer needed and the path tree is now one segment shallower. The `historia data minify` and `historia project populate` CLIs (and their Python equivalents) now expect the `username-<login>` directory directly. ([#73](https://github.com/CodyCBakerPhD/historia/pull/73))

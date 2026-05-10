@@ -18,6 +18,7 @@ from historia._add_to_project import (
     _list_project_item_content_urls,
     _list_project_items_with_dates,
     _list_project_items_with_status,
+    _parse_project_url,
     _set_item_date,
     _set_item_status,
     move_done_to_history,
@@ -226,6 +227,49 @@ def test_check_graphql_response_raises_on_errors_key() -> None:
 
 
 @pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("url", "expected_owner_type", "expected_login", "expected_number"),
+    [
+        (
+            "https://github.com/users/myuser/projects/3",
+            "users",
+            "myuser",
+            3,
+        ),
+        (
+            "https://github.com/orgs/myorg/projects/7",
+            "orgs",
+            "myorg",
+            7,
+        ),
+        (
+            "https://github.com/myuser/projects/7",
+            "users",
+            "myuser",
+            7,
+        ),
+        (
+            "https://github.com/myuser/projects/7/",
+            "users",
+            "myuser",
+            7,
+        ),
+    ],
+)
+def test_parse_project_url(
+    url: str,
+    expected_owner_type: str,
+    expected_login: str,
+    expected_number: int,
+) -> None:
+    owner_type, owner_login, project_number = _parse_project_url(url)
+
+    assert owner_type == expected_owner_type
+    assert owner_login == expected_login
+    assert project_number == expected_number
+
+
+@pytest.mark.ai_generated
 def test_get_project_info_parses_user_url() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
@@ -266,6 +310,46 @@ def test_get_project_info_parses_user_url() -> None:
     assert status_options == {"Todo": "opt1", "In Progress": "opt2", "Done": "opt3"}
     assert start_date_field_id == "PVTF_start"
     assert end_date_field_id == "PVTF_end"
+
+
+@pytest.mark.ai_generated
+def test_get_project_info_parses_short_user_url() -> None:
+    """Short URL format `https://github.com/{login}/projects/{number}` should work."""
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_kwDOB",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_id2",
+                                "name": "Status",
+                                "options": [
+                                    {"id": "opt1", "name": "Todo"},
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    headers = {"Authorization": "token fake-token"}
+    with unittest.mock.patch("requests.post", return_value=mock_response):
+        project_id, status_field_id, status_options, start_date_field_id, end_date_field_id = _get_project_info(
+            project_url="https://github.com/testuser/projects/7",
+            headers=headers,
+        )
+
+    assert project_id == "PVT_kwDOB"
+    assert status_field_id == "PVTSSF_id2"
+    assert status_options == {"Todo": "opt1"}
+    assert start_date_field_id is None
+    assert end_date_field_id is None
 
 
 @pytest.mark.ai_generated
