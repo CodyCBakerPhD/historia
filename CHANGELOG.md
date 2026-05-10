@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
+
+- Fixed an `IndexError` when a short-form GitHub Project URL (e.g. `https://github.com/{login}/projects/{number}`) was passed to any project command; a new `_parse_project_url` helper now handles both the short user format and the long `users`/`orgs` formats. ([#77](https://github.com/CodyCBakerPhD/historia/pull/77))
+
 ### 🚀 Enhancement
 
 - Removed the now-unused `request-graphql/` directory level from the dump layout (between `username-<login>/` and `year-<yyyy>/`). All Historia data is fetched via GraphQL, so the REST/GraphQL distinction is no longer needed and the path tree is now one segment shallower. The `historia data minify` and `historia project populate` CLIs (and their Python equivalents) now expect the `username-<login>` directory directly. ([#73](https://github.com/CodyCBakerPhD/historia/pull/73))

@@ -8,6 +8,36 @@ import requests
 import tqdm
 
 
+def _parse_project_url(project_url: str) -> tuple[str, str, int]:
+    """
+    Parse owner type, owner login, and project number from a GitHub Project URL.
+
+    Handles two URL formats:
+
+    - ``https://github.com/users/{login}/projects/{number}``
+    - ``https://github.com/orgs/{login}/projects/{number}``
+    - ``https://github.com/{login}/projects/{number}``  (treated as a user project)
+
+    Returns
+    -------
+    tuple[str, str, int]
+        A tuple of (owner_type, owner_login, project_number).
+
+    """
+    parts = project_url.rstrip("/").split("/")
+    if parts[3] in ("users", "orgs"):
+        # Long format: https://github.com/users/{login}/projects/{number}
+        owner_type = parts[3]
+        owner_login = parts[4]
+        project_number = int(parts[6])
+    else:
+        # Short user format: https://github.com/{login}/projects/{number}
+        owner_type = "users"
+        owner_login = parts[3]
+        project_number = int(parts[5])
+    return owner_type, owner_login, project_number
+
+
 def add_to_project(
     *,
     directory: pathlib.Path,
@@ -70,10 +100,7 @@ def add_to_project(
     )
 
     # Parse owner type, login, and number from URL
-    parts = project_url.rstrip("/").split("/")
-    owner_type = parts[3]
-    owner_login = parts[4]
-    project_number = int(parts[6])
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     # Fetch existing project item URLs to skip items already present in the project
     existing_urls = _list_project_item_content_urls(
@@ -237,11 +264,8 @@ def _get_project_info(
     # Expected formats:
     #   https://github.com/users/{login}/projects/{number}
     #   https://github.com/orgs/{login}/projects/{number}
-    parts = project_url.rstrip("/").split("/")
-    # After splitting, indices map to: 3 = "users" or "orgs", 4 = login, 6 = project number.
-    owner_type = parts[3]  # 'users' or 'orgs'
-    owner_login = parts[4]
-    project_number = int(parts[6])
+    #   https://github.com/{login}/projects/{number}
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     if owner_type == "users":
         query = """
@@ -626,10 +650,7 @@ def update_project_item_dates(
         return
 
     # Parse owner type, login, and number from URL for the items query
-    parts = project_url.rstrip("/").split("/")
-    owner_type = parts[3]
-    owner_login = parts[4]
-    project_number = int(parts[6])
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     # Collect all project items with their content dates (paginated)
     all_items = _list_project_items_with_dates(
@@ -1051,10 +1072,7 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         raise ValueError(message)
 
     # Parse owner type, login, and number from URL
-    parts = project_url.rstrip("/").split("/")
-    owner_type = parts[3]
-    owner_login = parts[4]
-    project_number = int(parts[6])
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     # Fetch all items with their current status
     all_items = _list_project_items_with_status(
@@ -1129,10 +1147,7 @@ def move_done_to_history(project_url: str) -> None:
         raise ValueError(message)
 
     # Parse owner type, login, and number from URL
-    parts = project_url.rstrip("/").split("/")
-    owner_type = parts[3]
-    owner_login = parts[4]
-    project_number = int(parts[6])
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     # Fetch all items with their current status
     all_items = _list_project_items_with_status(
