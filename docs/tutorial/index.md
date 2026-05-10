@@ -19,7 +19,7 @@ Historia fetches GitHub activity (pull requests and issues opened or assigned to
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia data update github --directory ./historia-data --username your-github-username --recency 3
+historia data update github --directory ./data --username gh-username --recency 3
 ```
 
 - `--directory` — the root directory where data files are stored.
@@ -32,8 +32,8 @@ import pathlib
 import historia
 
 historia.data.github.update(
-    directory=pathlib.Path("./historia-data"),
-    username="your-github-username",
+    directory=pathlib.Path("./data"),
+    username="gh-username",
     past_number_of_days=90,
 )
 ```
@@ -45,7 +45,7 @@ After this step, `./historia-data` will contain a versioned folder tree such as:
 ```
 historia-data/
 └── version-0+5/
-    └── username-your-github-username/
+    └── username-[GitHub username]/
         └── year-2026/
             └── month-05/
                 └── day-10/
@@ -66,7 +66,7 @@ Raw JSON responses can be large. The minify step strips whitespace to reduce sto
 Pass the username directory:
 
 ```bash
-historia data minify --directory ./historia-data/version-0+5/username-your-github-username
+historia data minify --directory ./data/version-0+5/
 ```
 :::
 :::{tab} Python API
@@ -75,9 +75,7 @@ import pathlib
 import historia
 
 historia.data.minify(
-    directory=pathlib.Path(
-        "./historia-data/version-0+5/username-your-github-username"
-    )
+    directory=pathlib.Path("./historia-data/version-0+5/")
 )
 ```
 :::
@@ -100,7 +98,7 @@ The command prints the new project's numeric ID and URL on success:
 ```
 Project created successfully!
 ID: PVT_...
-URL: https://github.com/users/your-github-username/projects/your-id
+URL: https://github.com/users/[GitHub username]/projects/[Project Number]
 ```
 
 Keep the URL — you will need it in the following steps.
@@ -110,10 +108,10 @@ Keep the URL — you will need it in the following steps.
 import historia
 
 project = historia.project.create_project_page(
-    owner="your-github-username",
+    owner="[GitHub organization or username]",
     title="Work History",
 )
-print(project["url"])  # https://github.com/users/your-github-username/projects/your-id
+print(project["url"])
 ```
 :::
 ::::
@@ -127,13 +125,13 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate --directory ./historia-data/version-0+5 --url https://github.com/users/your-github-username/projects/your-id
+historia project populate --directory ./data/version-0+5 --url https://github.com/[users/orgs]/[owner]/projects/[id]
 ```
 
 Optional flags:
 
-- `--status <value>` — pin every item to a specific status instead of deriving it automatically.
-- `--placeholder <days>` — number of days after an item's creation date to use as a placeholder end date for open items (default: `180`).
+- `--status [value]` — pin every item to a specific status instead of deriving it automatically.
+- `--placeholder [days]` — number of days after an item's creation date to use as a placeholder end date for open items (default: `180`).
 :::
 :::{tab} Python API
 ```python
@@ -142,9 +140,9 @@ import historia
 
 historia.project.add_to_project(
     directory=pathlib.Path(
-        "./historia-data/version-0+5/username-your-github-username"
+        "./historia-data/version-0+5"
     ),
-    project_url="https://github.com/users/your-github-username/projects/your-id",
+    project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
 )
 ```
 :::
@@ -159,17 +157,17 @@ As items progress and are eventually closed, their recorded end dates should be 
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project update dates --url https://github.com/users/your-github-username/projects/your-id
+historia project update dates --url https://github.com/[users/orgs]/[owner]/projects/[id]
 ```
 
-Use `--placeholder <days>` to change the placeholder window for still-open items.
+Use `--placeholder [days]` to change the placeholder window for still-open items.
 :::
 :::{tab} Python API
 ```python
 import historia
 
 historia.project.update_project_item_dates(
-    project_url="https://github.com/users/your-github-username/projects/your-id",
+    project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
 )
 ```
 :::
@@ -184,7 +182,7 @@ Move groups of items from one project status to another — for example, archive
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project transition --url https://github.com/users/your-github-username/projects/your-id --status Done --new History
+historia project transition --url https://github.com/[users/orgs]/[owner]/projects/[id] --status Done --new History
 ```
 
 - `--status` — the current status of items to match.
@@ -195,7 +193,7 @@ historia project transition --url https://github.com/users/your-github-username/
 import historia
 
 historia.project.transition_status(
-    project_url="https://github.com/users/your-github-username/projects/your-id",
+    project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
     current_status="Done",
     new_status="History",
 )
