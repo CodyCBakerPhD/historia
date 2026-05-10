@@ -41,9 +41,9 @@ def _historia_data_update_github_cli(
     username: str,
     past_number_of_days: int,
 ) -> None:
-    directory = pathlib.Path(directory)
+    directory_path = pathlib.Path(directory)
 
-    data.github.update(directory=directory, username=username, past_number_of_days=past_number_of_days)
+    data.github.update(directory=directory_path, username=username, past_number_of_days=past_number_of_days)
 
 
 # historia data minify
@@ -58,9 +58,9 @@ def _historia_data_update_github_cli(
     ),
 )
 def _historia_data_minify_cli(directory: str) -> None:
-    directory = pathlib.Path(directory)
+    directory_path = pathlib.Path(directory)
 
-    _minify(directory=directory)
+    _minify(directory=directory_path)
 
 
 # historia project
