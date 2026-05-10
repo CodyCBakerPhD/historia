@@ -52,12 +52,18 @@ def test_subgroup_help_shows_commands(group: str, expected_commands: list[str]) 
 
 @pytest.mark.ai_generated
 def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    called_args: dict[str, pathlib.Path | str | int] = {}
+    called_args: dict[str, pathlib.Path | str | int | None] = {}
 
-    def _fake_update(directory: pathlib.Path, username: str, past_number_of_days: int) -> None:
+    def _fake_update(
+        directory: pathlib.Path,
+        username: str,
+        past_number_of_days: int,
+        start_date: str | None,
+    ) -> None:
         called_args["directory"] = directory
         called_args["username"] = username
         called_args["past_number_of_days"] = past_number_of_days
+        called_args["start_date"] = start_date
 
     monkeypatch.setattr(historia._cli.data.github, "update", _fake_update)
     runner = click.testing.CliRunner()
@@ -71,6 +77,46 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
     assert called_args["directory"] == tmp_path
     assert called_args["username"] == "octocat"
     assert called_args["past_number_of_days"] == 3
+    assert called_args["start_date"] is None
+
+
+@pytest.mark.ai_generated
+def test_data_update_command_passes_start_date(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    called_args: dict[str, pathlib.Path | str | int | None] = {}
+
+    def _fake_update(
+        directory: pathlib.Path,
+        username: str,
+        past_number_of_days: int,
+        start_date: str | None,
+    ) -> None:
+        called_args["directory"] = directory
+        called_args["username"] = username
+        called_args["past_number_of_days"] = past_number_of_days
+        called_args["start_date"] = start_date
+
+    monkeypatch.setattr(historia._cli.data.github, "update", _fake_update)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "data",
+            "update",
+            "github",
+            "--directory",
+            str(tmp_path),
+            "--username",
+            "octocat",
+            "--recency",
+            "2",
+            "--start",
+            "2026-01-05",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called_args["start_date"] == "2026-01-05"
 
 
 @pytest.mark.ai_generated

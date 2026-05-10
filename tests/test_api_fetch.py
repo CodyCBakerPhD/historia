@@ -78,11 +78,3 @@ def test_fetch_info_graphql_requires_token(monkeypatch: pytest.MonkeyPatch) -> N
             date="2026-01-05",
             username="codycbakerphd",
         )
-
-
-# TODO: add tests for
-# - ensuring empty day folders are not created
-# - error message for github token
-# - ensure overwrite=True creates new file (when current file is empty or partial or incorrect)
-# - ensure overwrite=False does not overwrite existing file (even if incorrect)
-# - CLI and tests for update API; will require a 'start from date' kwarg to make deterministic
