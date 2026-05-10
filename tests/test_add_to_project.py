@@ -82,7 +82,8 @@ query($login: String!, $number: Int!, $after: String) {
             timeout=30,
         )
         if response.status_code == 403:
-            raise PermissionError("GitHub token lacks project permissions (403)")
+            error_message = "GitHub token lacks project permissions (403)"
+            raise PermissionError(error_message)
         result = response.json()
         items_data = result["data"]["user"]["projectV2"]["items"]
         for node in items_data["nodes"]:

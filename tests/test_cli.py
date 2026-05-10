@@ -284,7 +284,8 @@ def test_project_command_shows_error_on_exception(
     make_cli_args: Callable[[pathlib.Path], list[str]],
 ) -> None:
     def _fake(*_args: object, **_kwargs: object) -> None:
-        raise exception_type("something went wrong")
+        error_message = "something went wrong"
+        raise exception_type(error_message)
 
     monkeypatch.setattr(historia._cli, attr_name, _fake)
     runner = click.testing.CliRunner()

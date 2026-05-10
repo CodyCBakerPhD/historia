@@ -115,7 +115,6 @@ ignore = [
     # Long, descriptive messages constructed at the raise site are preferred
     # over per-call-site exception subclasses for one-off internal errors
     "TRY003",
-    "EM101",
     # `pytest.warns(UserWarning)` without a `match=` is intentional in places
     # where any UserWarning is acceptable
     "PT030",
@@ -137,16 +136,15 @@ fixable = ["ALL"]
 "docs/conf.py" = ["A001", "D100"]
 # Tests rely on `assert` (S101), commonly access private members (SLF001),
 # omit per-module/per-function docstrings (D100, D103), reference predictable
-# temp paths in fixtures (S108), raise simple string-literal exceptions
-# (EM101, TRY003), and may carry TODO comments without strict author/issue-link
-# format (FIX002, TD002, TD003)
+# temp paths in fixtures (S108), raise simple exceptions with messages
+# constructed at the raise site (TRY003), and may carry TODO comments without
+# strict author/issue-link format (FIX002, TD002, TD003)
 "tests/**/*.py" = [
     "S101",
     "S108",
     "SLF001",
     "D100",
     "D103",
-    "EM101",
     "TRY003",
     "FIX002",
     "TD002",
