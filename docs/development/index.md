@@ -1,0 +1,145 @@
+# Developer Guide
+
+## Installation
+
+### From PyPI
+
+```bash
+pip install historia
+```
+
+### From Source (Development)
+
+Clone the repository and install in editable mode:
+
+```bash
+pip install -e .
+```
+
+## Project Layout
+
+```
+historia/
+├── src/historia/         # Main package source
+│   ├── _cli.py           # CLI entry points
+│   └── data/
+│       └── github/       # GitHub data fetch/dump/update APIs
+├── tests/                # Pytest test suite
+├── docs/                 # Sphinx documentation source
+├── AGENTS.md             # Agent/AI contributor instructions
+├── CHANGELOG.md          # Release changelog
+└── pyproject.toml        # Project metadata and tool configuration
+```
+
+## Testing
+
+This project uses [pytest](https://docs.pytest.org/) for its test suite.
+
+```bash
+python -m pytest
+```
+
+### Assertion Style
+
+Always place the **actual** (observed) value on the **left** and the **expected** value on the **right**:
+
+```python
+# Correct
+assert actual_value == expected_value
+
+# Incorrect
+assert expected_value == actual_value
+```
+
+### AI-Generated Tests
+
+Tests written or substantially assisted by AI must be marked with the `ai_generated` marker:
+
+```python
+import pytest
+
+@pytest.mark.ai_generated
+def test_something():
+    ...
+```
+
+Use `pytest.mark.parametrize` wherever appropriate to reduce test duplication.
+
+## Code Quality (Pre-commit Hooks)
+
+This project uses [pre-commit](https://pre-commit.com/) to enforce code quality automatically before each commit.
+
+The configured hooks are:
+
+- **black** — code formatting
+- **ruff** — linting and import sorting (with auto-fix)
+- **codespell** — spell checking
+- **mypy** — static type checking
+
+Install the hooks once after cloning:
+
+```bash
+pre-commit install
+```
+
+Run all hooks manually against all files (recommended before opening a PR):
+
+```bash
+pre-commit run --all-files
+```
+
+Pre-commit will auto-fix most formatting and lint issues.
+Re-run the command afterward to confirm everything passes.
+
+## CLI
+
+The package exposes a single entry point:
+
+- `historia` — primary entrypoint
+
+Commands are organized into sub-groups:
+
+- `historia data` — data management
+  - `historia data update github` — fetch raw GitHub activity data for a user
+  - `historia data minify` — compact raw data files
+- `historia project` — GitHub Project management
+  - `historia project create` — create a new GitHub Project page
+  - `historia project populate` — populate a project from fetched data
+  - `historia project update dates` — update item date fields in a project
+  - `historia project transition` — transition project items between statuses
+
+Since every command requires at least one option, running any command or sub-group without arguments automatically prints its help text:
+
+```bash
+historia
+historia data
+historia data update
+historia project
+```
+
+## Changelog
+
+Add a short description of any user-facing change to the `## Upcoming` section of `CHANGELOG.md` under the appropriate subsection:
+
+- `#### 🚀 Enhancement` — new features
+- `#### 🐛 Bug Fix` — bug fixes
+- `#### 📝 Documentation` — documentation-only changes
+- `#### 🏠 Internal` — refactors, tooling, CI, and test infrastructure
+- `#### 🔩 Dependency Updates` — dependency-only changes
+
+Include the GitHub PR link at the end of each entry:
+
+```markdown
+- Brief description of the change. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
+```
+
+## Building Documentation
+
+```{include} ../README.md
+:start-line: 2
+```
+
+## Agent / AI Contributor Instructions
+
+```{include} ../../AGENTS.md
+```

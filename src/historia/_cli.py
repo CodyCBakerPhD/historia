@@ -215,6 +215,3 @@ def _historia_project_transition_cli(project_url: str, current_status: str, new_
     except (ValueError, RuntimeError) as e:
         rich_click.echo(rich_click.style(str(e), fg="red"))
         raise SystemExit(1)
-
-
-_mywork_cli = historia_cli

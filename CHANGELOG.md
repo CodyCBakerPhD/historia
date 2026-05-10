@@ -5,6 +5,7 @@
 #### 🚀 Enhancement
 
 - Generalized project status transitions so `historia project transition` can move items from any source status to any destination status via `--status` and `--new`. ([#47](https://github.com/CodyCBakerPhD/historia/pull/47))
+- Added basic developer documentation page that embeds `AGENTS.md` content via MyST include directive. ([#44](https://github.com/CodyCBakerPhD/historia/pull/44))
 - Simplified CLI option names to dash-free forms (for example `--url` and `--placeholder`) while preserving snake_case keyword routing in command handlers. ([#46](https://github.com/CodyCBakerPhD/historia/pull/46))
 - Added the Historia logo to the README and documentation landing page, and configured docs rendering so the landing-page logo remains non-clickable without the dark-mode background wrapper. ([#39](https://github.com/CodyCBakerPhD/historia/pull/39))
 - Added data-update routing at `historia data update github ...`, with GitHub-specific data APIs nested under `historia.data.github` (including `historia.data.github.update(...)`), and exposed `historia._cli.historia_data_update_cli` for plugin-oriented extension. ([#38](https://github.com/CodyCBakerPhD/historia/pull/38))
