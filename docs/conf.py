@@ -32,3 +32,14 @@ python_trailing_comma_in_multi_line_signatures = True
 
 html_theme = "pydata_sphinx_theme"
 html_scaled_image_link = False
+html_show_sourcelink = False
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/CodyCBakerPhD/historia",
+            "icon": "fa-brands fa-github",
+            "type": "fontawesome",
+        },
+    ],
+}

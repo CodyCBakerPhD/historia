@@ -5,6 +5,7 @@
 #### 🚀 Enhancement
 
 - Added the Historia logo to the README and documentation landing page, and configured docs rendering so the landing-page logo remains non-clickable without the dark-mode background wrapper. ([#39](https://github.com/CodyCBakerPhD/historia/pull/39))
+- Added data-update routing at `historia data update github ...`, with GitHub-specific data APIs nested under `historia.data.github` (including `historia.data.github.update(...)`), and exposed `historia._cli.historia_data_update_cli` for plugin-oriented extension. ([#38](https://github.com/CodyCBakerPhD/historia/pull/38))
 - Added a centered README badge block for PyPI version, supported Python versions, CI workflows, coverage, and license status. ([#37](https://github.com/CodyCBakerPhD/historia/pull/37))
 - Removed REST request modes and related logic so data collection now consistently uses GitHub GraphQL APIs. ([#6](https://github.com/CodyCBakerPhD/historia/pull/6))
 - Reorganized the CLI into nested `data` and `project` command groups, including `historia project update dates`, so operations were grouped by type and better mirrored API structure. ([#12](https://github.com/CodyCBakerPhD/historia/pull/12))
@@ -13,6 +14,7 @@
 - Renamed the root CLI function to `historia_cli` and exposed it for plugin integrations as both `historia._cli.historia_cli` and `historia.historia_cli`, while preserving private aliases. ([#12](https://github.com/CodyCBakerPhD/historia/pull/12))
 - Added Sphinx documentation scaffolding with the PyData theme, API autodocs, and Read the Docs configuration for hosted docs builds. ([#19](https://github.com/CodyCBakerPhD/historia/pull/19))
 - Unpacked project date updates to `historia.project.update_project_item_dates` and removed the `historia.project.update` submodule layer entirely. ([#34](https://github.com/CodyCBakerPhD/historia/pull/34))
+- Added a GitHub icon link to the docs navbar for quick navigation back to the repository, and removed the "Show Source" page links that exposed raw HTML output. ([#42](https://github.com/CodyCBakerPhD/historia/pull/42))
 
 #### 🐛 Bug Fix
 

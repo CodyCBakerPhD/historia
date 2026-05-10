@@ -23,7 +23,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
 @pytest.mark.parametrize(
     ("group", "expected_commands"),
     [
-        ("data", ["update", "minify"]),
+        ("data", ["minify", "update"]),
         ("project", ["create", "populate", "update", "transition"]),
     ],
 )
@@ -53,12 +53,12 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
         called_args["username"] = username
         called_args["past_number_of_days"] = past_number_of_days
 
-    monkeypatch.setattr(historia._cli, "update", _fake_update)
+    monkeypatch.setattr(historia._cli.data.github, "update", _fake_update)
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
         historia.historia_cli,
-        ["data", "update", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
+        ["data", "update", "github", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
     )
 
     assert result.exit_code == 0
@@ -84,6 +84,17 @@ def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp
 
     assert result.exit_code == 0
     assert called_args["directory"] == tmp_path
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(("command", "expected_present"), [("github", True), ("minify", False)])
+def test_data_update_help_commands(command: str, expected_present: bool) -> None:
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(historia.historia_cli, ["data", "update", "--help"])
+
+    assert result.exit_code == 0
+    assert (command in result.output) is expected_present
 
 
 @pytest.mark.ai_generated
