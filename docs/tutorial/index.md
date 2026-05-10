@@ -64,7 +64,7 @@ Historia can create and manage a [GitHub Projects v2](https://docs.github.com/en
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project create --owner your-github-username --title "Work History"
+historia project create --owner [org or user] --title "Work History"
 ```
 
 The command prints the new project's numeric ID and URL on success:
@@ -72,7 +72,7 @@ The command prints the new project's numeric ID and URL on success:
 ```
 Project created successfully!
 ID: PVT_...
-URL: https://github.com/users/[user]/projects/[Project Number]
+URL: https://github.com/users/[user]/projects/[project number]
 ```
 
 Keep the URL — you will need it in the following steps.
@@ -99,7 +99,7 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate --directory ./history/version-0+5 --url https://github.com/[users/orgs]/[owner]/projects/[id]
+historia project populate --directory ./history --url https://github.com/[users/orgs]/[owner]/projects/[id]
 ```
 
 Optional flags:
@@ -114,7 +114,7 @@ import historia
 
 historia.project.add_to_project(
     directory=pathlib.Path(
-        "./history/version-0+5"
+        "./history"
     ),
     project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
 )
@@ -247,7 +247,7 @@ jobs:
       - name: Update the project board
         run: |
           cd $REPO_DIR
-          historia project populate --directory ./history/version-0+5 --url <project-url>
+          historia project populate --directory ./history --url <project-url>
           historia project update dates --url <project-url>
 ```
 
