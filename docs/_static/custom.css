@@ -1,0 +1,20 @@
+/* Make sphinx-tabs follow the pydata-sphinx-theme background
+   in both light and dark mode, instead of using prefers-color-scheme. */
+.sphinx-tabs-panel,
+.sphinx-tabs-tab {
+    background-color: var(--pst-color-background) !important;
+    color: var(--pst-color-text-base) !important;
+}
+
+.sphinx-tabs-tab[aria-selected="true"] {
+    background-color: var(--pst-color-on-background) !important;
+    border-bottom-color: var(--pst-color-on-background) !important;
+}
+
+.sphinx-tabs-panel {
+    border-color: var(--pst-color-border) !important;
+}
+
+.sphinx-tabs-tab {
+    border-color: var(--pst-color-border) !important;
+}
