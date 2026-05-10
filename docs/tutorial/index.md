@@ -66,8 +66,7 @@ Raw JSON responses can be large. The minify step strips whitespace to reduce sto
 Pass the innermost `request-graphql` directory:
 
 ```bash
-historia data minify \
-    --directory ./historia-data/version-0+5/username-your-github-username/request-graphql
+historia data minify --directory ./historia-data/version-0+5/username-your-github-username/request-graphql
 ```
 
 ### Via the Python API
@@ -92,9 +91,7 @@ Historia can create and manage a [GitHub Projects v2](https://docs.github.com/en
 ### Via the CLI
 
 ```bash
-historia project create \
-    --owner your-github-username \
-    --title "Work History"
+historia project create --owner your-github-username --title "Work History"
 ```
 
 The command prints the new project's numeric ID and URL on success:
