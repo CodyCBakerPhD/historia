@@ -307,7 +307,7 @@ def test_project_command_shows_error_on_exception(
         ("transition", ["--projecturl"], ["--project-url"]),
     ],
 )
-def test_project_command_flags_use_single_word_format(
+def test_project_command_flags_use_no_dash_format(
     command: str, expected_flags: list[str], removed_flags: list[str]
 ) -> None:
     runner = click.testing.CliRunner()
