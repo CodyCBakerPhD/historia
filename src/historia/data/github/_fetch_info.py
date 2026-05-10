@@ -133,7 +133,7 @@ def _fetch_info_for_date_graphql(
     variables = {
         "user": username,
         "date": date,
-        "first": 100,  # Require by query, should be good enough for a single day
+        "first": 100,  # Required by query, should be good enough for a single day
     }
     headers = {"Authorization": f"token {token}"}
     response = requests.post(
