@@ -33,6 +33,7 @@
 - Expanded ruff lint rules to `select = ["ALL"]` and resolved all newly enabled violations, including adding request timeouts, fixing exception chaining, converting to absolute imports, and collapsing implicit string concatenations. ([#48](https://github.com/CodyCBakerPhD/historia/pull/48))
 
 - Added mypy via pre-commit mirror for static type checking, with all pre-existing type errors resolved. ([#45](https://github.com/CodyCBakerPhD/historia/pull/45))
+- Added a scheduled daily link checker workflow using `lycheeverse/lychee-action` that scans all Markdown, RST, and Python files for broken links, with a separate email notification track to distinguish failures from daily test failures. ([#51](https://github.com/CodyCBakerPhD/historia/pull/51))
 
 - Added GHCR Dockerfiles and GitHub Actions workflows to publish `dev` and release-tagged `latest` container images. ([#36](https://github.com/CodyCBakerPhD/historia/pull/36))
 - Added a GitHub Actions release workflow to automatically build and publish packages to PyPI when a release is published. ([#32](https://github.com/CodyCBakerPhD/historia/pull/32))
