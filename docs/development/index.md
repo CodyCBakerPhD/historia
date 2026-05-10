@@ -115,7 +115,9 @@ Add a short description of any user-facing change to the `## Upcoming` section o
 
 - `#### 🚀 Enhancement` — new features
 - `#### 🐛 Bug Fix` — bug fixes
-- `#### 🏠 Internal` — refactors, tooling, docs
+- `#### 📝 Documentation` — documentation-only changes
+- `#### 🏠 Internal` — refactors, tooling, CI, and test infrastructure
+- `#### 🔩 Dependency Updates` — dependency-only changes
 
 Include the GitHub PR link at the end of each entry:
 
