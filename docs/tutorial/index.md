@@ -2,13 +2,15 @@
 
 This tutorial walks you through a complete Historia workflow — from collecting raw GitHub activity data all the way to maintaining a live GitHub Project board.
 
-## Prerequisites
+## Installation
 
 Install Historia from PyPI:
 
 ```bash
 pip install historia
 ```
+
+## Prerequisites
 
 You will also need a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with at minimum `read:project` and `repo` scopes exported as the `GITHUB_TOKEN` environment variable:
 
