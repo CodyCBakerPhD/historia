@@ -1,7 +1,3 @@
----
-html_theme.sidebar_primary.remove: true
----
-
 # Developer Guide
 
 ## Installation
