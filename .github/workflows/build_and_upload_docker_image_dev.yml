@@ -44,4 +44,4 @@ jobs:
 
       - name: Push to GHCR
         if: github.event_name != 'pull_request'
-        run: docker push ghcr.io/con/nwb2bids:dev
+        run: docker push ghcr.io/codycbakerphd/historia:dev
