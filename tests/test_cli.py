@@ -53,7 +53,7 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
         called_args["username"] = username
         called_args["past_number_of_days"] = past_number_of_days
 
-    monkeypatch.setattr(historia._cli.github, "update", _fake_update)
+    monkeypatch.setattr(historia._cli.data.github, "update", _fake_update)
     runner = click.testing.CliRunner()
 
     result = runner.invoke(

@@ -2,7 +2,7 @@ import pathlib
 
 import rich_click
 
-from .data import github
+from . import data
 from .data import minify as _minify
 from .project import add_to_project, create_project_page, move_done_to_history, update_project_item_dates
 
@@ -43,7 +43,7 @@ def _historia_data_update_github_cli(
 ) -> None:
     directory = pathlib.Path(directory)
 
-    github.update(directory=directory, username=username, past_number_of_days=past_number_of_days)
+    data.github.update(directory=directory, username=username, past_number_of_days=past_number_of_days)
 
 
 # historia data minify
