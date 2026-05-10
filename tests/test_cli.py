@@ -294,7 +294,11 @@ def test_project_command_shows_error_on_exception(
 @pytest.mark.parametrize(
     ("command", "expected_flags", "removed_flags"),
     [
-        ("populate", ["--projecturl", "--enddateplaceholderdays"], ["--project-url", "--end-date-placeholder-days"]),
+        (
+            "populate",
+            ["--projecturl", "--enddateplaceholderdays"],
+            ["--project-url", "--end-date-placeholder-days"],
+        ),
         (
             "update dates",
             ["--projecturl", "--enddateplaceholderdays"],
