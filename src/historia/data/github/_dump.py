@@ -3,8 +3,6 @@ import json
 import pathlib
 import typing
 
-import historia.data.github as github
-
 from ..._globals import INFO_TYPES
 
 
@@ -54,7 +52,9 @@ def dump_specific_info(
     if overwrite is False and file_path.exists():
         return False
 
-    info, hit_rate_limit = github.fetch_info_for_date(info_type=info_type, date=date, username=username)
+    from . import fetch_info_for_date
+
+    info, hit_rate_limit = fetch_info_for_date(info_type=info_type, date=date, username=username)
 
     if hit_rate_limit:
         return hit_rate_limit
