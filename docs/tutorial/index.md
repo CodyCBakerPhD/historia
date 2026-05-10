@@ -19,7 +19,7 @@ Historia fetches GitHub activity (pull requests and issues opened or assigned to
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia data update github --directory ./data --username [user] --recency 3
+historia data update github --directory ./history --username [user] --recency 3
 ```
 
 - `--directory` — the root directory where data files are stored.
@@ -32,7 +32,7 @@ import pathlib
 import historia
 
 historia.data.github.update(
-    directory=pathlib.Path("./data"),
+    directory=pathlib.Path("./history"),
     username="[user]",
     past_number_of_days=90,
 )
@@ -40,10 +40,10 @@ historia.data.github.update(
 :::
 ::::
 
-After this step, `./historia-data` will contain a versioned folder tree such as:
+After this step, `./history` will contain a versioned folder tree such as:
 
 ```
-historia-data/
+history/
 └── version-0+5/
     └── username-[user]/
         └── year-2026/
@@ -99,7 +99,7 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate --directory ./data/version-0+5 --url https://github.com/[users/orgs]/[owner]/projects/[id]
+historia project populate --directory ./history/version-0+5 --url https://github.com/[users/orgs]/[owner]/projects/[id]
 ```
 
 Optional flags:
@@ -114,7 +114,7 @@ import historia
 
 historia.project.add_to_project(
     directory=pathlib.Path(
-        "./historia-data/version-0+5"
+        "./history/version-0+5"
     ),
     project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
 )
@@ -225,7 +225,7 @@ jobs:
       - name: Fetch new activity
         run: |
           cd $REPO_DIR
-          historia data update github --directory ./data --username [user] --recency 2
+          historia data update github --directory ./history --username [user] --recency 2
 
       - name: Commit and push raw data
         run: |
@@ -236,7 +236,7 @@ jobs:
       - name: Push minified copy to the `min` branch
         run: |
           cd $REPO_DIR
-          historia data minify --directory ./data/version-0+5/
+          historia data minify --directory ./history/version-0+5/
 
           git push origin --delete min || true  # || true in case the branch doesn't exist yet
           git checkout -b min
@@ -247,7 +247,7 @@ jobs:
       - name: Update the project board
         run: |
           cd $REPO_DIR
-          historia project populate --directory ./data/version-0+5 --url <project-url>
+          historia project populate --directory ./history/version-0+5 --url <project-url>
           historia project update dates --url <project-url>
 ```
 
@@ -267,7 +267,7 @@ Raw JSON responses can be large. The `historia data minify` step strips whitespa
 Pass the username directory:
 
 ```bash
-historia data minify --directory ./data/version-0+5/
+historia data minify --directory ./history/version-0+5/
 ```
 :::
 :::{tab} Python API
@@ -276,7 +276,7 @@ import pathlib
 import historia
 
 historia.data.minify(
-    directory=pathlib.Path("./historia-data/version-0+5/")
+    directory=pathlib.Path("./history/version-0+5/")
 )
 ```
 :::
