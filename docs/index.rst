@@ -14,3 +14,4 @@ Historia is a command-line tool and Python package for collecting GitHub activit
    :caption: Contents
 
    api/index
+   development/index
