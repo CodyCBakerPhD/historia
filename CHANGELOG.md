@@ -24,6 +24,8 @@
 
 #### 🏠 Internal
 
+- Added mypy via pre-commit mirror for static type checking, with all pre-existing type errors resolved. ([#45](https://github.com/CodyCBakerPhD/historia/pull/45))
+
 - Added GHCR Dockerfiles and GitHub Actions workflows to publish `dev` and release-tagged `latest` container images. ([#36](https://github.com/CodyCBakerPhD/historia/pull/36))
 - Added a GitHub Actions release workflow to automatically build and publish packages to PyPI when a release is published. ([#32](https://github.com/CodyCBakerPhD/historia/pull/32))
 - Enhanced CLI tests to cover all commands (`data minify`, `project populate`, `project transition`), failure/error paths, and subgroup help output, using parametrize for exception-type variants. ([#33](https://github.com/CodyCBakerPhD/historia/pull/33))

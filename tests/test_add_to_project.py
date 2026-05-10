@@ -350,9 +350,10 @@ def test_get_item_info_classifies_pull_request() -> None:
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        node_id, item_type, item_state, created_at, closed_at = _get_item_info(
-            url="https://github.com/owner/repo/pull/1", headers=headers
-        )
+        result = _get_item_info(url="https://github.com/owner/repo/pull/1", headers=headers)
+
+    assert result is not None
+    node_id, item_type, item_state, created_at, closed_at = result
 
     assert node_id == "PR_node_id"
     assert item_type == "PullRequest"
@@ -378,9 +379,10 @@ def test_get_item_info_classifies_issue() -> None:
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        node_id, item_type, item_state, created_at, closed_at = _get_item_info(
-            url="https://github.com/owner/repo/issues/5", headers=headers
-        )
+        result = _get_item_info(url="https://github.com/owner/repo/issues/5", headers=headers)
+
+    assert result is not None
+    node_id, item_type, item_state, created_at, closed_at = result
 
     assert node_id == "ISSUE_node_id"
     assert item_type == "Issue"

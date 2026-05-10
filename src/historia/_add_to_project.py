@@ -96,6 +96,7 @@ def add_to_project(
             continue
 
         # Determine the correct status
+        status_name: str | None
         if status is not None:
             status_name = status
         else:
@@ -106,6 +107,12 @@ def add_to_project(
                 ("PullRequest", "open"): "In Progress",
                 ("Issue", "open"): "Todo",
             }.get((item_type, item_state))
+            if status_name is None:
+                message = (
+                    f"Unrecognised item type/state combination `({item_type}, {item_state})` for `{url}`; skipping."
+                )
+                warnings.warn(message=message, stacklevel=2)
+                continue
 
         # Find the option ID for the desired status
         option_id = status_options.get(status_name)
