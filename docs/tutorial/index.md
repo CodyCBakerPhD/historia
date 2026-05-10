@@ -19,7 +19,7 @@ Historia fetches GitHub activity (pull requests and issues opened or assigned to
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia data update github --directory ./data --username gh-username --recency 3
+historia data update github --directory ./data --username [user] --recency 3
 ```
 
 - `--directory` — the root directory where data files are stored.
@@ -33,7 +33,7 @@ import historia
 
 historia.data.github.update(
     directory=pathlib.Path("./data"),
-    username="gh-username",
+    username="[user]",
     past_number_of_days=90,
 )
 ```
@@ -45,7 +45,7 @@ After this step, `./historia-data` will contain a versioned folder tree such as:
 ```
 historia-data/
 └── version-0+5/
-    └── username-[GitHub username]/
+    └── username-[user]/
         └── year-2026/
             └── month-05/
                 └── day-10/
@@ -72,7 +72,7 @@ The command prints the new project's numeric ID and URL on success:
 ```
 Project created successfully!
 ID: PVT_...
-URL: https://github.com/users/[GitHub username]/projects/[Project Number]
+URL: https://github.com/users/[user]/projects/[Project Number]
 ```
 
 Keep the URL — you will need it in the following steps.
@@ -177,7 +177,7 @@ historia.project.transition_status(
 
 ---
 
-## Step 6: Automate maintenance with a scheduled GitHub Actions workflow
+## Step 6  (Optional): Automate with a CRON-based GitHub Action
 
 The steps above can be wired together into a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs on a CRON schedule (and on demand via `workflow_dispatch`), keeping a data repository and its associated project board up to date without manual intervention.
 
@@ -225,7 +225,7 @@ jobs:
       - name: Fetch new activity
         run: |
           cd $REPO_DIR
-          historia data update github --directory ./data --username [GitHub username] --recency 2
+          historia data update github --directory ./data --username [user] --recency 2
 
       - name: Commit and push raw data
         run: |
