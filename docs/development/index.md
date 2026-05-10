@@ -139,6 +139,28 @@ Include the GitHub PR link at the end of each entry:
 :start-line: 2
 ```
 
+## AI Usage Addendum
+
+### Commit Co-Authorship
+
+When an AI tool (agent, coding assistant, IDE integration) materially contributes to a commit, the commit MUST include a `Co-Authored-By` trailer identifying both the **tool and its version** and the **model and its version**. This makes the git history the inspectable provenance record so anyone reading the repo can tell which tool produced which change.
+
+Format:
+
+```
+Co-Authored-By: <Tool> <tool-version> / <Model> <model-version> <noreply@<vendor-domain>>
+```
+
+Discover the tool version from the tool itself (commonly `--version`) and use the model identifier the tool reports. Don't guess.
+
+#### Example: Claude Code
+
+```
+Co-Authored-By: Claude Code 2.1.63 / Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+`claude --version` reports the Claude Code CLI version; the active model is reported by the CLI in its status / via `/model`.
+
 ## Agent / AI Contributor Instructions
 
 ```{include} ../../AGENTS.md
