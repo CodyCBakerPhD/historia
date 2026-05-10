@@ -3,8 +3,8 @@ import json
 import pathlib
 import typing
 
-import historia.data.github
-from historia._globals import INFO_TYPES
+from . import _fetch_info
+from ..._globals import INFO_TYPES  # noqa: TID252
 
 
 def dump_specific_info(
@@ -56,7 +56,7 @@ def dump_specific_info(
     if overwrite is False and file_path.exists():
         return False
 
-    info, hit_rate_limit = historia.data.github.fetch_info_for_date(info_type=info_type, date=date, username=username)
+    info, hit_rate_limit = _fetch_info.fetch_info_for_date(info_type=info_type, date=date, username=username)
 
     if hit_rate_limit:
         return hit_rate_limit
