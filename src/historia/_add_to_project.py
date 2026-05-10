@@ -1068,4 +1068,57 @@ def move_done_to_history(project_url: str) -> None:
         If the ``GITHUB_TOKEN`` environment variable is not set, or if the project
         does not have a ``'Done'`` or ``'History'`` status option.
     """
-    transition_status(project_url=project_url, current_status="DONE", new_status="History")
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token is None:
+        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
+        raise ValueError(message)
+
+    headers = {"Authorization": f"token {github_token}"}
+
+    project_id, status_field_id, status_options, _start_date_field_id, _end_date_field_id = _get_project_info(
+        project_url=project_url, headers=headers
+    )
+
+    done_option_id = status_options.get("DONE")
+    if done_option_id is None:
+        message = (
+            f"Status option 'DONE' not found in project `{project_url}`. "
+            f"Available options: {list(status_options.keys())}."
+        )
+        raise ValueError(message)
+
+    history_option_id = status_options.get("History")
+    if history_option_id is None:
+        message = (
+            f"Status option 'History' not found in project `{project_url}`. "
+            f"Available options: {list(status_options.keys())}."
+        )
+        raise ValueError(message)
+
+    # Parse owner type, login, and number from URL
+    parts = project_url.rstrip("/").split("/")
+    owner_type = parts[3]
+    owner_login = parts[4]
+    project_number = int(parts[6])
+
+    # Fetch all items with their current status
+    all_items = _list_project_items_with_status(
+        owner_type=owner_type,
+        owner_login=owner_login,
+        project_number=project_number,
+        status_field_id=status_field_id,
+        headers=headers,
+    )
+
+    done_items = [item for item in all_items if item["status_option_id"] == done_option_id]
+
+    for item in tqdm.tqdm(
+        iterable=done_items, desc="Moving items from Done to History", unit="items", dynamic_ncols=True
+    ):
+        _set_item_status(
+            project_id=project_id,
+            item_id=item["id"],
+            field_id=status_field_id,
+            option_id=history_option_id,
+            headers=headers,
+        )
