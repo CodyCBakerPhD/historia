@@ -101,7 +101,7 @@ ignore = [
     # the established public API surface (e.g. `historia.data.github.dump`)
     "FBT001",
     "FBT002",
-    # Common HTTP status codes (200, 403, ...) and other small integer 
+    # Common HTTP status codes (200, 403, ...) and other small integer
     # literals are clearer inline than as named module-level constants
     "PLR2004",
     # GraphQL uses exceeds the branch / complexity thresholds; unavoidable
