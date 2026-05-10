@@ -117,6 +117,7 @@ ignore = [
     "D100",
     "D103",
     "ERA001",
+    "TID252",  # We use relative imports
 ]
 fixable = ["ALL"]
 
