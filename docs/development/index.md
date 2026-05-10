@@ -1,14 +1,6 @@
 # Developer Guide
 
-## Installation
-
-### From PyPI
-
-```bash
-pip install historia
-```
-
-### From Source (Development)
+## Installation From Source (Development)
 
 Clone the repository and install in editable mode:
 
