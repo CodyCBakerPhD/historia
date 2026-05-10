@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- Removed the now-unused `request-graphql/` directory level from the dump layout (between `username-<login>/` and `year-<yyyy>/`). All Historia data is fetched via GraphQL, so the REST/GraphQL distinction is no longer needed and the path tree is now one segment shallower. The `historia data minify` and `historia project populate` CLIs (and their Python equivalents) now expect the `username-<login>` directory directly. ([#73](https://github.com/CodyCBakerPhD/historia/pull/73))
+
 ### 🏠 Internal
 
 - Fixed the `Build and upload latest release Docker image to GHCR` workflow, which is triggered via `workflow_run` after `Release to PyPI`: the release tag is now resolved from the latest published GitHub release (rather than the empty `github.event.release.tag_name`), so the checkout uses the released tag and the versioned image tag is no longer constructed as `ghcr.io/<repo>:` (which `docker tag` rejected as an invalid reference). Also gated the job on the upstream workflow's success. ([#70](https://github.com/CodyCBakerPhD/historia/pull/70))

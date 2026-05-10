@@ -47,7 +47,6 @@ def dump_specific_info(
         directory
         / f"version-{major}+{minor}"
         / f"username-{username}"
-        / "request-graphql"
         / f"year-{year}"
         / f"month-{month}"
         / f"day-{day}"
