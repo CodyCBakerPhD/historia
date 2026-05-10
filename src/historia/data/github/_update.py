@@ -10,8 +10,29 @@ def update(
     directory: pathlib.Path,
     username: str,
     past_number_of_days: int,
+    start_date: str | None = None,
 ) -> None:
-    today = datetime.datetime.now(tz=datetime.timezone.utc).astimezone().date()
+    """
+    Fetch and save GitHub info for the most recent ``past_number_of_days`` days.
+
+    Parameters
+    ----------
+    directory : pathlib.Path
+        The base directory to save the data to.
+    username : str
+        The GitHub username to fetch information about.
+    past_number_of_days : int
+        Number of days (in addition to the anchor date) to fetch backwards from.
+    start_date : str, optional
+        Anchor date to count backwards from, in the format "YYYY-MM-DD".
+        Defaults to today's date in the local timezone.
+        Primarily intended to make the iteration deterministic for testing.
+
+    """
+    if start_date is None:
+        anchor = datetime.datetime.now(tz=datetime.timezone.utc).astimezone().date()
+    else:
+        anchor = datetime.date.fromisoformat(start_date)
 
     with tqdm.tqdm(
         iterable=range(past_number_of_days + 1),
@@ -20,7 +41,7 @@ def update(
         dynamic_ncols=True,
     ) as progress_bar:
         for day in progress_bar:
-            date = (today - datetime.timedelta(days=day)).strftime("%Y-%m-%d")
+            date = (anchor - datetime.timedelta(days=day)).strftime("%Y-%m-%d")
             progress_bar.set_postfix(date=date)
             overwrite = day < 2
             dump_info_for_date(directory=directory, date=date, username=username, overwrite=overwrite)
