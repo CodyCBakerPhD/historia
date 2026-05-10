@@ -299,7 +299,7 @@ def test_project_command_shows_error_on_exception(
         ("transition", ["--projecturl"]),
     ],
 )
-def test_project_commands_use_one_word_flags(command: str, expected_flags: list[str]) -> None:
+def test_project_command_flags_no_dashes(command: str, expected_flags: list[str]) -> None:
     runner = click.testing.CliRunner()
 
     result = runner.invoke(historia.historia_cli, ["project", *command.split(), "--help"])
