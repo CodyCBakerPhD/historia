@@ -81,7 +81,8 @@ Run all hooks manually against all files (recommended before opening a PR):
 pre-commit run --all-files
 ```
 
-Pre-commit will auto-fix most formatting and lint issues. Re-run the command afterward to confirm everything passes.
+Pre-commit will auto-fix most formatting and lint issues.
+Re-run the command afterward to confirm everything passes.
 
 ## CLI
 
