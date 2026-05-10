@@ -16,8 +16,8 @@ export GITHUB_TOKEN="ghp_..."
 
 Historia fetches GitHub activity (pull requests and issues opened or assigned to a user) for a rolling window of days and saves the results as structured JSON files.
 
-### Via the CLI
-
+::::{tabs}
+:::{tab} CLI
 ```bash
 historia data update github --directory ./historia-data --username your-github-username --recency 3
 ```
@@ -25,9 +25,8 @@ historia data update github --directory ./historia-data --username your-github-u
 - `--directory` — the root directory where data files are stored.
 - `--username` — the GitHub username whose activity to fetch.
 - `--recency` — number of past days to fetch (the two most recent days are always refreshed to account for late-arriving data).
-
-### Via the Python API
-
+:::
+:::{tab} Python API
 ```python
 import pathlib
 import historia
@@ -38,6 +37,8 @@ historia.data.github.update(
     past_number_of_days=90,
 )
 ```
+:::
+::::
 
 After this step, `./historia-data` will contain a versioned folder tree such as:
 
@@ -61,16 +62,15 @@ historia-data/
 
 Raw JSON responses can be large. The minify step strips whitespace to reduce storage footprint without losing any information.
 
-### Via the CLI
-
+::::{tabs}
+:::{tab} CLI
 Pass the innermost `request-graphql` directory:
 
 ```bash
 historia data minify --directory ./historia-data/version-0+5/username-your-github-username/request-graphql
 ```
-
-### Via the Python API
-
+:::
+:::{tab} Python API
 ```python
 import pathlib
 import historia
@@ -81,6 +81,8 @@ historia.data.minify(
     )
 )
 ```
+:::
+::::
 
 ---
 
@@ -88,8 +90,8 @@ historia.data.minify(
 
 Historia can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualises your collected activity.
 
-### Via the CLI
-
+::::{tabs}
+:::{tab} CLI
 ```bash
 historia project create --owner your-github-username --title "Work History"
 ```
@@ -98,14 +100,13 @@ The command prints the new project's numeric ID and URL on success:
 
 ```
 Project created successfully!
-ID: PVT_kwDOABC123
-URL: https://github.com/users/your-github-username/projects/1
+ID: PVT_xyz
+URL: https://github.com/users/your-github-username/projects/your-id
 ```
 
 Keep the URL — you will need it in the following steps.
-
-### Via the Python API
-
+:::
+:::{tab} Python API
 ```python
 import historia
 
@@ -113,8 +114,10 @@ project = historia.project.create_project_page(
     owner="your-github-username",
     title="Work History",
 )
-print(project["url"])  # https://github.com/users/your-github-username/projects/1
+print(project["url"])  # https://github.com/users/your-github-username/projects/your-id
 ```
+:::
+::::
 
 ---
 
@@ -122,21 +125,20 @@ print(project["url"])  # https://github.com/users/your-github-username/projects/
 
 Once data has been collected, populate the project board with the activity items.
 
-### Via the CLI
-
+::::{tabs}
+:::{tab} CLI
 ```bash
 historia project populate \
     --directory ./historia-data/version-0+5/username-your-github-username/request-graphql \
-    --url https://github.com/users/your-github-username/projects/1
+    --url https://github.com/users/your-github-username/projects/your-id
 ```
 
 Optional flags:
 
 - `--status <value>` — pin every item to a specific status instead of deriving it automatically.
 - `--placeholder <days>` — number of days after an item's creation date to use as a placeholder end date for open items (default: `180`).
-
-### Via the Python API
-
+:::
+:::{tab} Python API
 ```python
 import pathlib
 import historia
@@ -145,9 +147,11 @@ historia.project.add_to_project(
     directory=pathlib.Path(
         "./historia-data/version-0+5/username-your-github-username/request-graphql"
     ),
-    project_url="https://github.com/users/your-github-username/projects/1",
+    project_url="https://github.com/users/your-github-username/projects/your-id",
 )
 ```
+:::
+::::
 
 ---
 
@@ -155,24 +159,25 @@ historia.project.add_to_project(
 
 As items progress and are eventually closed, their recorded end dates should be refreshed to reflect the actual close dates.
 
-### Via the CLI
-
+::::{tabs}
+:::{tab} CLI
 ```bash
 historia project update dates \
-    --url https://github.com/users/your-github-username/projects/1
+    --url https://github.com/users/your-github-username/projects/your-id
 ```
 
 Use `--placeholder <days>` to change the placeholder window for still-open items.
-
-### Via the Python API
-
+:::
+:::{tab} Python API
 ```python
 import historia
 
 historia.project.update_project_item_dates(
-    project_url="https://github.com/users/your-github-username/projects/1",
+    project_url="https://github.com/users/your-github-username/projects/your-id",
 )
 ```
+:::
+::::
 
 ---
 
@@ -180,29 +185,30 @@ historia.project.update_project_item_dates(
 
 Move groups of items from one project status to another — for example, archive completed work by transitioning items from `Done` to `History`.
 
-### Via the CLI
-
+::::{tabs}
+:::{tab} CLI
 ```bash
 historia project transition \
-    --url https://github.com/users/your-github-username/projects/1 \
+    --url https://github.com/users/your-github-username/projects/your-id \
     --status Done \
     --new History
 ```
 
 - `--status` — the current status of items to match.
 - `--new` — the status to assign to those items.
-
-### Via the Python API
-
+:::
+:::{tab} Python API
 ```python
 import historia
 
 historia.project.transition_status(
-    project_url="https://github.com/users/your-github-username/projects/1",
+    project_url="https://github.com/users/your-github-username/projects/your-id",
     current_status="Done",
     new_status="History",
 )
 ```
+:::
+::::
 
 ---
 
@@ -216,7 +222,7 @@ import historia
 
 DATA_DIR = pathlib.Path("./historia-data")
 USERNAME = "your-github-username"
-PROJECT_URL = "https://github.com/users/your-github-username/projects/1"
+PROJECT_URL = "https://github.com/users/your-github-username/projects/your-id"
 GRAPHQL_DIR = DATA_DIR / "version-0+5" / f"username-{USERNAME}" / "request-graphql"
 
 # 1. Refresh the last 90 days of activity
