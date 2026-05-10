@@ -292,14 +292,20 @@ def test_project_command_shows_error_on_exception(
 
 @pytest.mark.ai_generated
 @pytest.mark.parametrize(
-    ("command", "expected_flags"),
+    ("command", "expected_flags", "removed_flags"),
     [
-        ("populate", ["--projecturl", "--enddateplaceholderdays"]),
-        ("update dates", ["--projecturl", "--enddateplaceholderdays"]),
-        ("transition", ["--projecturl"]),
+        ("populate", ["--projecturl", "--enddateplaceholderdays"], ["--project-url", "--end-date-placeholder-days"]),
+        (
+            "update dates",
+            ["--projecturl", "--enddateplaceholderdays"],
+            ["--project-url", "--end-date-placeholder-days"],
+        ),
+        ("transition", ["--projecturl"], ["--project-url"]),
     ],
 )
-def test_project_command_flags_no_dashes(command: str, expected_flags: list[str]) -> None:
+def test_project_command_flags_use_single_word_format(
+    command: str, expected_flags: list[str], removed_flags: list[str]
+) -> None:
     runner = click.testing.CliRunner()
 
     result = runner.invoke(historia.historia_cli, ["project", *command.split(), "--help"])
@@ -307,5 +313,5 @@ def test_project_command_flags_no_dashes(command: str, expected_flags: list[str]
     assert result.exit_code == 0
     for expected_flag in expected_flags:
         assert expected_flag in result.output
-    assert "--project-url" not in result.output
-    assert "--end-date-placeholder-days" not in result.output
+    for removed_flag in removed_flags:
+        assert removed_flag not in result.output
