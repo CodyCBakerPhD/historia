@@ -4,9 +4,12 @@
 
 ### 🚀 Enhancement
 
+- Added a `start_date` keyword argument to `historia.data.github.update`, exposed as `--start` on `historia data update github`, that overrides the "today" anchor used to count backwards, primarily so the iteration order can be exercised deterministically. ([#68](https://github.com/CodyCBakerPhD/historia/pull/68))
 - Added a `--version` flag to the `historia` CLI that prints the installed package version. ([#66](https://github.com/CodyCBakerPhD/historia/pull/66))
 
 ### 🏠 Internal
+
+- Resolved the test TODO list in `tests/test_api_fetch.py` by adding direct tests for empty-day folder skipping, `overwrite=True` replacing existing files, `overwrite=False` preserving existing files, and a deterministic `historia.data.github.update` flow using the new `start_date` kwarg; relaxed the now-unused `FIX002` / `TD002` / `TD003` ruff suppressions on `tests/**/*.py`. ([#68](https://github.com/CodyCBakerPhD/historia/pull/68))
 
 - Moved developer-only dependencies (`pytest`, `pre-commit`, `ipython`) out of the runtime `dependencies` list and into a new `dev` dependency group, so end users no longer pull them in on `pip install historia`. Install them for development with `pip install -e . --group dev`. ([#65](https://github.com/CodyCBakerPhD/historia/pull/65))
 

@@ -41,14 +41,32 @@ def historia_data_update_cli() -> None:
     required=True,
     help="Number of most recent days to fetch. Smart updating still applies.",
 )
+@rich_click.option(
+    "--start",
+    "start_date",
+    type=str,
+    default=None,
+    required=False,
+    help=(
+        "Optional anchor date to count backwards from, in the format `YYYY-MM-DD`. "
+        "Defaults to today's date in the local timezone. "
+        "Primarily intended to make iteration deterministic for backfills and testing."
+    ),
+)
 def _historia_data_update_github_cli(
     directory: str,
     username: str,
     past_number_of_days: int,
+    start_date: str | None,
 ) -> None:
     directory_path = pathlib.Path(directory)
 
-    data.github.update(directory=directory_path, username=username, past_number_of_days=past_number_of_days)
+    data.github.update(
+        directory=directory_path,
+        username=username,
+        past_number_of_days=past_number_of_days,
+        start_date=start_date,
+    )
 
 
 # historia data minify
