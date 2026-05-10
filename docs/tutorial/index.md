@@ -99,7 +99,7 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate --directory ./history --url https://github.com/[users/orgs]/[owner]/projects/[id]
+historia project populate --directory ./history --url [project url]
 ```
 
 Optional flags:
@@ -116,7 +116,7 @@ historia.project.add_to_project(
     directory=pathlib.Path(
         "./history"
     ),
-    project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
+    project_url="[project url]",
 )
 ```
 :::
@@ -131,7 +131,7 @@ As items progress and are eventually closed, their recorded end dates should be 
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project update dates --url https://github.com/[users/orgs]/[owner]/projects/[id]
+historia project update dates --url [project url]
 ```
 
 Use `--placeholder [days]` to change the placeholder window for still-open items.
@@ -141,7 +141,7 @@ Use `--placeholder [days]` to change the placeholder window for still-open items
 import historia
 
 historia.project.update_project_item_dates(
-    project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
+    project_url="[project url]",
 )
 ```
 :::
@@ -156,7 +156,7 @@ Move groups of items from one project status to another — for example, archive
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project transition --url https://github.com/[users/orgs]/[owner]/projects/[id] --status Done --new History
+historia project transition --url [project url] --status Done --new History
 ```
 
 - `--status` — the current status of items to match.
@@ -167,7 +167,7 @@ historia project transition --url https://github.com/[users/orgs]/[owner]/projec
 import historia
 
 historia.project.transition_status(
-    project_url="https://github.com/[users/orgs]/[owner]/projects/[id]",
+    project_url="[project url]",
     current_status="Done",
     new_status="History",
 )
@@ -185,7 +185,7 @@ The example below assumes:
 
 - A dedicated repository (e.g. `work-history-data`) hosts the collected JSON files on its `main` branch.
 - A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `read:project`, `project`, and `repo` scopes — enough to fetch activity, push commits, and update the project board.
-- A GitHub Project board has already been created via Step 2; its URL is referenced as `<project-url>` below.
+- A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
 
@@ -247,20 +247,22 @@ jobs:
       - name: Update the project board
         run: |
           cd $REPO_DIR
-          historia project populate --directory ./history --url <project-url>
-          historia project update dates --url <project-url>
+          historia project populate --directory ./history --url [project url]
+          historia project update dates --url [project url]
 ```
 
 Tips:
 
-- The `--recency 2` flag tells Historia to refresh just the last two days on each run — the two-day overlap absorbs late-arriving GitHub data without re-downloading the full history.
-- The minified copy is pushed to a separate `min` branch as a force-replaced snapshot, so consumers (e.g. dashboards) can always pin to `min` for the smallest possible payload.
-- Add additional `historia project populate ... --url <other-project-url>` lines under the final step to mirror the same data into multiple project boards.
+- The `--recency 2` flag tells Historia to refresh just the last two days on each run.
+- The minified copy is pushed to a separate `min` branch as an ephemeral snapshot for the smallest portable payload.
+- Add additional `historia project populate ... --url [other project url]` lines after the final step to post the same data to multiple project boards.
 
 :::::{note}
 **Optional: data minification**
 
-Raw JSON responses can be large. The `historia data minify` step strips whitespace to reduce storage footprint without losing any information, and is what the workflow above uses to build the `min` branch. It can also be run on its own:
+Raw JSON responses can be large.
+The `historia data minify` step strips whitespace to reduce storage footprint without losing any information, and is what the workflow above uses to build the `min` branch.
+It can also be run on its own:
 
 ::::{tabs}
 :::{tab} CLI
