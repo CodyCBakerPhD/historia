@@ -101,22 +101,18 @@ ignore = [
     # the established public API surface (e.g. `historia.data.github.dump`)
     "FBT001",
     "FBT002",
-    # Common HTTP status codes (200, 403, ...) and other small integer
+    # Common HTTP status codes (200, 403, ...) and other small integer 
     # literals are clearer inline than as named module-level constants
     "PLR2004",
-    # `add_to_project` exceeds the branch / complexity thresholds because it
-    # dispatches over a large GraphQL response shape; refactoring would
-    # obscure the linear flow without simplifying the logic
+    # GraphQL uses exceeds the branch / complexity thresholds; unavoidable
     "C901",
     "PLR0912",
     # Long, descriptive messages constructed at the raise site are preferred
     # over per-call-site exception subclasses for one-off internal errors
     "TRY003",
-    # Comments and docstrings intentionally use Unicode characters
-    # (en-dashes, multiplication signs, ...) in fixture descriptions
+    # Fine to use Unicode characters
     "RUF003",
-    # `tests/` and `docs/` are deliberately not Python packages and do not
-    # carry `__init__.py` files
+    # `tests/` and `docs/` are deliberately not Python packages
     "INP001",
     # We use relative imports within the package (see developer guide)
     "TID252",
