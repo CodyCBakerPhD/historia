@@ -91,16 +91,10 @@ pre-commit run --all-files
 
 Pre-commit will auto-fix most formatting and lint issues. Re-run the command afterward to confirm everything passes.
 
-## Building Docs Locally
+## Building Documentation
 
-Install the docs dependencies and build with Sphinx:
-
-```bash
-pip install -e . --group docs
-python -m sphinx -b html docs docs/_build/html
+```{include} ../README.md
 ```
-
-Open `docs/_build/html/index.html` in your browser to preview the output.
 
 ## CLI
 
