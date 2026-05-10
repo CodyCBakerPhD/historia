@@ -203,36 +203,3 @@ historia.project.transition_status(
 ```
 :::
 ::::
-
----
-
-## Putting it all together
-
-A complete weekly maintenance script might look like this:
-
-```python
-import pathlib
-import historia
-
-DATA_DIR = pathlib.Path("./historia-data")
-USERNAME = "your-github-username"
-PROJECT_URL = "https://github.com/users/your-github-username/projects/your-id"
-GRAPHQL_DIR = DATA_DIR / "version-0+5" / f"username-{USERNAME}" / "request-graphql"
-
-# 1. Refresh the last 90 days of activity
-historia.data.github.update(directory=DATA_DIR, username=USERNAME, past_number_of_days=90)
-
-# 2. Compact the raw files
-historia.data.minify(directory=GRAPHQL_DIR)
-
-# 3. Sync the project board
-historia.project.add_to_project(directory=GRAPHQL_DIR, project_url=PROJECT_URL)
-
-# 4. Refresh item date fields
-historia.project.update_project_item_dates(project_url=PROJECT_URL)
-
-# 5. Archive completed items
-historia.project.transition_status(
-    project_url=PROJECT_URL, current_status="Done", new_status="History"
-)
-```
