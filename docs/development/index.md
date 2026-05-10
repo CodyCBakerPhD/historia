@@ -28,6 +28,10 @@ historia/
 
 This project uses [pytest](https://docs.pytest.org/) for its test suite.
 
+```bash
+python -m pytest
+```
+
 ### Assertion Style
 
 Always place the **actual** (observed) value on the **left** and the **expected** value on the **right**:
@@ -50,12 +54,6 @@ import pytest
 @pytest.mark.ai_generated
 def test_something():
     ...
-```
-
-### Running Tests
-
-```bash
-python -m pytest
 ```
 
 Use `pytest.mark.parametrize` wherever appropriate to reduce test duplication.
