@@ -3,7 +3,7 @@ import json
 import pathlib
 import typing
 
-from . import _fetch_info
+from ._fetch_info import fetch_info_for_date
 from ..._globals import INFO_TYPES
 
 
@@ -56,7 +56,7 @@ def dump_specific_info(
     if overwrite is False and file_path.exists():
         return False
 
-    info, hit_rate_limit = _fetch_info.fetch_info_for_date(info_type=info_type, date=date, username=username)
+    info, hit_rate_limit = fetch_info_for_date(info_type=info_type, date=date, username=username)
 
     if hit_rate_limit:
         return hit_rate_limit
