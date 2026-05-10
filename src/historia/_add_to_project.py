@@ -236,7 +236,7 @@ def _get_project_info(
     #   https://github.com/users/{login}/projects/{number}
     #   https://github.com/orgs/{login}/projects/{number}
     parts = project_url.rstrip("/").split("/")
-    # parts: ['https:', '', 'github.com', 'users'|'orgs', login, 'projects', number]
+    # After splitting, indices map to: 3 = "users" or "orgs", 4 = login, 6 = project number.
     owner_type = parts[3]  # 'users' or 'orgs'
     owner_login = parts[4]
     project_number = int(parts[6])

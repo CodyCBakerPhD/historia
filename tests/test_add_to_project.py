@@ -82,7 +82,8 @@ query($login: String!, $number: Int!, $after: String) {
             timeout=30,
         )
         if response.status_code == 403:
-            raise PermissionError("GitHub token lacks project permissions (403)")
+            error_message = "GitHub token lacks project permissions (403)"
+            raise PermissionError(error_message)
         result = response.json()
         items_data = result["data"]["user"]["projectV2"]["items"]
         for node in items_data["nodes"]:
@@ -210,7 +211,7 @@ def test_check_graphql_response_warns_on_403() -> None:
     mock_response.status_code = 403
     mock_response.json.return_value = {"message": "Forbidden"}
 
-    with pytest.warns(UserWarning), pytest.raises(RuntimeError):
+    with pytest.warns(UserWarning, match="Status code 403"), pytest.raises(RuntimeError):
         _check_graphql_response(response=mock_response, context="test 403")
 
 
@@ -416,7 +417,10 @@ def test_add_item_to_project_returns_none_on_403() -> None:
     mock_response.json.return_value = {"message": "Forbidden"}
 
     headers = {"Authorization": "token fake-token"}
-    with unittest.mock.patch("requests.post", return_value=mock_response), pytest.warns(UserWarning):
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        pytest.warns(UserWarning, match="Failed to add item"),
+    ):
         item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
 
     assert item_id is None

@@ -11,7 +11,7 @@ def update(
     username: str,
     past_number_of_days: int,
 ) -> None:
-    today = datetime.date.today()
+    today = datetime.datetime.now(tz=datetime.timezone.utc).astimezone().date()
 
     with tqdm.tqdm(
         iterable=range(past_number_of_days + 1),

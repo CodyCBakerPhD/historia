@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.5.8"
+version = "0.5.9"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -92,36 +92,52 @@ line-length = 120
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "PTH123",
+    # Docstring style: prefer the D213 / D211 conventions
     "D203",
     "D212",
+    # Commands deliberately use `print` or `.echo` instead of logging
     "T201",
-    "FIX002",
-    "TD003",
-    "TD002",
-    "S101",
-    "ICN001",
-    "INP001",
-    "PLR2004",
-    "SLF001",
+    # `verbose: bool = True` and similar positional boolean flags are part of
+    # the established public API surface (e.g. `historia.data.github.dump`)
     "FBT001",
     "FBT002",
-    "TRY003",
-    "EM101",
+    # Common HTTP status codes (200, 403, ...) and other small integer
+    # literals are clearer inline than as named module-level constants
+    "PLR2004",
+    # GraphQL uses exceeds the branch / complexity thresholds; unavoidable
     "C901",
     "PLR0912",
+    # Long, descriptive messages constructed at the raise site are preferred
+    # over per-call-site exception subclasses for one-off internal errors
+    "TRY003",
+    # Fine to use Unicode characters
     "RUF003",
-    "PT030",
-    "DTZ005",
-    "DTZ011",
-    "A001",
-    "S108",
-    "D100",
-    "D103",
-    "ERA001",
-    "TID252",  # We use relative imports
+    # `tests/` and `docs/` are deliberately not Python packages
+    "INP001",
+    # We use relative imports within the package (see developer guide)
+    "TID252",
 ]
 fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+# `docs/conf.py` is the Sphinx configuration entry point: `copyright` is the
+# Sphinx-required variable name (shadows a builtin) and the file does not
+# require its own module docstring
+"docs/conf.py" = ["A001", "D100"]
+# Tests rely on `assert` (S101), commonly access private members (SLF001),
+# omit per-module/per-function docstrings (D100, D103), reference predictable
+# temp paths in fixtures (S108), and may carry TODO comments without strict
+# author/issue-link format (FIX002, TD002, TD003)
+"tests/**/*.py" = [
+    "S101",
+    "S108",
+    "SLF001",
+    "D100",
+    "D103",
+    "FIX002",
+    "TD002",
+    "TD003",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

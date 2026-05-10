@@ -42,7 +42,10 @@ def test_fetch_info_graphql_warns_on_rate_limit(monkeypatch: pytest.MonkeyPatch)
     mock_response.status_code = 403
     mock_response.json.return_value = {"message": "API rate limit exceeded"}
 
-    with unittest.mock.patch("requests.post", return_value=mock_response), pytest.warns(UserWarning):
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        pytest.warns(UserWarning, match="GitHub GraphQL API query"),
+    ):
         test_info, hit_rate_limit = historia.data.github.fetch_info_for_date(
             info_type="issues_opened",
             date="2026-01-05",
