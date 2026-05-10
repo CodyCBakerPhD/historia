@@ -11,6 +11,7 @@
 </p>
 <p align="center">
   <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml"><img alt="Daily tests" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml/badge.svg"></a>
+  <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_link_checker.yml"><img alt="Daily link checker" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_link_checker.yml/badge.svg"></a>
   <a href="https://github.com/CodyCBakerPhD/historia/blob/main/LICENSE.txt"><img alt="License" src="https://img.shields.io/pypi/l/historia.svg"></a>
 </p>
 
