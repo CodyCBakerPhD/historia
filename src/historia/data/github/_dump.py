@@ -4,7 +4,7 @@ import pathlib
 import typing
 
 from . import _fetch_info
-from ..._globals import INFO_TYPES  # noqa: TID252
+from ..._globals import INFO_TYPES
 
 
 def dump_specific_info(
