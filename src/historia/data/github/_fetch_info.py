@@ -8,6 +8,7 @@ import requests
 
 
 def fetch_info_for_date(
+    *,
     info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
     date: str,
     username: str,
@@ -54,7 +55,7 @@ def fetch_info_for_date(
 
 
 @functools.cache
-def _format_graphql_queries(date: str, username: str) -> dict[str, str]:
+def _format_graphql_queries(*, date: str, username: str) -> dict[str, str]:
     entities_to_graphql_query_template = {
         "prs_opened": """
 query OpenPRs($first: Int!) {
@@ -123,6 +124,7 @@ query AssignedIssues($first: Int!) {
 
 
 def _fetch_info_for_date_graphql(
+    *,
     info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
     date: str,
     username: str,

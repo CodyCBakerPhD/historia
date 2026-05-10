@@ -7,6 +7,7 @@ from ._dump import dump_info_for_date
 
 
 def update(
+    *,
     directory: pathlib.Path,
     username: str,
     past_number_of_days: int,

@@ -9,6 +9,7 @@ import tqdm
 
 
 def add_to_project(
+    *,
     directory: pathlib.Path,
     project_url: str,
     status: str | None = None,
@@ -175,7 +176,7 @@ def _collect_unique_urls(directory: pathlib.Path) -> list[str]:
     return list(all_urls)
 
 
-def _check_graphql_response(response: requests.Response, context: str) -> dict:
+def _check_graphql_response(*, response: requests.Response, context: str) -> dict:
     """
     Validate a GraphQL API response and raise or warn on errors.
 
@@ -209,6 +210,7 @@ def _check_graphql_response(response: requests.Response, context: str) -> dict:
 
 
 def _get_project_info(
+    *,
     project_url: str,
     headers: dict[str, str],
 ) -> tuple[str, str, dict[str, str], str | None, str | None]:
@@ -340,7 +342,7 @@ query GetProject($login: String!, $number: Int!) {
     return project_id, status_field_id, status_options, start_date_field_id, end_date_field_id
 
 
-def _get_item_info(url: str, headers: dict[str, str]) -> tuple[str, str, str, str, str | None] | None:
+def _get_item_info(*, url: str, headers: dict[str, str]) -> tuple[str, str, str, str, str | None] | None:
     """
     Fetch the node ID, type (PullRequest or Issue), state, creation date, and closed date for the given URL.
 
@@ -401,7 +403,7 @@ query GetItem($url: URI!) {
     return node_id, item_type, item_state, created_at, closed_at
 
 
-def _add_item_to_project(project_id: str, content_id: str, headers: dict[str, str]) -> str | None:
+def _add_item_to_project(*, project_id: str, content_id: str, headers: dict[str, str]) -> str | None:
     """
     Add an item to a GitHub Project v2 by its content node ID.
 
@@ -450,6 +452,7 @@ mutation AddItem($projectId: ID!, $contentId: ID!) {
 
 
 def _set_item_status(
+    *,
     project_id: str,
     item_id: str,
     field_id: str,
@@ -512,6 +515,7 @@ mutation SetStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: Stri
 
 
 def _set_item_date(
+    *,
     project_id: str,
     item_id: str,
     field_id: str,
@@ -574,6 +578,7 @@ mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
 
 
 def update_project_item_dates(
+    *,
     project_url: str,
     end_date_placeholder_days: int = 180,
 ) -> None:
@@ -665,6 +670,7 @@ def update_project_item_dates(
 
 
 def _list_project_item_content_urls(
+    *,
     owner_type: str,
     owner_login: str,
     project_number: int,
@@ -762,6 +768,7 @@ query GetItemUrls($login: String!, $number: Int!, $after: String) {
 
 
 def _list_project_items_with_dates(
+    *,
     owner_type: str,
     owner_login: str,
     project_number: int,
@@ -867,6 +874,7 @@ query GetItems($login: String!, $number: Int!, $after: String) {
 
 
 def _list_project_items_with_status(
+    *,
     owner_type: str,
     owner_login: str,
     project_number: int,
@@ -992,7 +1000,7 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
     return all_items
 
 
-def transition_status(project_url: str, current_status: str, new_status: str) -> None:
+def transition_status(*, project_url: str, current_status: str, new_status: str) -> None:
     """
     Move all items with one Status value to another in a GitHub Project (v2).
 

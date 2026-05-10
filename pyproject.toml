@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.5.12"
+version = "0.6.0"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -99,10 +99,6 @@ ignore = [
     "D212",
     # Commands deliberately use `print` or `.echo` instead of logging
     "T201",
-    # `verbose: bool = True` and similar positional boolean flags are part of
-    # the established public API surface (e.g. `historia.data.github.dump`)
-    "FBT001",
-    "FBT002",
     # Common HTTP status codes (200, 403, ...) and other small integer
     # literals are clearer inline than as named module-level constants
     "PLR2004",
@@ -135,6 +131,7 @@ fixable = ["ALL"]
     "SLF001",
     "D100",
     "D103",
+    "FBT001",
 ]
 
 [tool.pytest.ini_options]

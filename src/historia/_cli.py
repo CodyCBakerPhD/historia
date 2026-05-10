@@ -54,6 +54,7 @@ def historia_data_update_cli() -> None:
     ),
 )
 def _historia_data_update_github_cli(
+    *,
     directory: str,
     username: str,
     past_number_of_days: int,
@@ -96,7 +97,7 @@ def _historia_project_cli() -> None:
 @_historia_project_cli.command(name="create")
 @rich_click.option("--owner", type=str, required=True, help="GitHub user or organization login to own the project.")
 @rich_click.option("--title", type=str, required=True, help="Title of the new GitHub Project.")
-def _historia_project_create_cli(owner: str, title: str) -> None:
+def _historia_project_create_cli(*, owner: str, title: str) -> None:
     project = create_project_page(owner=owner, title=title)
     if project:
         message = f"Project created successfully!\nID: {project['id']}\nURL: {project['url']}"
@@ -151,6 +152,7 @@ def _historia_project_create_cli(owner: str, title: str) -> None:
     ),
 )
 def _historia_project_populate_cli(
+    *,
     directory: str,
     project_url: str,
     status: str | None,
@@ -199,7 +201,7 @@ def _historia_project_update_cli() -> None:
         "when the item has not yet been closed. Default is 180 (approximately 6 months)."
     ),
 )
-def _historia_project_update_dates_cli(project_url: str, end_date_placeholder_days: int) -> None:
+def _historia_project_update_dates_cli(*, project_url: str, end_date_placeholder_days: int) -> None:
     try:
         update_project_item_dates(project_url=project_url, end_date_placeholder_days=end_date_placeholder_days)
     except (ValueError, RuntimeError) as exception:
@@ -235,7 +237,7 @@ def _historia_project_update_dates_cli(project_url: str, end_date_placeholder_da
     required=True,
     help="The status to assign to matching items.",
 )
-def _historia_project_transition_cli(project_url: str, current_status: str, new_status: str) -> None:
+def _historia_project_transition_cli(*, project_url: str, current_status: str, new_status: str) -> None:
     try:
         transition_status(project_url=project_url, current_status=current_status, new_status=new_status)
     except (ValueError, RuntimeError) as exception:
