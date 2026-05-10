@@ -1,3 +1,4 @@
+import importlib.metadata
 import pathlib
 from collections.abc import Callable
 
@@ -6,6 +7,17 @@ import pytest
 
 import historia
 import historia._cli
+
+
+@pytest.mark.ai_generated
+def test_root_cli_version_flag() -> None:
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(historia.historia_cli, ["--version"])
+
+    assert result.exit_code == 0
+    assert importlib.metadata.distribution("historia").version in result.output
+    assert "historia" in result.output
 
 
 @pytest.mark.ai_generated

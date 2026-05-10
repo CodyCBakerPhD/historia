@@ -1,3 +1,4 @@
+import importlib.metadata
 import pathlib
 
 import rich_click
@@ -9,6 +10,10 @@ from .project import add_to_project, create_project_page, transition_status, upd
 
 # historia
 @rich_click.group(name="historia")
+@rich_click.version_option(
+    version=importlib.metadata.distribution("historia").version,
+    prog_name="historia",
+)
 def historia_cli() -> None:
     pass
 
