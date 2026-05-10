@@ -85,12 +85,29 @@ Pre-commit will auto-fix most formatting and lint issues. Re-run the command aft
 
 ## CLI
 
-The package exposes two entry points that both invoke the same CLI:
+The package exposes a single entry point:
 
-- `historia` — primary command
-- `mywork` — convenience alias
+- `historia` — primary entrypoint
 
-Run `historia --help` to see available sub-commands.
+Commands are organized into sub-groups:
+
+- `historia data` — data management
+  - `historia data update github` — fetch raw GitHub activity data for a user
+  - `historia data minify` — compact raw data files
+- `historia project` — GitHub Project management
+  - `historia project create` — create a new GitHub Project page
+  - `historia project populate` — populate a project from fetched data
+  - `historia project update dates` — update item date fields in a project
+  - `historia project transition` — transition project items between statuses
+
+Since every command requires at least one option, running any command or sub-group without arguments automatically prints its help text:
+
+```bash
+historia
+historia data
+historia data update
+historia project
+```
 
 ## Changelog
 

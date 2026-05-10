@@ -50,7 +50,6 @@ classifiers = [
 
 [project.scripts]
 historia = "historia._cli:historia_cli"
-mywork = "historia._cli:historia_cli"
 
 [dependency-groups]
 docs = [

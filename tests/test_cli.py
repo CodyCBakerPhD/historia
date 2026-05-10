@@ -36,14 +36,6 @@ def test_subgroup_help_shows_commands(group: str, expected_commands: list[str]) 
     for cmd in expected_commands:
         assert cmd in result.output
 
-
-@pytest.mark.ai_generated
-def test_public_root_cli_aliases_compat_root() -> None:
-    public_cli = historia._cli.historia_cli
-    compat_alias = historia._cli._mywork_cli
-    assert public_cli is compat_alias
-
-
 @pytest.mark.ai_generated
 def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     called_args: dict[str, pathlib.Path | str | int] = {}
