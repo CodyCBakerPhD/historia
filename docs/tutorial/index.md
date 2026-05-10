@@ -22,7 +22,7 @@ Historia fetches GitHub activity (pull requests and issues opened or assigned to
 historia data update github \
     --directory ./historia-data \
     --username your-github-username \
-    --recency 90
+    --recency 3
 ```
 
 - `--directory` — the root directory where data files are stored.
