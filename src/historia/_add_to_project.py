@@ -971,6 +971,86 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
     return all_items
 
 
+def transition_status(project_url: str, current_status: str, new_status: str) -> None:
+    """
+    Move all items with one Status value to another in a GitHub Project (v2).
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2,
+        e.g., ``https://github.com/users/username/projects/1``
+        or ``https://github.com/orgs/orgname/projects/1``.
+    current_status : str
+        The current Status value to match.
+    new_status : str
+        The destination Status value to apply.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if the project
+        does not have one of the specified status options.
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token is None:
+        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
+        raise ValueError(message)
+
+    headers = {"Authorization": f"token {github_token}"}
+
+    project_id, status_field_id, status_options, _start_date_field_id, _end_date_field_id = _get_project_info(
+        project_url=project_url, headers=headers
+    )
+
+    current_option_id = status_options.get(current_status)
+    if current_option_id is None:
+        message = (
+            f"Status option '{current_status}' not found in project `{project_url}`. "
+            f"Available options: {list(status_options.keys())}."
+        )
+        raise ValueError(message)
+
+    new_option_id = status_options.get(new_status)
+    if new_option_id is None:
+        message = (
+            f"Status option '{new_status}' not found in project `{project_url}`. "
+            f"Available options: {list(status_options.keys())}."
+        )
+        raise ValueError(message)
+
+    # Parse owner type, login, and number from URL
+    parts = project_url.rstrip("/").split("/")
+    owner_type = parts[3]
+    owner_login = parts[4]
+    project_number = int(parts[6])
+
+    # Fetch all items with their current status
+    all_items = _list_project_items_with_status(
+        owner_type=owner_type,
+        owner_login=owner_login,
+        project_number=project_number,
+        status_field_id=status_field_id,
+        headers=headers,
+    )
+
+    items_to_move = [item for item in all_items if item["status_option_id"] == current_option_id]
+
+    for item in tqdm.tqdm(
+        iterable=items_to_move,
+        desc=f"Moving items from {current_status} to {new_status}",
+        unit="items",
+        dynamic_ncols=True,
+    ):
+        _set_item_status(
+            project_id=project_id,
+            item_id=item["id"],
+            field_id=status_field_id,
+            option_id=new_option_id,
+            headers=headers,
+        )
+
+
 def move_done_to_history(project_url: str) -> None:
     """
     Move all items with ``Status=Done`` to ``Status=History`` in a GitHub Project (v2).
