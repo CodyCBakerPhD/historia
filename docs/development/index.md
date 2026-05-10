@@ -139,6 +139,37 @@ Include the GitHub PR link at the end of each entry:
 :start-line: 2
 ```
 
+## AI Usage Addendum
+
+Materials across repositories in this organization have been prepared with the assistance of agentic AI coding tools and large language models (LLMs), alongside direct human authoring and supervision.
+
+Our working practice is:
+👤 Human review and accountability. We strive to have final versions of all work — prose, code, figures, and specifications — to be reviewed and/or edited by human authors, who remain accountable for the content.
+🪪 Transparent annotation. Where AI tools materially contributed to a commit, we strive to annotate that commit adequately and trustworthily (for example, via a Co-Authored-By trailer identifying the tool and model version), so that the provenance of individual changes can be inspected in the git history.
+🔍 Inspectable provenance. Because all work is developed in public git repositories with pull-request review, readers can trace portions of the materials which involved AI assistance.
+
+AI tools are used as assistive instruments; they do not substitute for the scientific judgment, domain expertise, or editorial responsibility of the human authors.
+
+### Commit Co-Authorship
+
+When an AI tool (agent, coding assistant, IDE integration) materially contributes to a commit, the commit MUST include a `Co-Authored-By` trailer identifying both the **tool and its version** and the **model and its version**. This makes the git history the inspectable provenance record so anyone reading the repo can tell which tool produced which change.
+
+Format (replace all `<…>` placeholders with actual values):
+
+```
+Co-Authored-By: <Tool> <tool-version> / <Model> <model-version> <noreply@<vendor-domain>>
+```
+
+Discover the tool version from the tool itself (commonly `--version`) and use the model identifier the tool reports. Don't guess.
+
+#### Example: Claude Code
+
+```
+Co-Authored-By: Claude Code 2.1.63 / Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+`claude --version` reports the Claude Code CLI version; the active model is reported by the CLI in its status / via `/model`.
+
 ## Agent / AI Contributor Instructions
 
 ```{include} ../../AGENTS.md
