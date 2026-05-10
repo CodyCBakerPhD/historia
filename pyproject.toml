@@ -94,43 +94,43 @@ select = ["ALL"]
 ignore = [
     # Docstring style: prefer the D213 / D211 conventions (multi-line summary
     # on the second line, no blank line before class docstrings) over their
-    # mutually-exclusive counterparts D212 / D203.
+    # mutually-exclusive counterparts D212 / D203
     "D203",
     "D212",
     # CLI commands and utilities deliberately use `print()` for user-facing
-    # output rather than going through the logging system.
+    # output rather than going through the logging system
     "T201",
     # `verbose: bool = True` and similar positional boolean flags are part of
-    # the established public API surface (e.g. `historia.data.github.dump`).
+    # the established public API surface (e.g. `historia.data.github.dump`)
     "FBT001",
     "FBT002",
     # Common HTTP status codes (200, 403, ...) and other small integer
-    # literals are clearer inline than as named module-level constants.
+    # literals are clearer inline than as named module-level constants
     "PLR2004",
     # `add_to_project` exceeds the branch / complexity thresholds because it
     # dispatches over a large GraphQL response shape; refactoring would
-    # obscure the linear flow without simplifying the logic.
+    # obscure the linear flow without simplifying the logic
     "C901",
     "PLR0912",
     # Long, descriptive messages constructed at the raise site are preferred
-    # over per-call-site exception subclasses for one-off internal errors.
+    # over per-call-site exception subclasses for one-off internal errors
     "TRY003",
     "EM101",
     # `pytest.warns(UserWarning)` without a `match=` is intentional in places
-    # where any UserWarning is acceptable.
+    # where any UserWarning is acceptable
     "PT030",
     # `datetime.now()` / `date.today()` without a timezone are used for local
     # display timestamps and for the default "today" in the data-collection
-    # CLI; converting them to UTC would change observable behavior.
+    # CLI; converting them to UTC would change observable behavior
     "DTZ005",
     "DTZ011",
     # Comments and docstrings intentionally use Unicode characters
-    # (en-dashes, multiplication signs, ...) in fixture descriptions.
+    # (en-dashes, multiplication signs, ...) in fixture descriptions
     "RUF003",
     # `tests/` and `docs/` are deliberately not Python packages and do not
-    # carry `__init__.py` files.
+    # carry `__init__.py` files
     "INP001",
-    # We use relative imports within the package (see AGENTS.md).
+    # We use relative imports within the package (see developer guide)
     "TID252",
 ]
 fixable = ["ALL"]
@@ -138,13 +138,13 @@ fixable = ["ALL"]
 [tool.ruff.lint.per-file-ignores]
 # `docs/conf.py` is the Sphinx configuration entry point: `copyright` is the
 # Sphinx-required variable name (shadows a builtin) and the file does not
-# require its own module docstring.
+# require its own module docstring
 "docs/conf.py" = ["A001", "D100"]
 # Tests rely on `assert` (S101), commonly access private members (SLF001),
 # omit per-module/per-function docstrings (D100, D103), reference predictable
 # temp paths in fixtures (S108), raise simple string-literal exceptions
 # (EM101, TRY003), and may carry TODO comments without strict author/issue-link
-# format (FIX002, TD002, TD003).
+# format (FIX002, TD002, TD003)
 "tests/**/*.py" = [
     "S101",
     "S108",
