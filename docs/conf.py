@@ -31,3 +31,4 @@ python_maximum_signature_line_length = 88
 python_trailing_comma_in_multi_line_signatures = True
 
 html_theme = "pydata_sphinx_theme"
+html_scaled_image_link = False
