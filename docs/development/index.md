@@ -69,6 +69,7 @@ The configured hooks are:
 - **black** — code formatting
 - **ruff** — linting and import sorting (with auto-fix)
 - **codespell** — spell checking
+- **mypy** — static type checking
 
 Install the hooks once after cloning:
 
