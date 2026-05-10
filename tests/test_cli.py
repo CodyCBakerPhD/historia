@@ -18,6 +18,7 @@ def test_root_cli_version_flag() -> None:
     assert result.exit_code == 0
     assert importlib.metadata.distribution("historia").version in result.output
     assert "historia" in result.output
+    assert "version" in result.output.lower()
 
 
 @pytest.mark.ai_generated
