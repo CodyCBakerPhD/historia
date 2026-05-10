@@ -2,7 +2,15 @@
 
 ## Installation
 
-Clone the repository and install in editable mode with the optional dependency groups you need:
+### From PyPI
+
+```bash
+pip install historia
+```
+
+### From Source (Development)
+
+Clone the repository and install in editable mode:
 
 ```bash
 pip install -e .
