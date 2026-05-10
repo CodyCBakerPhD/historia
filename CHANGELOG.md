@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+
+
+## v0.6.0
+
 ### 🚀 Enhancement
 
 - All public and private functions accepting more than one argument now require keyword usage via the `(*, ...)` syntax, eliminating positional argument call sites and clarifying every call. ([#67](https://github.com/CodyCBakerPhD/historia/pull/67))
