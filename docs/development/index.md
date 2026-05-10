@@ -113,11 +113,11 @@ historia project
 
 Add a short description of any user-facing change to the `## Upcoming` section of `CHANGELOG.md` under the appropriate subsection:
 
-- `#### 🚀 Enhancement` — new features
-- `#### 🐛 Bug Fix` — bug fixes
-- `#### 📝 Documentation` — documentation-only changes
-- `#### 🏠 Internal` — refactors, tooling, CI, and test infrastructure
-- `#### 🔩 Dependency Updates` — dependency-only changes
+- `### 🚀 Enhancement` — new features
+- `### 🐛 Bug Fix` — bug fixes
+- `### 📝 Documentation` — documentation-only changes
+- `### 🏠 Internal` — refactors, tooling, CI, and test infrastructure
+- `### 🔩 Dependency Updates` — dependency-only changes
 
 Include the GitHub PR link at the end of each entry:
 
