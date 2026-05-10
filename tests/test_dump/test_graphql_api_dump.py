@@ -89,16 +89,27 @@ def test_dump_specific_info_does_not_create_folder_when_empty(
 
 
 @pytest.mark.ai_generated
-def test_dump_specific_info_overwrite_true_replaces_incorrect_file(
+@pytest.mark.parametrize(
+    ("overwrite", "expected_contents"),
+    [
+        pytest.param(True, '["https://github.com/con/nwb2bids/issues/252"]', id="overwrite-true-replaces"),
+        pytest.param(False, '["stale-but-preserved"]', id="overwrite-false-preserves"),
+    ],
+)
+def test_dump_specific_info_overwrite_behavior(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
+    overwrite: bool,
+    expected_contents: str,
 ) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    expected_urls = ["https://github.com/con/nwb2bids/issues/252"]
+    fetched_urls = ["https://github.com/con/nwb2bids/issues/252"]
 
     def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:  # noqa: ARG001
-        return (expected_urls, False)
+        if not overwrite:
+            pytest.fail("fetch_info_for_date should not be called when the file already exists and overwrite=False")
+        return (fetched_urls, False)
 
     monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
 
@@ -119,63 +130,20 @@ def test_dump_specific_info_overwrite_true_replaces_incorrect_file(
     )
     subdir.mkdir(parents=True)
     file_path = subdir / f'info-issues+opened_date-{date.replace("-", "+")}.json'
-    file_path.write_text(data="[]", encoding="utf-8")
+    initial_contents = '["stale-but-preserved"]'
+    file_path.write_text(data=initial_contents, encoding="utf-8")
 
     historia.data.github.dump_specific_info(
         directory=test_directory,
         info_type="issues_opened",
         date=date,
         username=username,
-        overwrite=True,
+        overwrite=overwrite,
     )
 
     with file_path.open(mode="r") as file_stream:
         actual_content = json.load(file_stream)
-    assert actual_content == expected_urls
-
-
-@pytest.mark.ai_generated
-def test_dump_specific_info_overwrite_false_keeps_existing_file(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: pathlib.Path,
-) -> None:
-    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
-
-    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:  # noqa: ARG001
-        pytest.fail("fetch_info_for_date should not be called when the file already exists and overwrite=False")
-        return ([], False)
-
-    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
-
-    version = importlib.metadata.distribution("historia").version
-    major, minor, _ = version.split(".")
-    username = "codycbakerphd"
-    date = "2026-01-05"
-    year, month, day = date.split("-")
-    test_directory = tmp_path / "test_dump"
-    subdir = (
-        test_directory
-        / f"version-{major}+{minor}"
-        / f"username-{username}"
-        / "request-graphql"
-        / f"year-{year}"
-        / f"month-{month}"
-        / f"day-{day}"
-    )
-    subdir.mkdir(parents=True)
-    file_path = subdir / f'info-issues+opened_date-{date.replace("-", "+")}.json'
-    original_contents = '["stale-but-preserved"]'
-    file_path.write_text(data=original_contents, encoding="utf-8")
-
-    historia.data.github.dump_specific_info(
-        directory=test_directory,
-        info_type="issues_opened",
-        date=date,
-        username=username,
-        overwrite=False,
-    )
-
-    assert file_path.read_text(encoding="utf-8") == original_contents
+    assert actual_content == json.loads(expected_contents)
 
 
 @pytest.mark.ai_generated
