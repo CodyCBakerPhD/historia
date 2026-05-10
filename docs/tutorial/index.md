@@ -46,14 +46,13 @@ After this step, `./historia-data` will contain a versioned folder tree such as:
 historia-data/
 └── version-0+5/
     └── username-your-github-username/
-        └── request-graphql/
-            └── year-2026/
-                └── month-05/
-                    └── day-10/
-                        ├── info-prs+opened_date-2026+05+10.json
-                        ├── info-prs+assigned_date-2026+05+10.json
-                        ├── info-issues+opened_date-2026+05+10.json
-                        └── info-issues+assigned_date-2026+05+10.json
+        └── year-2026/
+            └── month-05/
+                └── day-10/
+                    ├── info-prs+opened_date-2026+05+10.json
+                    ├── info-prs+assigned_date-2026+05+10.json
+                    ├── info-issues+opened_date-2026+05+10.json
+                    └── info-issues+assigned_date-2026+05+10.json
 ```
 
 ---
@@ -64,10 +63,10 @@ Raw JSON responses can be large. The minify step strips whitespace to reduce sto
 
 ::::{tabs}
 :::{tab} CLI
-Pass the innermost `request-graphql` directory:
+Pass the username directory:
 
 ```bash
-historia data minify --directory ./historia-data/version-0+5/username-your-github-username/request-graphql
+historia data minify --directory ./historia-data/version-0+5/username-your-github-username
 ```
 :::
 :::{tab} Python API
@@ -77,7 +76,7 @@ import historia
 
 historia.data.minify(
     directory=pathlib.Path(
-        "./historia-data/version-0+5/username-your-github-username/request-graphql"
+        "./historia-data/version-0+5/username-your-github-username"
     )
 )
 ```
@@ -143,7 +142,7 @@ import historia
 
 historia.project.add_to_project(
     directory=pathlib.Path(
-        "./historia-data/version-0+5/username-your-github-username/request-graphql"
+        "./historia-data/version-0+5/username-your-github-username"
     ),
     project_url="https://github.com/users/your-github-username/projects/your-id",
 )

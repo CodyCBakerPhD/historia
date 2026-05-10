@@ -18,11 +18,11 @@ def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: p
     test_directory = tmp_path / "test_dump"
     test_directory.mkdir(exist_ok=True)
     test_version_directory = test_directory / f"version-{major}+{minor}"
-    test_request_directory = test_version_directory / f"username-{username}" / "request-graphql"
+    test_username_directory = test_version_directory / f"username-{username}"
 
     expected_directory = pathlib.Path(__file__).parent / "expected_dumps"
     expected_version_directory = expected_directory / "version-0+1"  # Use static version since assertions are relative
-    expected_request_directory = expected_version_directory / f"username-{username}" / "request-graphql"
+    expected_username_directory = expected_version_directory / f"username-{username}"
 
     def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
         assert date == "2026-01-05"
@@ -48,9 +48,9 @@ def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: p
         username=username,
     )
 
-    test_file_paths = sorted(test_request_directory.rglob(pattern="*.json"))
+    test_file_paths = sorted(test_username_directory.rglob(pattern="*.json"))
     relative_test_file_paths = {path.relative_to(test_version_directory) for path in test_file_paths}
-    expected_file_paths = sorted(expected_request_directory.rglob(pattern="*.json"))
+    expected_file_paths = sorted(expected_username_directory.rglob(pattern="*.json"))
     relative_expected_file_paths = {path.relative_to(expected_version_directory) for path in expected_file_paths}
     assert relative_test_file_paths == relative_expected_file_paths
 
@@ -123,7 +123,6 @@ def test_dump_specific_info_overwrite_behavior(
         test_directory
         / f"version-{major}+{minor}"
         / f"username-{username}"
-        / "request-graphql"
         / f"year-{year}"
         / f"month-{month}"
         / f"day-{day}"

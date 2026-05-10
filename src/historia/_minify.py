@@ -4,10 +4,10 @@ import pathlib
 
 
 def _minify(directory: pathlib.Path) -> None:
-    if directory.parts[-1] != "request-graphql":
+    if not directory.parts[-1].startswith("username-"):
         message = (
-            f"Directory name `{directory.name}` at `{directory}` does not appear to be GraphQL-based! "
-            "Other types are not yet supported."
+            f"Directory name `{directory.name}` at `{directory}` does not appear to be a username directory! "
+            "Expected the innermost directory to be of the form `username-<github-username>`."
         )
         raise NotImplementedError(message)
 

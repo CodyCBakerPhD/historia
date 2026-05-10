@@ -78,7 +78,7 @@ def _historia_data_update_github_cli(
     required=True,
     help=(
         "The specific subdirectory to minify; should be for a specific version and username. "
-        "E.g., `/path/to/version-0+1/username-codycbakerphd/request-graphql`."
+        "E.g., `/path/to/version-0+1/username-codycbakerphd`."
     ),
 )
 def _historia_data_minify_cli(directory: str) -> None:
@@ -115,7 +115,7 @@ def _historia_project_create_cli(*, owner: str, title: str) -> None:
     required=True,
     help=(
         "The specific subdirectory containing derivatives JSON files; should be for a specific version and username. "
-        "E.g., `/path/to/version-0+1/username-codycbakerphd/request-graphql`."
+        "E.g., `/path/to/version-0+1/username-codycbakerphd`."
     ),
 )
 @rich_click.option(

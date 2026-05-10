@@ -35,8 +35,8 @@ def add_to_project(
     ----------
     directory : pathlib.Path
         The directory containing the derivatives JSON files.
-        Should be a specific request-type subdirectory,
-        e.g., ``/path/to/version-0+1/username-codycbakerphd/request-graphql``.
+        Should be a specific username subdirectory,
+        e.g., ``/path/to/version-0+1/username-codycbakerphd``.
     project_url : str
         The URL of the GitHub Project v2 to add items to,
         e.g., ``https://github.com/users/username/projects/1``
