@@ -132,12 +132,16 @@ def test_project_create_command_shows_failure_message_when_none_returned(monkeyp
 
 @pytest.mark.ai_generated
 def test_project_populate_command_invokes_add_to_project(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
 ) -> None:
     called_args: dict[str, pathlib.Path | str | int | None] = {}
 
     def _fake_add_to_project(
-        directory: pathlib.Path, project_url: str, status: str | None, end_date_placeholder_days: int
+        directory: pathlib.Path,
+        project_url: str,
+        status: str | None,
+        end_date_placeholder_days: int,
     ) -> None:
         called_args["directory"] = directory
         called_args["project_url"] = project_url
@@ -279,7 +283,7 @@ def test_project_command_shows_error_on_exception(
     attr_name: str,
     make_cli_args: Callable[[pathlib.Path], list[str]],
 ) -> None:
-    def _fake(*args: object, **kwargs: object) -> None:
+    def _fake(*_args: object, **_kwargs: object) -> None:
         raise exception_type("something went wrong")
 
     monkeypatch.setattr(historia._cli, attr_name, _fake)
@@ -309,7 +313,9 @@ def test_project_command_shows_error_on_exception(
     ],
 )
 def test_project_command_flags_use_no_dash_format(
-    command: str, expected_flags: list[str], removed_flags: list[str]
+    command: str,
+    expected_flags: list[str],
+    removed_flags: list[str],
 ) -> None:
     runner = click.testing.CliRunner()
 

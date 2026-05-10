@@ -3,7 +3,8 @@ import json
 import pathlib
 import typing
 
-from ..._globals import INFO_TYPES
+from historia._globals import INFO_TYPES
+from historia.data.github._fetch_info import fetch_info_for_date
 
 
 def dump_specific_info(
@@ -14,6 +15,8 @@ def dump_specific_info(
     overwrite: bool = False,
 ) -> bool:
     """
+    Fetch and save a specific type of GitHub info for a given date.
+
     Parameters
     ----------
     directory : pathlib.Path
@@ -33,6 +36,7 @@ def dump_specific_info(
     -------
     bool
         Whether the GitHub API rate limit was hit during the query.
+
     """
     year, month, day = date.split("-")
     version = importlib.metadata.distribution("historia").version
@@ -51,8 +55,6 @@ def dump_specific_info(
     file_path = subdir / filename
     if overwrite is False and file_path.exists():
         return False
-
-    from . import fetch_info_for_date
 
     info, hit_rate_limit = fetch_info_for_date(info_type=info_type, date=date, username=username)
 
@@ -75,6 +77,8 @@ def dump_info_for_date(
     overwrite: bool = False,
 ) -> None:
     """
+    Fetch and save all GitHub info types for a given date.
+
     Parameters
     ----------
     directory : pathlib.Path
@@ -92,6 +96,7 @@ def dump_info_for_date(
     -------
     bool
         Whether the GitHub API rate limit was hit during the query.
+
     """
     for info_type in INFO_TYPES:
         hit_rate_limit = dump_specific_info(
