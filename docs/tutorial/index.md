@@ -258,7 +258,7 @@ Tips:
 - Add additional `historia project populate ... --url <other-project-url>` lines under the final step to mirror the same data into multiple project boards.
 
 :::::{note}
-**Optional: minify the data**
+**Optional: data minification**
 
 Raw JSON responses can be large. The `historia data minify` step strips whitespace to reduce storage footprint without losing any information, and is what the workflow above uses to build the `min` branch. It can also be run on its own:
 
@@ -281,4 +281,16 @@ historia.data.minify(
 ```
 :::
 ::::
+
+Once published to a `min` branch (as in the workflow above), the minified files can be downloaded directly from `raw.githubusercontent.com` using only the Python standard library:
+
+```python
+import gzip
+import json
+import urllib.request
+
+url = "https://raw.githubusercontent.com/[user]/[repo]/refs/heads/min/version-0+5/[user]/issues.min.json.gz"
+with urllib.request.urlopen(url) as response:
+    data = json.loads(gzip.decompress(response.read()))
+```
 :::::
