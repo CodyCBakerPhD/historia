@@ -1,9 +1,5 @@
 # Developer Guide
 
-**historia** is a tool for collecting GitHub activity data for use in project dashboards.
-
-This page covers everything you need to know to contribute to the project.
-
 ## Installation
 
 Clone the repository and install in editable mode with the optional dependency groups you need:
@@ -11,9 +7,6 @@ Clone the repository and install in editable mode with the optional dependency g
 ```bash
 # Core editable install
 pip install -e .
-
-# With docs dependencies
-pip install -e . --group docs
 ```
 
 ## Project Layout
