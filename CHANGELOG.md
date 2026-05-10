@@ -5,6 +5,7 @@
 ### 🚀 Enhancement
 
 - All public and private functions accepting more than one argument now require keyword usage via the `(*, ...)` syntax, eliminating positional argument call sites and clarifying every call. ([#67](https://github.com/CodyCBakerPhD/historia/pull/67))
+- Added a `--version` flag to the `historia` CLI that prints the installed package version. ([#66](https://github.com/CodyCBakerPhD/historia/pull/66))
 
 ### 🏠 Internal
 
