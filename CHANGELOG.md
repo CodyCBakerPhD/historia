@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+
+
+## v0.5.8
+
 #### 📝 Documentation
 
 - Added AI usage addendum to the developer guide covering commit co-authorship requirements when AI tools contribute to commits, and updated `AGENTS.md` with the co-authorship rule. ([#48](https://github.com/CodyCBakerPhD/historia/pull/48))
