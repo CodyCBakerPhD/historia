@@ -140,9 +140,9 @@ def _historia_project_populate_cli(
             status=status,
             end_date_placeholder_days=end_date_placeholder_days,
         )
-    except (ValueError, RuntimeError) as e:
-        rich_click.echo(rich_click.style(str(e), fg="red"))
-        raise SystemExit(1) from e
+    except (ValueError, RuntimeError) as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
 
 
 # historia project update
@@ -179,9 +179,9 @@ def _historia_project_update_cli() -> None:
 def _historia_project_update_dates_cli(project_url: str, end_date_placeholder_days: int) -> None:
     try:
         update_project_item_dates(project_url=project_url, end_date_placeholder_days=end_date_placeholder_days)
-    except (ValueError, RuntimeError) as e:
-        rich_click.echo(rich_click.style(str(e), fg="red"))
-        raise SystemExit(1) from e
+    except (ValueError, RuntimeError) as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
 
 
 # historia project transition
@@ -215,6 +215,6 @@ def _historia_project_update_dates_cli(project_url: str, end_date_placeholder_da
 def _historia_project_transition_cli(project_url: str, current_status: str, new_status: str) -> None:
     try:
         transition_status(project_url=project_url, current_status=current_status, new_status=new_status)
-    except (ValueError, RuntimeError) as e:
-        rich_click.echo(rich_click.style(str(e), fg="red"))
-        raise SystemExit(1) from e
+    except (ValueError, RuntimeError) as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
