@@ -2,10 +2,10 @@
 
 ## Installation From Source (Development)
 
-Clone the repository and install in editable mode:
+Clone the repository and install in editable mode with the `dev` dependency group (which provides `pytest`, `pre-commit`, and `ipython`):
 
 ```bash
-pip install -e .
+pip install -e . --group dev
 ```
 
 ## Project Layout

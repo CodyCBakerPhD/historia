@@ -26,9 +26,6 @@ requires-python = ">=3.10"
 dependencies = [
     "requests",
     "tqdm",
-    "pytest",
-    "pre-commit",
-    "ipython",
     "rich-click",
 ]
 classifiers = [
@@ -52,6 +49,11 @@ classifiers = [
 historia = "historia._cli:historia_cli"
 
 [dependency-groups]
+dev = [
+    "pytest",
+    "pre-commit",
+    "ipython",
+]
 docs = [
     "sphinx>=8.0",
     "pydata-sphinx-theme>=0.16",

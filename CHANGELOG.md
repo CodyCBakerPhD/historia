@@ -8,6 +8,8 @@
 
 ### 🏠 Internal
 
+- Moved developer-only dependencies (`pytest`, `pre-commit`, `ipython`) out of the runtime `dependencies` list and into a new `dev` dependency group, so end users no longer pull them in on `pip install historia`. Install them for development with `pip install -e . --group dev`. ([#65](https://github.com/CodyCBakerPhD/historia/pull/65))
+
 - Documented or released most of the per-rule entries in the ruff `ignore` list: rules with no remaining violations were dropped, tests-only and docs-only suppressions were moved into `[tool.ruff.lint.per-file-ignores]`, and every remaining global ignore now has an inline comment explaining why it is suppressed. ([#58](https://github.com/CodyCBakerPhD/historia/pull/58))
 - Released the `DTZ005` / `DTZ011` ruff suppressions by attaching the system timezone to the two `datetime.now()` / `date.today()` call sites (`docs/conf.py` copyright year and the GitHub data-update CLI's "today" anchor). ([#58](https://github.com/CodyCBakerPhD/historia/pull/58))
 - Released the `EM101` ruff suppression by assigning string-literal exception messages to a local variable before `raise`. ([#58](https://github.com/CodyCBakerPhD/historia/pull/58))
