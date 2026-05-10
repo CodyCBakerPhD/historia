@@ -2,7 +2,9 @@
 
 ## Upcoming
 
+### 🏠 Internal
 
+- Updated the PyPI release workflow to also trigger on `v*` tag pushes so PyPI uploads occur when a tag is cut, in addition to GitHub release publication. ([#57](https://github.com/CodyCBakerPhD/historia/pull/57))
 
 ## v0.5.8
 
