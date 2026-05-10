@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- Added a `--version` flag to the `historia` CLI that prints the installed package version. ([#66](https://github.com/CodyCBakerPhD/historia/pull/66))
+
 ### 🏠 Internal
 
 - Moved developer-only dependencies (`pytest`, `pre-commit`, `ipython`) out of the runtime `dependencies` list and into a new `dev` dependency group, so end users no longer pull them in on `pip install historia`. Install them for development with `pip install -e . --group dev`. ([#65](https://github.com/CodyCBakerPhD/historia/pull/65))
