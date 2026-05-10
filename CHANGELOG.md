@@ -6,12 +6,12 @@
 
 ## v0.5.8
 
-#### 📝 Documentation
+### 📝 Documentation
 
 - Added tutorial to the docs showing step-by-step usage of the CLI and Python API for data collection, minification, project creation, population, date updates, and status transitions. ([#50](https://github.com/CodyCBakerPhD/historia/pull/50))
 - Added AI usage addendum to the developer guide covering commit co-authorship requirements when AI tools contribute to commits, and updated `AGENTS.md` with the co-authorship rule. ([#48](https://github.com/CodyCBakerPhD/historia/pull/48))
 
-#### 🚀 Enhancement
+### 🚀 Enhancement
 
 - Generalized project status transitions so `historia project transition` can move items from any source status to any destination status via `--status` and `--new`. ([#47](https://github.com/CodyCBakerPhD/historia/pull/47))
 - Added basic developer documentation page that embeds `AGENTS.md` content via MyST include directive. ([#44](https://github.com/CodyCBakerPhD/historia/pull/44))
@@ -28,12 +28,12 @@
 - Unpacked project date updates to `historia.project.update_project_item_dates` and removed the `historia.project.update` submodule layer entirely. ([#34](https://github.com/CodyCBakerPhD/historia/pull/34))
 - Added a GitHub icon link to the docs navbar for quick navigation back to the repository, and removed the "Show Source" page links that exposed raw HTML output. ([#42](https://github.com/CodyCBakerPhD/historia/pull/42))
 
-#### 🐛 Bug Fix
+### 🐛 Bug Fix
 
 - Fixed GraphQL rate-limit handling to return an empty result set without raising key errors, and updated tests to be deterministic/offline-compatible. ([#6](https://github.com/CodyCBakerPhD/historia/pull/6))
 - Fixed Sphinx API reference pages to render autodoc content for documented module members instead of appearing empty under the toctree. ([#19](https://github.com/CodyCBakerPhD/historia/pull/19))
 
-#### 🏠 Internal
+### 🏠 Internal
 
 - Expanded ruff lint rules to `select = ["ALL"]` and resolved all newly enabled violations, including adding request timeouts, fixing exception chaining, converting to absolute imports, and collapsing implicit string concatenations. ([#48](https://github.com/CodyCBakerPhD/historia/pull/48))
 
