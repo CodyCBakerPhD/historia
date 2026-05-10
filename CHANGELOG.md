@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+#### 📝 Documentation
+
+- Added AI usage addendum to the developer guide covering commit co-authorship requirements when AI tools contribute to commits, and updated `AGENTS.md` with the co-authorship rule. ([#48](https://github.com/CodyCBakerPhD/historia/pull/48))
+
 #### 🚀 Enhancement
 
 - Generalized project status transitions so `historia project transition` can move items from any source status to any destination status via `--status` and `--new`. ([#47](https://github.com/CodyCBakerPhD/historia/pull/47))
