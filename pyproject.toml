@@ -50,12 +50,12 @@ classifiers = [
 
 [project.scripts]
 historia = "historia._cli:historia_cli"
-mywork = "historia._cli:historia_cli"
 
 [dependency-groups]
 docs = [
-    "sphinx>=8.0,<9",
-    "pydata-sphinx-theme>=0.16,<0.17",
+    "sphinx>=8.0",
+    "pydata-sphinx-theme>=0.16",
+    "myst-parser>=4.0",
 ]
 
 

@@ -15,10 +15,11 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "myst_parser",
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md"]
 
 autosummary_generate = True
 autodoc_default_options = {
@@ -33,6 +34,9 @@ python_trailing_comma_in_multi_line_signatures = True
 html_theme = "pydata_sphinx_theme"
 html_scaled_image_link = False
 html_show_sourcelink = False
+html_sidebars: dict[str, list[str]] = {
+    "development/index": [],
+}
 html_theme_options = {
     "icon_links": [
         {
