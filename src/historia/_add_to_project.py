@@ -213,7 +213,7 @@ def _get_project_info(
     headers: dict[str, str],
 ) -> tuple[str, str, dict[str, str], str | None, str | None]:
     """
-    Retrieve project node ID, Status field ID, available Status option IDs, and date field IDs.
+    Retrieve project node ID, Status field ID, Status option name-to-ID mapping, and Start/End date field IDs.
 
     Parameters
     ----------
