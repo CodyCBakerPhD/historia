@@ -5,7 +5,6 @@
 Clone the repository and install in editable mode with the optional dependency groups you need:
 
 ```bash
-# Core editable install
 pip install -e .
 ```
 
