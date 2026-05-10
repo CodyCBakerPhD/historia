@@ -971,9 +971,9 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
     return all_items
 
 
-def move_done_to_history(project_url: str) -> None:
+def transition_status(project_url: str, current_status: str, new_status: str) -> None:
     """
-    Move all items with ``Status=Done`` to ``Status=History`` in a GitHub Project (v2).
+    Move all items with one Status value to another in a GitHub Project (v2).
 
     Parameters
     ----------
@@ -981,12 +981,16 @@ def move_done_to_history(project_url: str) -> None:
         The URL of the GitHub Project v2,
         e.g., ``https://github.com/users/username/projects/1``
         or ``https://github.com/orgs/orgname/projects/1``.
+    current_status : str
+        The current Status value to match.
+    new_status : str
+        The destination Status value to apply.
 
     Raises
     ------
     ValueError
         If the ``GITHUB_TOKEN`` environment variable is not set, or if the project
-        does not have a ``'Done'`` or ``'History'`` status option.
+        does not have one of the specified status options.
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -999,18 +1003,18 @@ def move_done_to_history(project_url: str) -> None:
         project_url=project_url, headers=headers
     )
 
-    done_option_id = status_options.get("DONE")
-    if done_option_id is None:
+    current_option_id = status_options.get(current_status)
+    if current_option_id is None:
         message = (
-            f"Status option 'DONE' not found in project `{project_url}`. "
+            f"Status option '{current_status}' not found in project `{project_url}`. "
             f"Available options: {list(status_options.keys())}."
         )
         raise ValueError(message)
 
-    history_option_id = status_options.get("History")
-    if history_option_id is None:
+    new_option_id = status_options.get(new_status)
+    if new_option_id is None:
         message = (
-            f"Status option 'History' not found in project `{project_url}`. "
+            f"Status option '{new_status}' not found in project `{project_url}`. "
             f"Available options: {list(status_options.keys())}."
         )
         raise ValueError(message)
@@ -1030,15 +1034,38 @@ def move_done_to_history(project_url: str) -> None:
         headers=headers,
     )
 
-    done_items = [item for item in all_items if item["status_option_id"] == done_option_id]
+    items_to_move = [item for item in all_items if item["status_option_id"] == current_option_id]
 
     for item in tqdm.tqdm(
-        iterable=done_items, desc="Moving items from Done to History", unit="items", dynamic_ncols=True
+        iterable=items_to_move,
+        desc=f"Moving items from {current_status} to {new_status}",
+        unit="items",
+        dynamic_ncols=True,
     ):
         _set_item_status(
             project_id=project_id,
             item_id=item["id"],
             field_id=status_field_id,
-            option_id=history_option_id,
+            option_id=new_option_id,
             headers=headers,
         )
+
+
+def move_done_to_history(project_url: str) -> None:
+    """
+    Move all items with ``Status=Done`` to ``Status=History`` in a GitHub Project (v2).
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2,
+        e.g., ``https://github.com/users/username/projects/1``
+        or ``https://github.com/orgs/orgname/projects/1``.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if the project
+        does not have a ``'Done'`` or ``'History'`` status option.
+    """
+    transition_status(project_url=project_url, current_status="DONE", new_status="History")

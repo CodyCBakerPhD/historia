@@ -42,6 +42,7 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
         (historia.project, "add_to_project", True),
         (historia.project, "create_project_page", True),
         (historia.project, "move_done_to_history", True),
+        (historia.project, "transition_status", True),
         (historia.project, "update_project_item_dates", True),
     ],
 )

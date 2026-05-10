@@ -4,7 +4,7 @@ import rich_click
 
 from . import data
 from .data import minify as _minify
-from .project import add_to_project, create_project_page, move_done_to_history, update_project_item_dates
+from .project import add_to_project, create_project_page, transition_status, update_project_item_dates
 
 
 # historia
@@ -196,14 +196,22 @@ def _historia_project_update_dates_cli(project_url: str, end_date_placeholder_da
 )
 @rich_click.option(
     "--status",
-    type=rich_click.Choice(["DONE"], case_sensitive=True),
+    "--current",
+    "current_status",
+    type=str,
     required=True,
-    help="The current status of items to transition. Currently only 'DONE' is supported.",
+    help="The current status of items to transition.",
 )
-def _historia_project_transition_cli(project_url: str, status: str) -> None:
+@rich_click.option(
+    "--new",
+    "new_status",
+    type=str,
+    required=True,
+    help="The status to assign to matching items.",
+)
+def _historia_project_transition_cli(project_url: str, current_status: str, new_status: str) -> None:
     try:
-        if status == "DONE":
-            move_done_to_history(project_url=project_url)
+        transition_status(project_url=project_url, current_status=current_status, new_status=new_status)
     except (ValueError, RuntimeError) as e:
         rich_click.echo(rich_click.style(str(e), fg="red"))
         raise SystemExit(1)

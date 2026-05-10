@@ -207,13 +207,15 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
 
 
 @pytest.mark.ai_generated
-def test_project_transition_command_invokes_move_done_to_history(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_project_transition_command_invokes_transition_status(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, str] = {}
 
-    def _fake_move_done_to_history(project_url: str) -> None:
+    def _fake_transition_status(project_url: str, current_status: str, new_status: str) -> None:
         called_args["project_url"] = project_url
+        called_args["current_status"] = current_status
+        called_args["new_status"] = new_status
 
-    monkeypatch.setattr(historia._cli, "move_done_to_history", _fake_move_done_to_history)
+    monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
@@ -225,11 +227,15 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
             "https://github.com/users/octocat/projects/1",
             "--status",
             "DONE",
+            "--new",
+            "History",
         ],
     )
 
     assert result.exit_code == 0
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
+    assert called_args["current_status"] == "DONE"
+    assert called_args["new_status"] == "History"
 
 
 @pytest.mark.ai_generated
@@ -259,7 +265,7 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
             ],
         ),
         (
-            "move_done_to_history",
+            "transition_status",
             lambda _: [
                 "project",
                 "transition",
@@ -267,6 +273,8 @@ def test_project_transition_command_invokes_move_done_to_history(monkeypatch: py
                 "https://github.com/users/octocat/projects/1",
                 "--status",
                 "DONE",
+                "--new",
+                "History",
             ],
         ),
     ],
@@ -304,7 +312,7 @@ def test_project_command_shows_error_on_exception(
             ["--url", "--placeholder"],
             ["--project-url", "--projecturl", "--end-date-placeholder-days", "--enddateplaceholderdays"],
         ),
-        ("transition", ["--url"], ["--project-url", "--projecturl"]),
+        ("transition", ["--url", "--status", "--new"], ["--project-url", "--projecturl"]),
     ],
 )
 def test_project_command_flags_use_no_dash_format(
