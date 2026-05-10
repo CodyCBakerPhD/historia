@@ -5,6 +5,7 @@
 ### 🏠 Internal
 
 - Documented or released most of the per-rule entries in the ruff `ignore` list: rules with no remaining violations were dropped, tests-only and docs-only suppressions were moved into `[tool.ruff.lint.per-file-ignores]`, and every remaining global ignore now has an inline comment explaining why it is suppressed. ([#58](https://github.com/CodyCBakerPhD/historia/pull/58))
+- Released the `DTZ005` / `DTZ011` ruff suppressions by attaching the system timezone to the two `datetime.now()` / `date.today()` call sites (`docs/conf.py` copyright year and the GitHub data-update CLI's "today" anchor). ([#58](https://github.com/CodyCBakerPhD/historia/pull/58))
 - Updated the PyPI release workflow to also trigger on `v*` tag pushes so PyPI uploads occur when a tag is cut, in addition to GitHub release publication. ([#57](https://github.com/CodyCBakerPhD/historia/pull/57))
 - Added a Version Check GitHub Actions workflow that fails pull requests touching `src/**` or `pyproject.toml` if the project version in `pyproject.toml` is not bumped relative to the base branch. ([#58](https://github.com/CodyCBakerPhD/historia/pull/58))
 

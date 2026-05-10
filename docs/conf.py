@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,7 +8,7 @@ sys.path.insert(0, str(SRC))
 
 project = "historia"
 author = "Cody Baker"
-copyright = f"{datetime.now().year}, {author}"
+copyright = f"{datetime.now(tz=timezone.utc).astimezone().year}, {author}"
 
 extensions = [
     "sphinx.ext.autodoc",

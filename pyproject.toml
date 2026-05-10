@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.5.8"
+version = "0.5.9"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -119,11 +119,6 @@ ignore = [
     # `pytest.warns(UserWarning)` without a `match=` is intentional in places
     # where any UserWarning is acceptable
     "PT030",
-    # `datetime.now()` / `date.today()` without a timezone are used for local
-    # display timestamps and for the default "today" in the data-collection
-    # CLI; converting them to UTC would change observable behavior
-    "DTZ005",
-    "DTZ011",
     # Comments and docstrings intentionally use Unicode characters
     # (en-dashes, multiplication signs, ...) in fixture descriptions
     "RUF003",
