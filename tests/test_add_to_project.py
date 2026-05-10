@@ -314,7 +314,7 @@ def test_get_project_info_parses_user_url() -> None:
 
 @pytest.mark.ai_generated
 def test_get_project_info_parses_short_user_url() -> None:
-    """Short URL format ``https://github.com/{login}/projects/{number}`` should work."""
+    """Short URL format `https://github.com/{login}/projects/{number}` should work."""
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
