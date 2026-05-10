@@ -141,11 +141,10 @@ fixable = ["ALL"]
 # require its own module docstring.
 "docs/conf.py" = ["A001", "D100"]
 # Tests rely on `assert` (S101), commonly access private members (SLF001),
-# omit per-module/per-function docstrings (D100, D103), pass boolean flags
-# positionally to fixtures (FBT001), reference predictable temp paths in
-# fixtures (S108), raise simple string-literal exceptions (EM101, TRY003),
-# and may carry TODO comments without strict author/issue-link format
-# (FIX002, TD002, TD003).
+# omit per-module/per-function docstrings (D100, D103), reference predictable
+# temp paths in fixtures (S108), raise simple string-literal exceptions
+# (EM101, TRY003), and may carry TODO comments without strict author/issue-link
+# format (FIX002, TD002, TD003).
 "tests/**/*.py" = [
     "S101",
     "S108",
@@ -154,7 +153,6 @@ fixable = ["ALL"]
     "D103",
     "EM101",
     "TRY003",
-    "FBT001",
     "FIX002",
     "TD002",
     "TD003",
