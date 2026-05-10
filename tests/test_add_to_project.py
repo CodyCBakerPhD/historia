@@ -44,7 +44,8 @@ def _make_headers() -> dict[str, str]:
 
 
 def _list_project_items_with_urls(headers: dict[str, str]) -> dict[str, str]:
-    """Return a mapping of {content_url: item_id} for ALL items in the test project.
+    """
+    Return a mapping of {content_url: item_id} for ALL items in the test project.
 
     Uses cursor-based pagination to retrieve items beyond the first page.
     """
@@ -78,6 +79,7 @@ query($login: String!, $number: Int!, $after: String) {
             url="https://api.github.com/graphql",
             json={"query": query, "variables": variables},
             headers=headers,
+            timeout=30,
         )
         if response.status_code == 403:
             raise PermissionError("GitHub token lacks project permissions (403)")
@@ -107,6 +109,7 @@ mutation($projectId: ID!, $itemId: ID!) {
         url="https://api.github.com/graphql",
         json={"query": mutation, "variables": {"projectId": project_id, "itemId": item_id}},
         headers=headers,
+        timeout=30,
     )
 
 
@@ -207,9 +210,8 @@ def test_check_graphql_response_warns_on_403() -> None:
     mock_response.status_code = 403
     mock_response.json.return_value = {"message": "Forbidden"}
 
-    with pytest.warns(UserWarning):
-        with pytest.raises(RuntimeError):
-            _check_graphql_response(response=mock_response, context="test 403")
+    with pytest.warns(UserWarning), pytest.raises(RuntimeError):
+        _check_graphql_response(response=mock_response, context="test 403")
 
 
 @pytest.mark.ai_generated
@@ -244,11 +246,11 @@ def test_get_project_info_parses_user_url() -> None:
                             },
                             {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
                             {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ]
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     headers = {"Authorization": "token fake-token"}
@@ -281,17 +283,17 @@ def test_get_project_info_returns_none_for_missing_date_fields() -> None:
                                 "id": "PVTSSF_id",
                                 "name": "Status",
                                 "options": [{"id": "opt1", "name": "Todo"}],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        _, _, _, start_date_field_id, end_date_field_id = _get_project_info(
+        _, _, _, _, _ = _get_project_info(
             project_url="https://github.com/users/testuser/projects/1",
             headers=headers,
         )
@@ -307,18 +309,20 @@ def test_get_project_info_raises_when_no_status_field() -> None:
                 "projectV2": {
                     "id": "PVT_kwDOA",
                     "fields": {"nodes": []},
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     headers = {"Authorization": "token fake-token"}
-    with unittest.mock.patch("requests.post", return_value=mock_response):
-        with pytest.raises(ValueError, match="No 'Status' field"):
-            _get_project_info(
-                project_url="https://github.com/users/testuser/projects/1",
-                headers=headers,
-            )
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        pytest.raises(ValueError, match="No 'Status' field"),
+    ):
+        _get_project_info(
+            project_url="https://github.com/users/testuser/projects/1",
+            headers=headers,
+        )
 
 
 @pytest.mark.ai_generated
@@ -345,8 +349,8 @@ def test_get_item_info_classifies_pull_request() -> None:
                 "state": "CLOSED",
                 "createdAt": "2023-01-10T12:00:00Z",
                 "closedAt": "2023-02-01T09:00:00Z",
-            }
-        }
+            },
+        },
     }
 
     headers = {"Authorization": "token fake-token"}
@@ -374,8 +378,8 @@ def test_get_item_info_classifies_issue() -> None:
                 "state": "OPEN",
                 "createdAt": "2023-03-05T08:00:00Z",
                 "closedAt": None,
-            }
-        }
+            },
+        },
     }
 
     headers = {"Authorization": "token fake-token"}
@@ -412,9 +416,8 @@ def test_add_item_to_project_returns_none_on_403() -> None:
     mock_response.json.return_value = {"message": "Forbidden"}
 
     headers = {"Authorization": "token fake-token"}
-    with unittest.mock.patch("requests.post", return_value=mock_response):
-        with pytest.warns(UserWarning):
-            item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
+    with unittest.mock.patch("requests.post", return_value=mock_response), pytest.warns(UserWarning):
+        item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
 
     assert item_id is None
 
@@ -424,7 +427,7 @@ def test_set_item_status_calls_mutation() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}},
     }
 
     headers = {"Authorization": "token fake-token"}
@@ -471,12 +474,12 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
                                     {"id": "opt_progress", "name": "In Progress"},
                                     {"id": "opt_todo", "name": "Todo"},
                                 ],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     item_info_response = unittest.mock.MagicMock()
@@ -488,8 +491,8 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
                 "state": "CLOSED",
                 "createdAt": "2023-01-10T12:00:00Z",
                 "closedAt": "2023-02-01T09:00:00Z",
-            }
-        }
+            },
+        },
     }
 
     add_item_response = unittest.mock.MagicMock()
@@ -499,7 +502,7 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
     set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
     }
 
     empty_project_response = unittest.mock.MagicMock()
@@ -511,10 +514,10 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     response_sequence = [
@@ -552,12 +555,12 @@ def test_add_to_project_skips_url_with_null_resource(monkeypatch: pytest.MonkeyP
                                 "id": "PVTSSF_status",
                                 "name": "Status",
                                 "options": [{"id": "opt_done", "name": "Done"}],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     null_resource_response = unittest.mock.MagicMock()
@@ -573,21 +576,24 @@ def test_add_to_project_skips_url_with_null_resource(monkeypatch: pytest.MonkeyP
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
-    with unittest.mock.patch(
-        "requests.post", side_effect=[project_info_response, empty_project_response, null_resource_response]
+    with (
+        unittest.mock.patch(
+            "requests.post",
+            side_effect=[project_info_response, empty_project_response, null_resource_response],
+        ),
+        _warnings_module.catch_warnings(),
     ):
-        with _warnings_module.catch_warnings():
-            _warnings_module.simplefilter("error")
-            historia.project.add_to_project(
-                directory=tmp_path,
-                project_url="https://github.com/users/testuser/projects/1",
-            )
+        _warnings_module.simplefilter("error")
+        historia.project.add_to_project(
+            directory=tmp_path,
+            project_url="https://github.com/users/testuser/projects/1",
+        )
 
 
 @pytest.mark.ai_generated
@@ -616,12 +622,12 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
                                     {"id": "opt_progress", "name": "In Progress"},
                                     {"id": "opt_todo", "name": "Todo"},
                                 ],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     item_info_response = unittest.mock.MagicMock()
@@ -633,8 +639,8 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "state": "OPEN",
                 "createdAt": "2023-03-05T08:00:00Z",
                 "closedAt": None,
-            }
-        }
+            },
+        },
     }
 
     add_item_response = unittest.mock.MagicMock()
@@ -644,7 +650,7 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
     set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
     }
 
     empty_project_response = unittest.mock.MagicMock()
@@ -656,10 +662,10 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     response_sequence = [
@@ -685,7 +691,8 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
 
 @pytest.mark.ai_generated
 def test_add_to_project_status_override_unknown_status_warns(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
 ) -> None:
     """When the overriding status value is not found in the project, a warning is emitted."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
@@ -706,12 +713,12 @@ def test_add_to_project_status_override_unknown_status_warns(
                                 "id": "PVTSSF_status",
                                 "name": "Status",
                                 "options": [{"id": "opt_done", "name": "Done"}],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     item_info_response = unittest.mock.MagicMock()
@@ -723,8 +730,8 @@ def test_add_to_project_status_override_unknown_status_warns(
                 "state": "OPEN",
                 "createdAt": "2023-04-01T10:00:00Z",
                 "closedAt": None,
-            }
-        }
+            },
+        },
     }
 
     add_item_response = unittest.mock.MagicMock()
@@ -740,21 +747,23 @@ def test_add_to_project_status_override_unknown_status_warns(
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     response_sequence = [project_info_response, empty_project_response, item_info_response, add_item_response]
 
-    with unittest.mock.patch("requests.post", side_effect=response_sequence):
-        with pytest.warns(UserWarning, match="not found in project"):
-            historia.project.add_to_project(
-                directory=tmp_path,
-                project_url="https://github.com/users/testuser/projects/1",
-                status="NonExistentStatus",
-            )
+    with (
+        unittest.mock.patch("requests.post", side_effect=response_sequence),
+        pytest.warns(UserWarning, match="not found in project"),
+    ):
+        historia.project.add_to_project(
+            directory=tmp_path,
+            project_url="https://github.com/users/testuser/projects/1",
+            status="NonExistentStatus",
+        )
 
 
 @pytest.mark.ai_generated
@@ -762,7 +771,7 @@ def test_set_item_date_calls_mutation() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}},
     }
 
     headers = {"Authorization": "token fake-token"}
@@ -808,11 +817,11 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
                             },
                             {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
                             {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ]
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     item_info_response = unittest.mock.MagicMock()
@@ -824,8 +833,8 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
                 "state": "CLOSED",
                 "createdAt": "2023-01-10T12:00:00Z",
                 "closedAt": "2023-02-01T09:00:00Z",
-            }
-        }
+            },
+        },
     }
 
     add_item_response = unittest.mock.MagicMock()
@@ -835,7 +844,7 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
     set_field_response = unittest.mock.MagicMock()
     set_field_response.status_code = 200
     set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
     }
 
     empty_project_response = unittest.mock.MagicMock()
@@ -847,10 +856,10 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     # project_info, list_project_item_content_urls, item_info, add_item, set_status, set_start_date, set_end_date
@@ -887,7 +896,8 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
 
 @pytest.mark.ai_generated
 def test_add_to_project_uses_placeholder_end_date_for_open_item(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
 ) -> None:
     """For open items, the end date is set to creation date + end_date_placeholder_days."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
@@ -910,11 +920,11 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
                                 "options": [{"id": "opt_todo", "name": "Todo"}],
                             },
                             {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ]
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     item_info_response = unittest.mock.MagicMock()
@@ -926,8 +936,8 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
                 "state": "OPEN",
                 "createdAt": "2023-06-01T00:00:00Z",
                 "closedAt": None,
-            }
-        }
+            },
+        },
     }
 
     add_item_response = unittest.mock.MagicMock()
@@ -937,7 +947,7 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
     set_field_response = unittest.mock.MagicMock()
     set_field_response.status_code = 200
     set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
     }
 
     empty_project_response = unittest.mock.MagicMock()
@@ -949,10 +959,10 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     response_sequence = [
@@ -1004,17 +1014,19 @@ def test_update_project_item_dates_warns_when_no_date_fields(monkeypatch: pytest
                                 "id": "PVTSSF_status",
                                 "name": "Status",
                                 "options": [{"id": "opt_done", "name": "Done"}],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
-    with unittest.mock.patch("requests.post", return_value=project_info_response):
-        with pytest.warns(UserWarning, match="no 'Start date' or 'End date' fields"):
-            update_project_item_dates(project_url="https://github.com/users/testuser/projects/1")
+    with (
+        unittest.mock.patch("requests.post", return_value=project_info_response),
+        pytest.warns(UserWarning, match="no 'Start date' or 'End date' fields"),
+    ):
+        update_project_item_dates(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1038,11 +1050,11 @@ def test_update_project_item_dates_updates_items(monkeypatch: pytest.MonkeyPatch
                             },
                             {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
                             {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ]
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     list_items_response = unittest.mock.MagicMock()
@@ -1069,16 +1081,16 @@ def test_update_project_item_dates_updates_items(monkeypatch: pytest.MonkeyPatch
                             },
                         ],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     set_field_response = unittest.mock.MagicMock()
     set_field_response.status_code = 200
     set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_closed"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_closed"}}},
     }
 
     # project_info, list_items, then 4 date sets (2 items × 2 fields each)
@@ -1143,10 +1155,10 @@ def test_list_project_items_with_dates_returns_items() -> None:
                             {"id": "PVTI_no_content", "content": None},
                         ],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -1179,10 +1191,10 @@ def test_list_project_item_content_urls_returns_urls() -> None:
                             {"content": None},
                         ],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -1211,10 +1223,10 @@ def test_list_project_item_content_urls_returns_empty_set_when_no_items() -> Non
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -1250,12 +1262,12 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
                                 "id": "PVTSSF_status",
                                 "name": "Status",
                                 "options": [{"id": "opt_done", "name": "Done"}],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     list_urls_response = unittest.mock.MagicMock()
@@ -1269,10 +1281,10 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
                             {"content": {"url": existing_pr_url}},
                         ],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     item_info_response = unittest.mock.MagicMock()
@@ -1284,8 +1296,8 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
                 "state": "CLOSED",
                 "createdAt": "2023-05-01T00:00:00Z",
                 "closedAt": "2023-06-01T00:00:00Z",
-            }
-        }
+            },
+        },
     }
 
     add_item_response = unittest.mock.MagicMock()
@@ -1295,7 +1307,7 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
     set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
     }
 
     # Only new_pr_url should be processed: project_info, list_urls, item_info, add_item, set_status
@@ -1343,8 +1355,8 @@ def test_list_project_items_with_status_returns_items() -> None:
                                         {
                                             "optionId": "opt_done",
                                             "field": {"id": "PVTSSF_status"},
-                                        }
-                                    ]
+                                        },
+                                    ],
                                 },
                             },
                             {
@@ -1354,8 +1366,8 @@ def test_list_project_items_with_status_returns_items() -> None:
                                         {
                                             "optionId": "opt_progress",
                                             "field": {"id": "PVTSSF_status"},
-                                        }
-                                    ]
+                                        },
+                                    ],
                                 },
                             },
                             {
@@ -1364,10 +1376,10 @@ def test_list_project_items_with_status_returns_items() -> None:
                             },
                         ],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -1411,17 +1423,19 @@ def test_move_done_to_history_raises_when_done_option_missing(monkeypatch: pytes
                                 "id": "PVTSSF_status",
                                 "name": "Status",
                                 "options": [{"id": "opt_history", "name": "History"}],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
-    with unittest.mock.patch("requests.post", return_value=project_info_response):
-        with pytest.raises(ValueError, match="'DONE' not found"):
-            move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+    with (
+        unittest.mock.patch("requests.post", return_value=project_info_response),
+        pytest.raises(ValueError, match="'DONE' not found"),
+    ):
+        move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1442,17 +1456,19 @@ def test_move_done_to_history_raises_when_history_option_missing(monkeypatch: py
                                 "id": "PVTSSF_status",
                                 "name": "Status",
                                 "options": [{"id": "opt_done", "name": "DONE"}],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
-    with unittest.mock.patch("requests.post", return_value=project_info_response):
-        with pytest.raises(ValueError, match="'History' not found"):
-            move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+    with (
+        unittest.mock.patch("requests.post", return_value=project_info_response),
+        pytest.raises(ValueError, match="'History' not found"),
+    ):
+        move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1477,12 +1493,12 @@ def test_move_done_to_history_moves_only_done_items(monkeypatch: pytest.MonkeyPa
                                     {"id": "opt_history", "name": "History"},
                                     {"id": "opt_progress", "name": "In Progress"},
                                 ],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     list_items_response = unittest.mock.MagicMock()
@@ -1504,21 +1520,21 @@ def test_move_done_to_history_moves_only_done_items(monkeypatch: pytest.MonkeyPa
                             {
                                 "id": "PVTI_in_progress",
                                 "fieldValues": {
-                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}]
+                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}],
                                 },
                             },
                         ],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
     set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_done_1"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_done_1"}}},
     }
 
     # project_info, list_items_with_status, set_status (×2 for the two Done items)
@@ -1570,12 +1586,12 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
                                     {"id": "opt_done", "name": "DONE"},
                                     {"id": "opt_history", "name": "History"},
                                 ],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     list_items_response = unittest.mock.MagicMock()
@@ -1587,10 +1603,10 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
                     "items": {
                         "nodes": [],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     with unittest.mock.patch("requests.post", side_effect=[project_info_response, list_items_response]) as mock_post:
@@ -1621,12 +1637,12 @@ def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyP
                                     {"id": "opt_history", "name": "History"},
                                     {"id": "opt_progress", "name": "In Progress"},
                                 ],
-                            }
-                        ]
+                            },
+                        ],
                     },
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     list_items_response = unittest.mock.MagicMock()
@@ -1640,13 +1656,13 @@ def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyP
                             {
                                 "id": "PVTI_progress_1",
                                 "fieldValues": {
-                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}]
+                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}],
                                 },
                             },
                             {
                                 "id": "PVTI_progress_2",
                                 "fieldValues": {
-                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}]
+                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}],
                                 },
                             },
                             {
@@ -1655,16 +1671,16 @@ def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyP
                             },
                         ],
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    }
-                }
-            }
-        }
+                    },
+                },
+            },
+        },
     }
 
     set_status_response = unittest.mock.MagicMock()
     set_status_response.status_code = 200
     set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_progress_1"}}}
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_progress_1"}}},
     }
 
     response_sequence = [
@@ -1708,10 +1724,7 @@ _SKIP_INTEGRATION = pytest.mark.skipif(
 @_SKIP_INTEGRATION
 @pytest.mark.ai_generated
 def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
-    """
-    Integration test: adds a known closed PR to the test project, verifies it
-    was added, then removes it so the project stays clean.
-    """
+    """Integration test: adds a known closed PR to the test project, verifies it was added, then removes it."""
     headers = _make_headers()
 
     # Resolve the project node ID (needed for cleanup mutations).
@@ -1745,7 +1758,7 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     # Poll for the newly-added item with retries to handle GitHub API replication lag.
     added_item_id = None
     items_after: dict[str, str] = {}
-    for attempt in range(6):
+    for _ in range(6):
         items_after = _list_project_items_with_urls(headers=headers)
         added_item_id = items_after.get(_KNOWN_CLOSED_PR_URL)
         if added_item_id is not None:

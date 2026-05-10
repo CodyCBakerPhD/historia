@@ -12,4 +12,5 @@
 -   Always add new imports to the top of the file rather than locally scoped inside a function; the only exception is if it is needed to avoid a circular dependency
 -   Never include code other than imports, `__all__`, simple import errors, or magic `__dir__` overrides in any `__init__.py` file
 -   For external dependencies, always avoid specific import style (e.g., using `import abc from xyz` keyword) in favor of the generic full import (e.g., `import xyz; xyz.abc`)
+-   For internal imports, always use the relative import style (e.g., `from .foo import bar`); when monkeypatching such imports in tests, target the importing module's binding, not the original definition module (e.g., `foo.baz`, instead of `foo._bar.baz`)
 -   Every commit you author MUST include a `Co-Authored-By` trailer identifying both your tool name + version and your underlying model + version. Format (replace all `<…>` placeholders with actual values): `Co-Authored-By: <Tool> <tool-version> / <Model> <model-version> <noreply@<vendor-domain>>

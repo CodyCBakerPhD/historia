@@ -21,6 +21,7 @@ def create_project_page(owner: str, title: str) -> dict[str, str]:
         A dictionary containing the ``"id"`` and ``"url"`` of the created project.
         Returns an empty dictionary if the GitHub API rate limit was hit (HTTP 403);
         a warning is also issued in that case.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -48,6 +49,7 @@ mutation CreateProject($ownerId: ID!, $title: String!) {
         url="https://api.github.com/graphql",
         json={"query": mutation, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     status = response.status_code
     result = response.json()
@@ -81,6 +83,7 @@ def _create_date_field(project_id: str, field_name: str, headers: dict[str, str]
         The name to assign to the new DATE field (e.g. ``"Start date"``).
     headers : dict[str, str]
         HTTP headers including the Authorization token.
+
     """
     mutation = """
 mutation CreateField($projectId: ID!, $name: String!) {
@@ -99,6 +102,7 @@ mutation CreateField($projectId: ID!, $name: String!) {
         url="https://api.github.com/graphql",
         json={"query": mutation, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     status = response.status_code
     result = response.json()
@@ -123,10 +127,11 @@ def _get_owner_node_id(owner: str, headers: dict[str, str]) -> str:
     -------
     str
         The global node ID of the owner.
+
     """
     # Try user endpoint first, then organization endpoint
     for endpoint in (f"https://api.github.com/users/{owner}", f"https://api.github.com/orgs/{owner}"):
-        response = requests.get(url=endpoint, headers=headers)
+        response = requests.get(url=endpoint, headers=headers, timeout=30)
         if response.status_code == 200:
             return response.json()["node_id"]
 

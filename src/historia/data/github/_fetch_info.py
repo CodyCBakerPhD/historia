@@ -30,6 +30,7 @@ def fetch_info_for_date(
         A list of GitHub issue or pull request URLs for the specified date and user.
     bool
         Whether or not the GitHub API rate limit was hit during the query.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -113,7 +114,7 @@ query AssignedIssues($first: Int!) {
         ),
     }
 
-    entities_to_graphql_query_mapping = dict()
+    entities_to_graphql_query_mapping = {}
     for entity, query_template in entities_to_graphql_query_template.items():
         query = query_template.replace("{username}", username).replace("{date}", date)
         entities_to_graphql_query_mapping[entity] = query
@@ -140,17 +141,18 @@ def _fetch_info_for_date_graphql(
         url="https://api.github.com/graphql",
         json={"query": query, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     status = response.status_code
     result = response.json()
 
-    message = f"GitHub GraphQL API query `{query}` failed!\n" f"Status code {status}: {result}"
+    message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}"
     hit_rate_limit = False
     if status == 403:
         hit_rate_limit = True
         warnings.warn(message=message, stacklevel=2)
         return [], hit_rate_limit
-    elif "errors" in result or status != 200:
+    if "errors" in result or status != 200:
         raise RuntimeError(message)
 
     unpacked_result = [node["node"]["url"] for node in result["data"]["search"]["edges"]]

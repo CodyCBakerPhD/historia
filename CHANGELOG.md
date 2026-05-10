@@ -31,6 +31,8 @@
 
 #### 🏠 Internal
 
+- Expanded ruff lint rules to `select = ["ALL"]` and resolved all newly enabled violations, including adding request timeouts, fixing exception chaining, converting to absolute imports, and collapsing implicit string concatenations. ([#48](https://github.com/CodyCBakerPhD/historia/pull/48))
+
 - Added mypy via pre-commit mirror for static type checking, with all pre-existing type errors resolved. ([#45](https://github.com/CodyCBakerPhD/historia/pull/45))
 - Added a scheduled daily link checker workflow using `lycheeverse/lychee-action` that scans all Markdown, RST, and Python files for broken links, with a separate email notification track to distinguish failures from daily test failures. ([#51](https://github.com/CodyCBakerPhD/historia/pull/51))
 
