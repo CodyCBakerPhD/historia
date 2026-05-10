@@ -128,9 +128,7 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate \
-    --directory ./historia-data/version-0+5/username-your-github-username/request-graphql \
-    --url https://github.com/users/your-github-username/projects/your-id
+historia project populate --directory ./historia-data/version-0+5 --url https://github.com/users/your-github-username/projects/your-id
 ```
 
 Optional flags:
@@ -162,8 +160,7 @@ As items progress and are eventually closed, their recorded end dates should be 
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project update dates \
-    --url https://github.com/users/your-github-username/projects/your-id
+historia project update dates --url https://github.com/users/your-github-username/projects/your-id
 ```
 
 Use `--placeholder <days>` to change the placeholder window for still-open items.
@@ -188,10 +185,7 @@ Move groups of items from one project status to another — for example, archive
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project transition \
-    --url https://github.com/users/your-github-username/projects/your-id \
-    --status Done \
-    --new History
+historia project transition --url https://github.com/users/your-github-username/projects/your-id --status Done --new History
 ```
 
 - `--status` — the current status of items to match.
@@ -211,34 +205,3 @@ historia.project.transition_status(
 ::::
 
 ---
-
-## Putting it all together
-
-A complete weekly maintenance script might look like this:
-
-```python
-import pathlib
-import historia
-
-DATA_DIR = pathlib.Path("./historia-data")
-USERNAME = "your-github-username"
-PROJECT_URL = "https://github.com/users/your-github-username/projects/your-id"
-GRAPHQL_DIR = DATA_DIR / "version-0+5" / f"username-{USERNAME}" / "request-graphql"
-
-# 1. Refresh the last 90 days of activity
-historia.data.github.update(directory=DATA_DIR, username=USERNAME, past_number_of_days=90)
-
-# 2. Compact the raw files
-historia.data.minify(directory=GRAPHQL_DIR)
-
-# 3. Sync the project board
-historia.project.add_to_project(directory=GRAPHQL_DIR, project_url=PROJECT_URL)
-
-# 4. Refresh item date fields
-historia.project.update_project_item_dates(project_url=PROJECT_URL)
-
-# 5. Archive completed items
-historia.project.transition_status(
-    project_url=PROJECT_URL, current_status="Done", new_status="History"
-)
-```
