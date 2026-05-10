@@ -136,6 +136,7 @@ Include the GitHub PR link at the end of each entry:
 ## Building Documentation
 
 ```{include} ../README.md
+:start-line: 2
 ```
 
 ## Agent / AI Contributor Instructions
