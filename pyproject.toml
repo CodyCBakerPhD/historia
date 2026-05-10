@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.5.7"
+version = "0.5.8"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -88,7 +88,7 @@ exclude = [
 line-length = 120
 
 [tool.ruff.lint]
-select = ["F", "E", "I"]
+select = ["ALL"]
 ignore = [
     "PTH123",
     "D203",
@@ -100,6 +100,24 @@ ignore = [
     "S101",
     "ICN001",
     "INP001",
+    "PLR2004",
+    "SLF001",
+    "FBT001",
+    "FBT002",
+    "TRY003",
+    "EM101",
+    "C901",
+    "PLR0912",
+    "RUF003",
+    "PT030",
+    "DTZ005",
+    "DTZ011",
+    "A001",
+    "S108",
+    "D100",
+    "D103",
+    "ERA001",
+    "TID252",  # We use relative imports
 ]
 fixable = ["ALL"]
 
@@ -111,6 +129,7 @@ markers = [
 
 [tool.ruff.lint.isort]
 relative-imports-order = "closest-to-furthest"
+known-first-party = ["historia"]
 
 [tool.mypy]
 python_version = "3.10"

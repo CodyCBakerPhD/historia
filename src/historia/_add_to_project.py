@@ -46,6 +46,7 @@ def add_to_project(
     end_date_placeholder_days : int, optional
         Number of days after the item's creation date to use as the placeholder end date
         when the item has not yet been closed. Default is 180 (approximately 6 months).
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -63,7 +64,8 @@ def add_to_project(
 
     # Resolve the project node ID and get Status / date field info
     project_id, status_field_id, status_options, start_date_field_id, end_date_field_id = _get_project_info(
-        project_url=project_url, headers=headers
+        project_url=project_url,
+        headers=headers,
     )
 
     # Parse owner type, login, and number from URL
@@ -193,6 +195,7 @@ def _check_graphql_response(response: requests.Response, context: str) -> dict:
     ------
     RuntimeError
         If the response indicates a non-403 error.
+
     """
     status = response.status_code
     result = response.json()
@@ -206,11 +209,11 @@ def _check_graphql_response(response: requests.Response, context: str) -> dict:
 
 
 def _get_project_info(
-    project_url: str, headers: dict[str, str]
+    project_url: str,
+    headers: dict[str, str],
 ) -> tuple[str, str, dict[str, str], str | None, str | None]:
     """
-    Retrieve the project node ID, the Status field ID, available Status option names/IDs,
-    and the IDs of the "Start date" and "End date" date fields (if present).
+    Retrieve project node ID, Status field ID, Status option name-to-ID mapping, and Start/End date field IDs.
 
     Parameters
     ----------
@@ -226,6 +229,7 @@ def _get_project_info(
         end_date_field_id) where status_options maps option name → option ID, and
         start_date_field_id / end_date_field_id are the IDs of the project's "Start date"
         and "End date" date fields respectively (or None if not present).
+
     """
     # Parse owner type, owner login, and project number from URL
     # Expected formats:
@@ -300,6 +304,7 @@ query GetProject($login: String!, $number: Int!) {
         url="https://api.github.com/graphql",
         json={"query": query, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     result = _check_graphql_response(response=response, context=f"Failed to retrieve project info for `{project_url}`.")
 
@@ -353,6 +358,7 @@ def _get_item_info(url: str, headers: dict[str, str]) -> tuple[str, str, str, st
         'PullRequest' or 'Issue', item_state is 'open' or 'closed', created_at is an ISO 8601
         datetime string, and closed_at is an ISO 8601 datetime string or None if not closed.
         Returns None if the URL does not resolve to a PR or Issue.
+
     """
     query = """
 query GetItem($url: URI!) {
@@ -377,6 +383,7 @@ query GetItem($url: URI!) {
         url="https://api.github.com/graphql",
         json={"query": query, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     result = _check_graphql_response(response=response, context=f"Failed to retrieve item info for URL `{url}`.")
 
@@ -411,6 +418,7 @@ def _add_item_to_project(project_id: str, content_id: str, headers: dict[str, st
     -------
     str or None
         The project item ID if successful, or None if rate-limited.
+
     """
     mutation = """
 mutation AddItem($projectId: ID!, $contentId: ID!) {
@@ -426,6 +434,7 @@ mutation AddItem($projectId: ID!, $contentId: ID!) {
         url="https://api.github.com/graphql",
         json={"query": mutation, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     try:
         result = _check_graphql_response(
@@ -462,6 +471,7 @@ def _set_item_status(
         The option ID for the desired status value.
     headers : dict[str, str]
         HTTP headers including the Authorization token.
+
     """
     mutation = """
 mutation SetStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
@@ -489,6 +499,7 @@ mutation SetStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: Stri
         url="https://api.github.com/graphql",
         json={"query": mutation, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     try:
         _check_graphql_response(
@@ -522,6 +533,7 @@ def _set_item_date(
         The date value in ISO format (``YYYY-MM-DD``).
     headers : dict[str, str]
         HTTP headers including the Authorization token.
+
     """
     mutation = """
 mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
@@ -549,6 +561,7 @@ mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
         url="https://api.github.com/graphql",
         json={"query": mutation, "variables": variables},
         headers=headers,
+        timeout=30,
     )
     try:
         _check_graphql_response(
@@ -584,6 +597,7 @@ def update_project_item_dates(
     end_date_placeholder_days : int, optional
         Number of days after the item's creation date to use as the placeholder end date
         when the item has not yet been closed. Default is 180 (approximately 6 months).
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -593,7 +607,8 @@ def update_project_item_dates(
     headers = {"Authorization": f"token {github_token}"}
 
     project_id, _status_field_id, _status_options, start_date_field_id, end_date_field_id = _get_project_info(
-        project_url=project_url, headers=headers
+        project_url=project_url,
+        headers=headers,
     )
 
     if start_date_field_id is None and end_date_field_id is None:
@@ -673,6 +688,7 @@ def _list_project_item_content_urls(
     -------
     set[str]
         A set of content URLs (PR or Issue URLs) for all items currently in the project.
+
     """
     if owner_type == "users":
         query = """
@@ -722,6 +738,7 @@ query GetItemUrls($login: String!, $number: Int!, $after: String) {
             url="https://api.github.com/graphql",
             json={"query": query, "variables": variables},
             headers=headers,
+            timeout=30,
         )
         result = _check_graphql_response(
             response=response,
@@ -768,6 +785,7 @@ def _list_project_items_with_dates(
     -------
     list[dict]
         A list of dicts, each with keys ``id``, ``createdAt``, and optionally ``closedAt``.
+
     """
     if owner_type == "users":
         query = """
@@ -819,6 +837,7 @@ query GetItems($login: String!, $number: Int!, $after: String) {
             url="https://api.github.com/graphql",
             json={"query": query, "variables": variables},
             headers=headers,
+            timeout=30,
         )
         result = _check_graphql_response(
             response=response,
@@ -836,7 +855,7 @@ query GetItems($login: String!, $number: Int!, $after: String) {
                         "id": node["id"],
                         "createdAt": content["createdAt"],
                         "closedAt": content.get("closedAt"),
-                    }
+                    },
                 )
 
         page_info = items_data["pageInfo"]
@@ -875,6 +894,7 @@ def _list_project_items_with_status(
     list[dict]
         A list of dicts, each with keys ``id`` and ``status_option_id``.
         Items whose status field value cannot be determined have ``status_option_id`` set to ``None``.
+
     """
     if owner_type == "users":
         query = """
@@ -942,6 +962,7 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
             url="https://api.github.com/graphql",
             json={"query": query, "variables": variables},
             headers=headers,
+            timeout=30,
         )
         result = _check_graphql_response(
             response=response,
@@ -991,6 +1012,7 @@ def transition_status(project_url: str, current_status: str, new_status: str) ->
     ValueError
         If the ``GITHUB_TOKEN`` environment variable is not set, or if the project
         does not have one of the specified status options.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -1000,7 +1022,8 @@ def transition_status(project_url: str, current_status: str, new_status: str) ->
     headers = {"Authorization": f"token {github_token}"}
 
     project_id, status_field_id, status_options, _start_date_field_id, _end_date_field_id = _get_project_info(
-        project_url=project_url, headers=headers
+        project_url=project_url,
+        headers=headers,
     )
 
     current_option_id = status_options.get(current_status)
@@ -1067,6 +1090,7 @@ def move_done_to_history(project_url: str) -> None:
     ValueError
         If the ``GITHUB_TOKEN`` environment variable is not set, or if the project
         does not have a ``'Done'`` or ``'History'`` status option.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -1076,7 +1100,8 @@ def move_done_to_history(project_url: str) -> None:
     headers = {"Authorization": f"token {github_token}"}
 
     project_id, status_field_id, status_options, _start_date_field_id, _end_date_field_id = _get_project_info(
-        project_url=project_url, headers=headers
+        project_url=project_url,
+        headers=headers,
     )
 
     done_option_id = status_options.get("DONE")
@@ -1113,7 +1138,10 @@ def move_done_to_history(project_url: str) -> None:
     done_items = [item for item in all_items if item["status_option_id"] == done_option_id]
 
     for item in tqdm.tqdm(
-        iterable=done_items, desc="Moving items from Done to History", unit="items", dynamic_ncols=True
+        iterable=done_items,
+        desc="Moving items from Done to History",
+        unit="items",
+        dynamic_ncols=True,
     ):
         _set_item_status(
             project_id=project_id,
