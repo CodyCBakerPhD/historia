@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+
+
+## v0.5.8
+
 #### 📝 Documentation
 
 - Added tutorial to the docs showing step-by-step usage of the CLI and Python API for data collection, minification, project creation, population, date updates, and status transitions. ([#50](https://github.com/CodyCBakerPhD/historia/pull/50))
