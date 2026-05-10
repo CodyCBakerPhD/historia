@@ -16,15 +16,3 @@ python -m sphinx -b html docs docs/_build/html
 
 Open `docs/_build/html/index.html` in your browser to preview the result.
 
-### Structure
-
-```
-docs/
-├── conf.py            # Sphinx configuration
-├── index.rst          # Landing page / toctree root
-├── README.md          # This file — docs contributor guide
-├── assets/            # Images and other static assets
-├── api/               # Auto-generated API reference pages
-└── development/       # Developer guide
-    └── index.md
-```
