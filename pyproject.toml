@@ -128,6 +128,7 @@ markers = [
 
 [tool.ruff.lint.isort]
 relative-imports-order = "closest-to-furthest"
+known-first-party = ["historia"]
 
 [tool.mypy]
 python_version = "3.10"
