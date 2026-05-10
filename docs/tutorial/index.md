@@ -100,7 +100,7 @@ The command prints the new project's numeric ID and URL on success:
 
 ```
 Project created successfully!
-ID: PVT_xyz
+ID: PVT_...
 URL: https://github.com/users/your-github-username/projects/your-id
 ```
 
