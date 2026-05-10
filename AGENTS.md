@@ -11,3 +11,4 @@
 -   PR titles should be human-readable and in the past tense; they should NOT use conventional commit style
 -   Always add new imports to the top of the file rather than locally scoped inside a function; the only exception is if it is needed to avoid a circular dependency
 -   Never include code other than imports, `__all__`, simple import errors, or magic `__dir__` overrides in any `__init__.py` file
+-   For external dependencies, always avoid specific import style (e.g., using `import abc from xyz` keyword) in favor of the generic full import (e.g., `import xyz; xyz.abc`)
