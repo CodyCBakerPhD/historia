@@ -56,6 +56,8 @@ docs = [
     "sphinx>=8.0",
     "pydata-sphinx-theme>=0.16",
     "myst-parser>=4.0",
+    "sphinx-tabs>=3.4",
+    "sphinx-copybutton>=0.5",
 ]
 
 

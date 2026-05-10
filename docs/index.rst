@@ -10,8 +10,10 @@ Historia Documentation
 Historia is a command-line tool and Python package for collecting GitHub activity data and project metadata.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents
 
+   installation/index
+   tutorial/index
    development/index
    api/index

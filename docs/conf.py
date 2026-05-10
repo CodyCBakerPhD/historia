@@ -16,7 +16,11 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "myst_parser",
+    "sphinx_tabs.tabs",
+    "sphinx_copybutton",
 ]
+
+myst_enable_extensions = ["colon_fence"]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md"]
@@ -34,7 +38,11 @@ python_trailing_comma_in_multi_line_signatures = True
 html_theme = "pydata_sphinx_theme"
 html_scaled_image_link = False
 html_show_sourcelink = False
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 html_sidebars: dict[str, list[str]] = {
+    "installation/index": [],
+    "tutorial/index": [],
     "development/index": [],
 }
 html_theme_options = {

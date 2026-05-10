@@ -8,6 +8,7 @@
 
 #### 📝 Documentation
 
+- Added tutorial to the docs showing step-by-step usage of the CLI and Python API for data collection, minification, project creation, population, date updates, and status transitions. ([#50](https://github.com/CodyCBakerPhD/historia/pull/50))
 - Added AI usage addendum to the developer guide covering commit co-authorship requirements when AI tools contribute to commits, and updated `AGENTS.md` with the co-authorship rule. ([#48](https://github.com/CodyCBakerPhD/historia/pull/48))
 
 #### 🚀 Enhancement
