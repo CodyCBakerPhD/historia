@@ -57,33 +57,7 @@ historia-data/
 
 ---
 
-## Step 2: Minify the data (optional)
-
-Raw JSON responses can be large. The minify step strips whitespace to reduce storage footprint without losing any information.
-
-::::{tabs}
-:::{tab} CLI
-Pass the username directory:
-
-```bash
-historia data minify --directory ./data/version-0+5/
-```
-:::
-:::{tab} Python API
-```python
-import pathlib
-import historia
-
-historia.data.minify(
-    directory=pathlib.Path("./historia-data/version-0+5/")
-)
-```
-:::
-::::
-
----
-
-## Step 3: Create a GitHub Project board
+## Step 2: Create a GitHub Project board
 
 Historia can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualises your collected activity.
 
@@ -118,7 +92,7 @@ print(project["url"])
 
 ---
 
-## Step 4: Populate the project from collected data
+## Step 3: Populate the project from collected data
 
 Once data has been collected, populate the project board with the activity items.
 
@@ -150,7 +124,7 @@ historia.project.add_to_project(
 
 ---
 
-## Step 5: Keep date fields up to date
+## Step 4: Keep date fields up to date
 
 As items progress and are eventually closed, their recorded end dates should be refreshed to reflect the actual close dates.
 
@@ -175,7 +149,7 @@ historia.project.update_project_item_dates(
 
 ---
 
-## Step 6: Transition item statuses
+## Step 5: Transition item statuses
 
 Move groups of items from one project status to another — for example, archive completed work by transitioning items from `Done` to `History`.
 
@@ -200,3 +174,111 @@ historia.project.transition_status(
 ```
 :::
 ::::
+
+---
+
+## Step 6: Automate maintenance with a scheduled GitHub Actions workflow
+
+The steps above can be wired together into a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs on a CRON schedule (and on demand via `workflow_dispatch`), keeping a data repository and its associated project board up to date without manual intervention.
+
+The example below assumes:
+
+- A dedicated repository (e.g. `work-history-data`) hosts the collected JSON files on its `main` branch.
+- A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `read:project`, `project`, and `repo` scopes — enough to fetch activity, push commits, and update the project board.
+- A GitHub Project board has already been created via Step 2; its URL is referenced as `<project-url>` below.
+
+Save the file as `.github/workflows/update.yml` in the data repository:
+
+```yaml
+name: Update
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # daily at 00:00 UTC
+  workflow_dispatch:
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+  REPO_DIR: ${{ github.event.repository.name }}
+
+jobs:
+  Update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone
+        run: git clone -b main https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository_owner }}/$REPO_DIR.git
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install historia
+        run: pip install historia
+
+      - name: Fetch new activity
+        run: |
+          cd $REPO_DIR
+          historia data update github --directory ./data --username [GitHub username] --recency 2
+
+      - name: Commit and push raw data
+        run: |
+          git -C $REPO_DIR add .
+          git -C $REPO_DIR commit --message "update" || true  # || true in case of no changes
+          git -C $REPO_DIR push
+
+      - name: Push minified copy to the `min` branch
+        run: |
+          cd $REPO_DIR
+          historia data minify --directory ./data/version-0+5/
+
+          git push origin --delete min || true  # || true in case the branch doesn't exist yet
+          git checkout -b min
+          git add .
+          git commit --message "update min" || true  # || true in case of no changes
+          git push --set-upstream origin min
+
+      - name: Update the project board
+        run: |
+          cd $REPO_DIR
+          historia project populate --directory ./data/version-0+5 --url <project-url>
+          historia project update dates --url <project-url>
+```
+
+Tips:
+
+- The `--recency 2` flag tells Historia to refresh just the last two days on each run — the two-day overlap absorbs late-arriving GitHub data without re-downloading the full history.
+- The minified copy is pushed to a separate `min` branch as a force-replaced snapshot, so consumers (e.g. dashboards) can always pin to `min` for the smallest possible payload.
+- Add additional `historia project populate ... --url <other-project-url>` lines under the final step to mirror the same data into multiple project boards.
+
+:::::{note}
+**Optional: minify the data**
+
+Raw JSON responses can be large. The `historia data minify` step strips whitespace to reduce storage footprint without losing any information, and is what the workflow above uses to build the `min` branch. It can also be run on its own:
+
+::::{tabs}
+:::{tab} CLI
+Pass the username directory:
+
+```bash
+historia data minify --directory ./data/version-0+5/
+```
+:::
+:::{tab} Python API
+```python
+import pathlib
+import historia
+
+historia.data.minify(
+    directory=pathlib.Path("./historia-data/version-0+5/")
+)
+```
+:::
+::::
+:::::
