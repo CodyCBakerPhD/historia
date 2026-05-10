@@ -95,7 +95,8 @@ def _historia_project_create_cli(owner: str, title: str) -> None:
     ),
 )
 @rich_click.option(
-    "--project-url",
+    "--url",
+    "project_url",
     type=str,
     required=True,
     help=(
@@ -115,7 +116,8 @@ def _historia_project_create_cli(owner: str, title: str) -> None:
     ),
 )
 @rich_click.option(
-    "--end-date-placeholder-days",
+    "--placeholder",
+    "end_date_placeholder_days",
     type=int,
     default=180,
     show_default=True,
@@ -149,7 +151,8 @@ def _historia_project_update_cli():
 # historia project update dates
 @_historia_project_update_cli.command(name="dates")
 @rich_click.option(
-    "--project-url",
+    "--url",
+    "project_url",
     type=str,
     required=True,
     help=(
@@ -159,7 +162,8 @@ def _historia_project_update_cli():
     ),
 )
 @rich_click.option(
-    "--end-date-placeholder-days",
+    "--placeholder",
+    "end_date_placeholder_days",
     type=int,
     default=180,
     show_default=True,
@@ -180,7 +184,8 @@ def _historia_project_update_dates_cli(project_url: str, end_date_placeholder_da
 # historia project transition
 @_historia_project_cli.command(name="transition")
 @rich_click.option(
-    "--project-url",
+    "--url",
+    "project_url",
     type=str,
     required=True,
     help=(
