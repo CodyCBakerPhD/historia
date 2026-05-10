@@ -116,7 +116,7 @@ def _historia_project_create_cli(owner: str, title: str) -> None:
     ),
 )
 @rich_click.option(
-    "--enddateplaceholderdays",
+    "--placeholder",
     "end_date_placeholder_days",
     type=int,
     default=180,
@@ -162,7 +162,7 @@ def _historia_project_update_cli():
     ),
 )
 @rich_click.option(
-    "--enddateplaceholderdays",
+    "--placeholder",
     "end_date_placeholder_days",
     type=int,
     default=180,

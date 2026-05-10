@@ -165,7 +165,7 @@ def test_project_populate_command_invokes_add_to_project(
             "https://github.com/users/octocat/projects/1",
             "--status",
             "In Progress",
-            "--enddateplaceholderdays",
+            "--placeholder",
             "90",
         ],
     )
@@ -196,7 +196,7 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
             "dates",
             "--url",
             "https://github.com/users/octocat/projects/1",
-            "--enddateplaceholderdays",
+            "--placeholder",
             "200",
         ],
     )
@@ -296,13 +296,13 @@ def test_project_command_shows_error_on_exception(
     [
         (
             "populate",
-            ["--url", "--enddateplaceholderdays"],
-            ["--project-url", "--projecturl", "--end-date-placeholder-days"],
+            ["--url", "--placeholder"],
+            ["--project-url", "--projecturl", "--end-date-placeholder-days", "--enddateplaceholderdays"],
         ),
         (
             "update dates",
-            ["--url", "--enddateplaceholderdays"],
-            ["--project-url", "--projecturl", "--end-date-placeholder-days"],
+            ["--url", "--placeholder"],
+            ["--project-url", "--projecturl", "--end-date-placeholder-days", "--enddateplaceholderdays"],
         ),
         ("transition", ["--url"], ["--project-url", "--projecturl"]),
     ],
