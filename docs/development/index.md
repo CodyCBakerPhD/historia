@@ -84,11 +84,6 @@ pre-commit run --all-files
 
 Pre-commit will auto-fix most formatting and lint issues. Re-run the command afterward to confirm everything passes.
 
-## Building Documentation
-
-```{include} ../README.md
-```
-
 ## CLI
 
 The package exposes two entry points that both invoke the same CLI:
@@ -110,6 +105,11 @@ Include the GitHub PR link at the end of each entry:
 
 ```markdown
 - Brief description of the change. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
+```
+
+## Building Documentation
+
+```{include} ../README.md
 ```
 
 ## Agent / AI Contributor Instructions
