@@ -145,7 +145,7 @@ Include the GitHub PR link at the end of each entry:
 
 When an AI tool (agent, coding assistant, IDE integration) materially contributes to a commit, the commit MUST include a `Co-Authored-By` trailer identifying both the **tool and its version** and the **model and its version**. This makes the git history the inspectable provenance record so anyone reading the repo can tell which tool produced which change.
 
-Format:
+Format (replace all `<…>` placeholders with actual values):
 
 ```
 Co-Authored-By: <Tool> <tool-version> / <Model> <model-version> <noreply@<vendor-domain>>
