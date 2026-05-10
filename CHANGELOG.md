@@ -4,7 +4,7 @@
 
 ### 🚀 Enhancement
 
-- Added a `start_date` keyword argument to `historia.data.github.update` that overrides the "today" anchor used to count backwards, primarily so the iteration order can be exercised deterministically. ([#68](https://github.com/CodyCBakerPhD/historia/pull/68))
+- Added a `start_date` keyword argument to `historia.data.github.update`, exposed as `--start` on `historia data update github`, that overrides the "today" anchor used to count backwards, primarily so the iteration order can be exercised deterministically. ([#68](https://github.com/CodyCBakerPhD/historia/pull/68))
 - Added a `--version` flag to the `historia` CLI that prints the installed package version. ([#66](https://github.com/CodyCBakerPhD/historia/pull/66))
 
 ### 🏠 Internal
