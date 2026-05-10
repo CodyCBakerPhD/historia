@@ -4,7 +4,7 @@ import warnings
 import requests
 
 
-def create_project_page(owner: str, title: str) -> dict[str, str]:
+def create_project_page(*, owner: str, title: str) -> dict[str, str]:
     """
     Create a GitHub Project (v2) page for the specified owner.
 
@@ -71,7 +71,7 @@ mutation CreateProject($ownerId: ID!, $title: String!) {
     return {"id": project_id, "url": project["url"]}
 
 
-def _create_date_field(project_id: str, field_name: str, headers: dict[str, str]) -> None:
+def _create_date_field(*, project_id: str, field_name: str, headers: dict[str, str]) -> None:
     """
     Create a DATE field with the given name on a GitHub Project (v2).
 
@@ -112,7 +112,7 @@ mutation CreateField($projectId: ID!, $name: String!) {
         raise RuntimeError(message)
 
 
-def _get_owner_node_id(owner: str, headers: dict[str, str]) -> str:
+def _get_owner_node_id(*, owner: str, headers: dict[str, str]) -> str:
     """
     Resolve the GitHub node ID for a user or organization login.
 

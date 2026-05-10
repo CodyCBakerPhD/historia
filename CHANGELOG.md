@@ -2,7 +2,13 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- All public and private functions accepting more than one argument now require keyword usage via the `(*, ...)` syntax, eliminating positional argument call sites and clarifying every call. ([#67](https://github.com/CodyCBakerPhD/historia/pull/67))
+
 ### 🏠 Internal
+
+- Removed the `FBT001` / `FBT002` ruff suppressions from the global `ignore` list now that boolean parameters (e.g. `overwrite` on `historia.data.github.dump_specific_info` / `dump_info_for_date`) are keyword-only; `FBT001` is suppressed only for `tests/**/*.py` because `pytest.mark.parametrize` requires positional parameters. ([#67](https://github.com/CodyCBakerPhD/historia/pull/67))
 
 - Moved developer-only dependencies (`pytest`, `pre-commit`, `ipython`) out of the runtime `dependencies` list and into a new `dev` dependency group, so end users no longer pull them in on `pip install historia`. Install them for development with `pip install -e . --group dev`. ([#65](https://github.com/CodyCBakerPhD/historia/pull/65))
 

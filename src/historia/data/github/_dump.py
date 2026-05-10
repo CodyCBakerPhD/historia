@@ -8,6 +8,7 @@ from ..._globals import INFO_TYPES
 
 
 def dump_specific_info(
+    *,
     directory: pathlib.Path,
     info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
     date: str,
@@ -71,6 +72,7 @@ def dump_specific_info(
 
 
 def dump_info_for_date(
+    *,
     directory: pathlib.Path,
     date: str,
     username: str,
