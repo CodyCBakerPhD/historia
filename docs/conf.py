@@ -35,6 +35,7 @@ html_theme = "pydata_sphinx_theme"
 html_scaled_image_link = False
 html_show_sourcelink = False
 html_sidebars: dict[str, list[str]] = {
+    "tutorial/index": [],
     "development/index": [],
 }
 html_theme_options = {
