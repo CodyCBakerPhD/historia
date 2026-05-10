@@ -115,9 +115,6 @@ ignore = [
     # Long, descriptive messages constructed at the raise site are preferred
     # over per-call-site exception subclasses for one-off internal errors
     "TRY003",
-    # `pytest.warns(UserWarning)` without a `match=` is intentional in places
-    # where any UserWarning is acceptable
-    "PT030",
     # Comments and docstrings intentionally use Unicode characters
     # (en-dashes, multiplication signs, ...) in fixture descriptions
     "RUF003",
