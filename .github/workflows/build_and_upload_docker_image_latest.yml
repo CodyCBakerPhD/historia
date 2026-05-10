@@ -9,21 +9,37 @@ on:
 jobs:
   release-image:
     name: Build and upload release image
+    # When triggered via workflow_run, only proceed if the upstream Release to PyPI workflow succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
+      - name: Resolve latest release tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # This workflow is triggered via workflow_run / workflow_dispatch, so github.event.release
+          # is not populated. Resolve the tag from the latest published GitHub release instead.
+          release_tag="$(gh release view --repo "${GITHUB_REPOSITORY}" --json tagName --jq .tagName)"
+          if [ -z "${release_tag}" ]; then
+            echo "Could not resolve latest release tag." >&2
+            exit 1
+          fi
+          echo "tag=${release_tag}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ steps.release.outputs.tag }}
 
       - name: Derive image tags
         id: image_tags
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           version_tag="${RELEASE_TAG#v}"
           echo "latest=ghcr.io/${GITHUB_REPOSITORY,,}:latest" >> "$GITHUB_OUTPUT"

@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🏠 Internal
+
+- Fixed the `Build and upload latest release Docker image to GHCR` workflow, which is triggered via `workflow_run` after `Release to PyPI`: the release tag is now resolved from the latest published GitHub release (rather than the empty `github.event.release.tag_name`), so the checkout uses the released tag and the versioned image tag is no longer constructed as `ghcr.io/<repo>:` (which `docker tag` rejected as an invalid reference). Also gated the job on the upstream workflow's success. ([#70](https://github.com/CodyCBakerPhD/historia/pull/70))
+
 
 
 ## v0.6.0
