@@ -21,6 +21,7 @@ from historia._add_to_project import (
     _set_item_date,
     _set_item_status,
     move_done_to_history,
+    transition_status,
     update_project_item_dates,
 )
 
@@ -1597,6 +1598,101 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
 
     # Only 2 calls: project_info and list_items; no set_status calls
     assert mock_post.call_count == 2
+
+
+@pytest.mark.ai_generated
+def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    project_info_response = unittest.mock.MagicMock()
+    project_info_response.status_code = 200
+    project_info_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_project",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_status",
+                                "name": "Status",
+                                "options": [
+                                    {"id": "opt_done", "name": "DONE"},
+                                    {"id": "opt_history", "name": "History"},
+                                    {"id": "opt_progress", "name": "In Progress"},
+                                ],
+                            }
+                        ]
+                    },
+                }
+            }
+        }
+    }
+
+    list_items_response = unittest.mock.MagicMock()
+    list_items_response.status_code = 200
+    list_items_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [
+                            {
+                                "id": "PVTI_progress_1",
+                                "fieldValues": {
+                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}]
+                                },
+                            },
+                            {
+                                "id": "PVTI_progress_2",
+                                "fieldValues": {
+                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}]
+                                },
+                            },
+                            {
+                                "id": "PVTI_done",
+                                "fieldValues": {"nodes": [{"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}]},
+                            },
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    }
+                }
+            }
+        }
+    }
+
+    set_status_response = unittest.mock.MagicMock()
+    set_status_response.status_code = 200
+    set_status_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_progress_1"}}}
+    }
+
+    response_sequence = [
+        project_info_response,
+        list_items_response,
+        set_status_response,
+        set_status_response,
+    ]
+
+    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
+        transition_status(
+            project_url="https://github.com/users/testuser/projects/1",
+            current_status="In Progress",
+            new_status="DONE",
+        )
+
+    assert mock_post.call_count == 4
+
+    for call in mock_post.call_args_list[2:]:
+        variables = call.kwargs["json"]["variables"]
+        assert variables["optionId"] == "opt_done"
+        assert variables["fieldId"] == "PVTSSF_status"
+
+    moved_item_ids = {
+        mock_post.call_args_list[2].kwargs["json"]["variables"]["itemId"],
+        mock_post.call_args_list[3].kwargs["json"]["variables"]["itemId"],
+    }
+    assert moved_item_ids == {"PVTI_progress_1", "PVTI_progress_2"}
 
 
 # ---------------------------------------------------------------------------
