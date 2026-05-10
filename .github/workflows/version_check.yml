@@ -21,8 +21,9 @@ jobs:
 
       - name: Check version bump
         run: |
-          PR_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          BASE_VERSION=$(git show origin/${{ github.base_ref }}:pyproject.toml | python3 -c "import sys, tomllib; print(tomllib.loads(sys.stdin.read())['project']['version'])")
+          git show origin/${{ github.base_ref }}:pyproject.toml > /tmp/base_pyproject.toml
+          PR_VERSION=$(python3 -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          BASE_VERSION=$(python3 -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('/tmp/base_pyproject.toml').read_text())['project']['version'])")
           echo "Base version: $BASE_VERSION"
           echo "PR version:   $PR_VERSION"
           if [ "$PR_VERSION" = "$BASE_VERSION" ]; then
