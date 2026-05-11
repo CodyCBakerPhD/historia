@@ -22,9 +22,10 @@ export GITHUB_TOKEN="ghp_..."
 historia data update github --directory ./history --username [user] --recency 3
 ```
 
-- `--directory` — the root directory where data files are stored.
-- `--username` — the GitHub username whose activity to fetch.
-- `--recency` — number of past days to fetch (the two most recent days are always refreshed to account for late-arriving data).
+- `--directory` is the root directory where data files are stored.
+- `--username` is the GitHub username whose activity to fetch.
+- `--recency` is number of past days to fetch.
+  - The two most recent days are always refreshed to account for late-arriving data.
 :::
 :::{tab} Python API
 ```python
