@@ -238,7 +238,7 @@ jobs:
           git -C $REPO_DIR commit --message "update" || true  # || true in case of no changes
           git -C $REPO_DIR push
 
-      - name: Create compressed content snapshot
+      - name: Create compressed content
         working-directory: ${{ env.REPO_DIR }}
         run: tar -czf content.tar.gz content/
 
