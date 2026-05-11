@@ -253,7 +253,7 @@ jobs:
 Tips:
 
 - The `--recency 2` flag tells **Historia** to refresh just the last two days on each run.
-- The compressed `content.tar.gz` archive can be distributed as a portable payload.
+- The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `historia project populate ... --url [other project url]` lines after the final step to post the same data to multiple project boards.
 
 :::::{note}
