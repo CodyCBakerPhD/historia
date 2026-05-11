@@ -1,9 +1,11 @@
 import os
 import warnings
 
+import beartype
 import requests
 
 
+@beartype.beartype
 def create_project_page(*, owner: str, title: str) -> dict[str, str]:
     """
     Create a GitHub Project (v2) page for the specified owner.
