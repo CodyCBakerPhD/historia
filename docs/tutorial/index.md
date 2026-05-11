@@ -35,7 +35,7 @@ import historia
 historia.data.github.update(
     directory=pathlib.Path("./history"),
     username="[user]",
-    past_number_of_days=90,
+    past_number_of_days=3,
 )
 ```
 :::
