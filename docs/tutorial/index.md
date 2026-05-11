@@ -253,20 +253,26 @@ jobs:
 Tips:
 
 - The `--recency 2` flag tells **Historia** to refresh just the last two days on each run.
-- The compressed `content.tar.gz` archive can be published as a portable snapshot.
+- The compressed `content.tar.gz` archive can be distributed as a portable payload.
 - Add additional `historia project populate ... --url [other project url]` lines after the final step to post the same data to multiple project boards.
 
 :::::{note}
-**Optional: compressed snapshot download**
+**Compressed content download**
 
-Once published, the compressed snapshot can be downloaded and extracted using only the Python standard library:
+Once published, one-time downloads of compressed content can be efficiently distributed over the GitHub CDN using `curl`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/[org or user name]/[repo name]/dist/content.tar.gz | tar -xz
+```
+
+Or via the Python standard library:
 
 ```python
 import io
 import tarfile
 import urllib.request
 
-url = "https://github.com/dandi/access-summaries/raw/dist/content.tar.gz"
+url = "https://raw.githubusercontent.com/[org or user name]/[repo name]/dist/content.tar.gz"
 with urllib.request.urlopen(url=url) as response:
     with tarfile.open(fileobj=io.BytesIO(response.read()), mode="r:gz") as tar:
         tar.extractall(filter="data")
