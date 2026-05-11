@@ -190,16 +190,17 @@ The example below assumes:
 Save the file as `.github/workflows/update.yml` in the data repository:
 
 ```yaml
-name: Update
+name: Update work history data
 
 on:
   schedule:
-    - cron: "0 0 * * *"  # daily at 00:00 UTC
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
   REPO_DIR: ${{ github.event.repository.name }}
+  HISTORIA_SPEC: historia==0.7.1
 
 jobs:
   Update:
@@ -212,7 +213,9 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: 3.13
+          cache: pip
+          cache-dependency-path: .github/workflows/update.yml
 
       - name: Configure git
         run: |
@@ -220,7 +223,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install historia
-        run: pip install historia
+        run: python -m pip install "$HISTORIA_SPEC"
 
       - name: Fetch new activity
         run: |
@@ -269,7 +272,7 @@ It can also be run on its own:
 Pass the username directory:
 
 ```bash
-historia data minify --directory ./history/version-0+5/
+historia data minify --directory ./history
 ```
 :::
 :::{tab} Python API
@@ -291,8 +294,8 @@ import gzip
 import json
 import urllib.request
 
-url = "https://raw.githubusercontent.com/[user]/[repo]/refs/heads/min/version-0+5/[user]/issues.min.json.gz"
-with urllib.request.urlopen(url) as response:
+url = "https://raw.githubusercontent.com/[user]/[repo]/refs/heads/min/data.min.json.gz"
+with urllib.request.urlopen(url=url) as response:
     data = json.loads(gzip.decompress(response.read()))
 ```
 :::::
