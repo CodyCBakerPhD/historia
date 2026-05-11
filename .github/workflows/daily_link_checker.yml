@@ -20,6 +20,7 @@ jobs:
           args: >
             --verbose
             --no-progress
+            --exclude '^https://github\.com/CodyCBakerPhD/historia/blob/[^/]+/src/.+#L\d+(-L\d+)?$'
             '**/*.md'
             '**/*.rst'
             '**/*.py'
