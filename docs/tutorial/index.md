@@ -19,7 +19,7 @@ export GITHUB_TOKEN="ghp_..."
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia update github --directory ./history --username CodyCBakerPhD --recency 3
+historia update github --directory ./history --username $PROJECT_OWNER --recency 3
 ```
 
 - `--directory` is the root directory where data files are stored.
@@ -46,7 +46,7 @@ After this step, `./history` will contain a versioned folder tree such as:
 ```
 history/
 └── version-0+5/
-    └── username-CodyCBakerPhD/
+    └── username-[user]/
         └── year-2026/
             └── month-05/
                 └── day-10/
@@ -65,7 +65,7 @@ history/
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project create --owner CodyCBakerPhD --title "Work History"
+historia project create --owner $PROJECT_OWNER --title "Work History"
 ```
 
 The command prints the new project's numeric ID and URL on success:
@@ -100,7 +100,7 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate --directory ./history --url https://github.com/users/CodyCBakerPhD/projects/1
+historia project populate --directory ./history --url $PROJECT_URL
 ```
 
 Optional flags:
@@ -131,7 +131,7 @@ As items progress and are eventually closed, their recorded end dates should be 
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project update dates --url https://github.com/users/CodyCBakerPhD/projects/1
+historia project update dates --url $PROJECT_URL
 ```
 
 Use `--placeholder [days]` to change the placeholder window for still-open items.
@@ -157,7 +157,7 @@ For example, archive completed work by transitioning items from `Done` to `Histo
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project transition --url https://github.com/users/CodyCBakerPhD/projects/1 --status Done --new History
+historia project transition --url $PROJECT_URL --status Done --new History
 ```
 
 - `--status` — the current status of items to match.

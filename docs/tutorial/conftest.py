@@ -27,11 +27,17 @@ def _bash_evaluator(example: sybil.Example) -> str | None:
     Lines that are not ``historia`` commands (such as ``export``, ``curl``, ``git``,
     or comments) are silently skipped so that illustrative shell snippets do not
     cause the test to fail.
+
+    ``$PROJECT_OWNER`` and ``$PROJECT_URL`` are expanded to their tutorial values
+    before the command is parsed, mirroring how a user would set those variables
+    in their shell before running the examples.
     """
     for raw_line in str(example.parsed).strip().splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
+        line = line.replace("$PROJECT_OWNER", _TUTORIAL_GITHUB_OWNER)
+        line = line.replace("$PROJECT_URL", _TUTORIAL_PROJECT_URL)
         if line.startswith("historia "):
             args = shlex.split(line[len("historia ") :])
             result = _cli_runner.invoke(historia.historia_cli, args)
