@@ -239,9 +239,8 @@ jobs:
           git -C $REPO_DIR push
 
       - name: Create compressed content snapshot
-        run: |
-          cd $REPO_DIR
-          tar -czf content.tar.gz content/
+        working-directory: ${{ env.REPO_DIR }}
+        run: tar -czf content.tar.gz content/
 
       - name: Update the project board
         run: |
