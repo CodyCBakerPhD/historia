@@ -24,7 +24,7 @@
 
 ### 🏠 Internal
 
-- Updated the daily link-checker workflow to ignore GitHub blob source-line URLs under `src/` so line-annotated self-links do not trigger false-positive failures. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
+- Updated the daily link-checker workflow to ignore GitHub blob source-line URLs under `src/` so line-annotated self-links do not trigger false-positive failures. ([#100](https://github.com/CodyCBakerPhD/historia/pull/100))
 - Tagged live-service tests with the `remote` marker and applied it to the integration and tutorial Sybil suites so remote-dependent coverage is easier to find and select. ([#98](https://github.com/CodyCBakerPhD/historia/pull/98))
 - Added Sybil integration to test all Python and CLI code blocks in the tutorial documentation. All placeholder values (`[user]`, `[project url]`, `[org or user]`) are replaced with live test values; outbound API calls are mocked via `unittest.mock.patch`; and the network-dependent Python snippet is skipped with a Sybil `skip` directive. ([#91](https://github.com/CodyCBakerPhD/historia/pull/91))
 - Required positional-only (`/`) usage for atomic single-input functions, including `_parse_project_url`, `_collect_unique_urls`, and `move_done_to_history`, and documented the signature rule in `AGENTS.md`. ([#90](https://github.com/CodyCBakerPhD/historia/pull/90))
