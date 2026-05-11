@@ -114,7 +114,8 @@ def test_dump_specific_info_overwrite_behavior(
     date = "2026-01-05"
     year, month, day = date.split("-")
     test_directory = tmp_path / "test_dump"
-    subdir = test_directory / "version-1" / f"username-{username}" / f"year-{year}" / f"month-{month}" / f"day-{day}"
+    username_subdir = test_directory / "version-1" / f"username-{username}"
+    subdir = username_subdir / f"year-{year}" / f"month-{month}" / f"day-{day}"
     subdir.mkdir(parents=True)
     file_path = subdir / f'info-issues+opened_date-{date.replace("-", "+")}.json'
     initial_contents = '["stale-but-preserved"]'
