@@ -1,10 +1,9 @@
-import importlib.metadata
 import json
 import pathlib
 import typing
 
 from ._fetch_info import fetch_info_for_date
-from ..._globals import INFO_TYPES
+from ..._globals import CACHE_LAYOUT_VERSION, INFO_TYPES
 
 
 def dump_specific_info(
@@ -40,12 +39,9 @@ def dump_specific_info(
 
     """
     year, month, day = date.split("-")
-    version = importlib.metadata.distribution("historia").version
-    major, minor, _ = version.split(".")
-
     subdir = (
         directory
-        / f"version-{major}+{minor}"
+        / f"version-{CACHE_LAYOUT_VERSION}"
         / f"username-{username}"
         / f"year-{year}"
         / f"month-{month}"

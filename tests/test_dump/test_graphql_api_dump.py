@@ -1,4 +1,3 @@
-import importlib.metadata
 import json
 import pathlib
 
@@ -11,17 +10,15 @@ import historia
 def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    version = importlib.metadata.distribution("historia").version
-    major, minor, _ = version.split(".")
     username = "codycbakerphd"
 
     test_directory = tmp_path / "test_dump"
     test_directory.mkdir(exist_ok=True)
-    test_version_directory = test_directory / f"version-{major}+{minor}"
+    test_version_directory = test_directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}"
     test_username_directory = test_version_directory / f"username-{username}"
 
     expected_directory = pathlib.Path(__file__).parent / "expected_dumps"
-    expected_version_directory = expected_directory / "version-0+1"  # Use static version since assertions are relative
+    expected_version_directory = expected_directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}"
     expected_username_directory = expected_version_directory / f"username-{username}"
 
     def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
@@ -113,20 +110,14 @@ def test_dump_specific_info_overwrite_behavior(
 
     monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
 
-    version = importlib.metadata.distribution("historia").version
-    major, minor, _ = version.split(".")
     username = "codycbakerphd"
     date = "2026-01-05"
     year, month, day = date.split("-")
     test_directory = tmp_path / "test_dump"
-    subdir = (
-        test_directory
-        / f"version-{major}+{minor}"
-        / f"username-{username}"
-        / f"year-{year}"
-        / f"month-{month}"
-        / f"day-{day}"
+    versioned_username_directory = (
+        test_directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}" / f"username-{username}"
     )
+    subdir = versioned_username_directory / f"year-{year}" / f"month-{month}" / f"day-{day}"
     subdir.mkdir(parents=True)
     file_path = subdir / f'info-issues+opened_date-{date.replace("-", "+")}.json'
     initial_contents = '["stale-but-preserved"]'
