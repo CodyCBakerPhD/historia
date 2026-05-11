@@ -93,7 +93,6 @@ Commands are organized into sub-groups:
 
 - `historia data` — data management
   - `historia data update github` — fetch raw GitHub activity data for a user
-  - `historia data minify` — compact raw data files
 - `historia project` — GitHub Project management
   - `historia project create` — create a new GitHub Project page
   - `historia project populate` — populate a project from fetched data
