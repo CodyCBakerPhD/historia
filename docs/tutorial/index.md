@@ -83,7 +83,7 @@ Keep the URL as you will need it in the following steps.
 import historia
 
 project = historia.project.create_project_page(
-    owner="CodyCBakerPhD",
+    owner=project_owner,
     title="Work History",
 )
 print(project["url"])

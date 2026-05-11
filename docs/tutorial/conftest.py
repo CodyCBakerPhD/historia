@@ -10,6 +10,7 @@ import sybil.parsers.myst
 
 import historia
 
+_TUTORIAL_GITHUB_OWNER = "CodyCBakerPhD"
 _TUTORIAL_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/1"
 _TUTORIAL_PROJECT_MOCK_RETURN: dict[str, str] = {
     "id": "PVT_tutorial_test_id",
@@ -41,6 +42,7 @@ def _bash_evaluator(example: sybil.Example) -> str | None:
 
 def _tutorial_setup(namespace: dict[str, Any]) -> None:
     """Patch all outbound historia API calls so no real network traffic occurs."""
+    namespace["project_owner"] = _TUTORIAL_GITHUB_OWNER
     namespace["project_url"] = _TUTORIAL_PROJECT_URL
     patches = [
         unittest.mock.patch("historia.data.github.update"),
