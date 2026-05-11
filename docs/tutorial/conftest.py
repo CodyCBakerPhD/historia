@@ -41,6 +41,7 @@ def _bash_evaluator(example: sybil.Example) -> str | None:
 
 def _tutorial_setup(namespace: dict[str, Any]) -> None:
     """Patch all outbound historia API calls so no real network traffic occurs."""
+    namespace["project_url"] = _TUTORIAL_PROJECT_URL
     patches = [
         unittest.mock.patch("historia.data.github.update"),
         unittest.mock.patch(

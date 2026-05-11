@@ -116,7 +116,7 @@ import historia
 
 historia.project.add_to_project(
     directory=pathlib.Path("./history"),
-    project_url="https://github.com/users/CodyCBakerPhD/projects/1",
+    project_url=project_url,
 )
 ```
 :::
@@ -141,7 +141,7 @@ Use `--placeholder [days]` to change the placeholder window for still-open items
 import historia
 
 historia.project.update_project_item_dates(
-    project_url="https://github.com/users/CodyCBakerPhD/projects/1",
+    project_url=project_url,
 )
 ```
 :::
@@ -168,7 +168,7 @@ historia project transition --url https://github.com/users/CodyCBakerPhD/project
 import historia
 
 historia.project.transition_status(
-    project_url="https://github.com/users/CodyCBakerPhD/projects/1",
+    project_url=project_url,
     current_status="Done",
     new_status="History",
 )
