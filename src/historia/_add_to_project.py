@@ -1098,24 +1098,3 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
             option_id=new_option_id,
             headers=headers,
         )
-
-
-def move_done_to_history(project_url: str, /) -> None:
-    """
-    Move all items with ``Status=Done`` to ``Status=History`` in a GitHub Project (v2).
-
-    Parameters
-    ----------
-    project_url : str
-        The URL of the GitHub Project v2,
-        e.g., ``https://github.com/users/username/projects/1``
-        or ``https://github.com/orgs/orgname/projects/1``.
-
-    Raises
-    ------
-    ValueError
-        If the ``GITHUB_TOKEN`` environment variable is not set, or if the project
-        does not have a ``'Done'`` or ``'History'`` status option.
-
-    """
-    transition_status(project_url=project_url, current_status="DONE", new_status="History")

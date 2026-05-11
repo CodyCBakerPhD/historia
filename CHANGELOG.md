@@ -20,8 +20,8 @@
 
 ### 🏠 Internal
 
-- Replaced the duplicated implementation in `move_done_to_history` with a thin wrapper call to `transition_status(project_url=project_url, current_status="DONE", new_status="History")`, eliminating the code duplication. ([#92](https://github.com/CodyCBakerPhD/historia/pull/92))
-- Required positional-only (`/`) usage for atomic single-input functions, including `_parse_project_url`, `_collect_unique_urls`, and `move_done_to_history`, and documented the signature rule in `AGENTS.md`. ([#90](https://github.com/CodyCBakerPhD/historia/pull/90))
+- Removed `move_done_to_history` entirely; the identical behavior is now available via `historia.project.transition_status(project_url=..., current_status="DONE", new_status="History")`. ([#92](https://github.com/CodyCBakerPhD/historia/pull/92))
+- Required positional-only (`/`) usage for atomic single-input functions, including `_parse_project_url`, `_collect_unique_urls`, and documented the signature rule in `AGENTS.md`. ([#90](https://github.com/CodyCBakerPhD/historia/pull/90))
 - Fixed the `Build and upload latest release Docker image to GHCR` workflow, which is triggered via `workflow_run` after `Release to PyPI`: the release tag is now resolved from the latest published GitHub release (rather than the empty `github.event.release.tag_name`), so the checkout uses the released tag and the versioned image tag is no longer constructed as `ghcr.io/<repo>:` (which `docker tag` rejected as an invalid reference). Also gated the job on the upstream workflow's success. ([#70](https://github.com/CodyCBakerPhD/historia/pull/70))
 
 
