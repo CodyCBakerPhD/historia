@@ -5,6 +5,7 @@ import typing
 from ._fetch_info import fetch_info_for_date
 from ..._globals import INFO_TYPES
 
+# Increment this only when the on-disk cache layout changes incompatibly.
 CACHE_LAYOUT_VERSION: typing.Final[int] = 1
 
 
