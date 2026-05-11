@@ -168,7 +168,7 @@ def test_add_to_project_warns_when_no_urls(monkeypatch: pytest.MonkeyPatch, tmp_
                 "status": 123,
             },
             TypeError,
-            "`status` must be a str",
+            "`status` must be a str or None",
             id="status-must-be-string-or-none",
         ),
         pytest.param(

@@ -263,7 +263,7 @@ def test_dump_specific_info_rejects_file_path_for_directory(tmp_path: pathlib.Pa
                 "start_date": 20260105,
             },
             TypeError,
-            "`start_date` must be a str",
+            "`start_date` must be a str or None",
             id="update-start-date-must-be-string-or-none",
         ),
     ],
