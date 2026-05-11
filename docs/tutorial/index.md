@@ -283,7 +283,7 @@ import pathlib
 import historia
 
 historia.data.minify(
-    directory=pathlib.Path("./history/version-0+5/")
+    directory=pathlib.Path("./history")
 )
 ```
 :::
