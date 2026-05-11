@@ -1,6 +1,6 @@
 # Tutorial
 
-This tutorial walks you through a complete Historia workflow, from collecting raw GitHub activity data all the way to maintaining a live GitHub Project board.
+This tutorial walks you through a complete **Historia** workflow, from collecting raw GitHub activity data all the way to maintaining a live GitHub Project board.
 
 ## Prerequisites
 
@@ -59,7 +59,7 @@ history/
 
 ## Step 2: Create a GitHub Project board
 
-Historia can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualises your collected activity.
+**Historia** can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualises your collected activity.
 
 ::::{tabs}
 :::{tab} CLI
@@ -256,7 +256,7 @@ jobs:
 
 Tips:
 
-- The `--recency 2` flag tells Historia to refresh just the last two days on each run.
+- The `--recency 2` flag tells **Historia** to refresh just the last two days on each run.
 - The minified copy is pushed to a separate `min` branch as an ephemeral snapshot for the smallest portable payload.
 - Add additional `historia project populate ... --url [other project url]` lines after the final step to post the same data to multiple project boards.
 

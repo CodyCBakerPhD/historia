@@ -85,7 +85,7 @@ Re-run the command afterward to confirm everything passes.
 
 ## CLI
 
-The package exposes a single entry point:
+The **Historia** package exposes a single entry point:
 
 - `historia` — primary entrypoint
 
