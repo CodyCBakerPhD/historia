@@ -14,18 +14,20 @@ export GITHUB_TOKEN="ghp_..."
 
 ## Step 1: Collect GitHub activity data
 
-**Historia** fetches GitHub activity (such as pull requests and issues opened or assigned to a user) for a rolling window of days and saves the results as structured JSON files.
+**Historia** fetches GitHub activity (such as pull requests and issues opened or assigned to a user) for a rolling window of days and saves the results as structured JSON files. The examples below pin that window to a known active date so the tutorial remains reproducible.
 
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia update github --directory ./history --username $PROJECT_OWNER --recency 3
+historia update github --directory ./history --username $PROJECT_OWNER --recency 3 --start 2026-05-10
 ```
 
 - `--directory` is the root directory where data files are stored.
 - `--username` is the GitHub username whose activity to fetch.
 - `--recency` is number of past days to fetch.
   - The two most recent days are always refreshed to account for late-arriving data.
+- `--start` is an optional anchor date.
+  - It is included here to keep the tutorial on a fixed historical range. Omit it for a moving window anchored on today.
 :::
 :::{tab} Python API
 ```python
@@ -36,6 +38,7 @@ historia.github.update(
     directory=pathlib.Path("./history"),
     username=project_owner,
     past_number_of_days=3,
+    start_date="2026-05-10",
 )
 ```
 :::
