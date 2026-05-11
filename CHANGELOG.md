@@ -9,7 +9,7 @@
 
 ### 🐛 Bug Fix
 
-- Simplified the cache path version segment to a dedicated single-digit layout version that starts at `1`, so cache layout bumps are now decoupled from the package release version. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
+- Simplified the cache path version segment to a dedicated single-digit layout version that starts at `1`, so cache layout bumps are now decoupled from the package release version. ([#85](https://github.com/CodyCBakerPhD/historia/pull/85))
 - Fixed an `IndexError` when a short-form GitHub Project URL (e.g. `https://github.com/{login}/projects/{number}`) was passed to any project command; a new `_parse_project_url` helper now handles both the short user format and the long `users`/`orgs` formats. ([#77](https://github.com/CodyCBakerPhD/historia/pull/77))
 
 ### 🚀 Enhancement
