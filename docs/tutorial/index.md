@@ -76,7 +76,7 @@ ID: PVT_...
 URL: https://github.com/users/[user]/projects/[project number]
 ```
 
-Keep the URL — you will need it in the following steps.
+Keep the URL as you will need it in the following steps.
 :::
 :::{tab} Python API
 ```python
