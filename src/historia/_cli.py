@@ -4,7 +4,6 @@ import pathlib
 import rich_click
 
 from . import data
-from .data import minify as _minify
 from .project import add_to_project, create_project_page, transition_status, update_project_item_dates
 
 
@@ -68,23 +67,6 @@ def _historia_data_update_github_cli(
         past_number_of_days=past_number_of_days,
         start_date=start_date,
     )
-
-
-# historia data minify
-@_historia_data_cli.command(name="minify")
-@rich_click.option(
-    "--directory",
-    type=str,
-    required=True,
-    help=(
-        "The specific subdirectory to minify; should be for a specific version and username. "
-        "E.g., `/path/to/version-0+1/username-codycbakerphd`."
-    ),
-)
-def _historia_data_minify_cli(directory: str) -> None:
-    directory_path = pathlib.Path(directory)
-
-    _minify(directory=directory_path)
 
 
 # historia project

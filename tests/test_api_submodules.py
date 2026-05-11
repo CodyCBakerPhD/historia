@@ -29,7 +29,6 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
 @pytest.mark.parametrize(
     ("module", "attribute_name", "is_exposed"),
     [
-        (historia.data, "minify", True),
         (historia.data, "github", True),
         (historia.data, "dump_info_for_date", False),
         (historia.data, "dump_specific_info", False),
