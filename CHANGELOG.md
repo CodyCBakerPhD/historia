@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 📝 Documentation
+
+- Added a Step 6 to the tutorial showing an example scheduled GitHub Actions workflow that runs the full Historia maintenance loop (data fetch, commit, minified `min` branch refresh, and project board update) on a CRON schedule, and moved the optional minify step out of the numbered flow into a `note` admonition at the bottom of the page. ([#75](https://github.com/CodyCBakerPhD/historia/pull/75))
+
 ### 🐛 Bug Fix
 
 - Fixed an `IndexError` when a short-form GitHub Project URL (e.g. `https://github.com/{login}/projects/{number}`) was passed to any project command; a new `_parse_project_url` helper now handles both the short user format and the long `users`/`orgs` formats. ([#77](https://github.com/CodyCBakerPhD/historia/pull/77))
