@@ -13,7 +13,7 @@
 
 ### 🚀 Enhancement
 
-- Simplified the cache path version segment to a dedicated single-digit layout version that starts at `1`, so cache layout bumps are now decoupled from the package release version. ([#85](https://github.com/CodyCBakerPhD/historia/pull/85))
+- Simplified the cache path version segment to a dedicated single-digit layout version that starts at `1`. Cache layout bumps are now decoupled from the package release version. ([#85](https://github.com/CodyCBakerPhD/historia/pull/85))
 - Removed the now-unused `request-graphql/` directory level from the dump layout (between `username-<login>/` and `year-<yyyy>/`). All Historia data is fetched via GraphQL, so the REST/GraphQL distinction is no longer needed and the path tree is now one segment shallower. The `historia data minify` and `historia project populate` CLIs (and their Python equivalents) now expect the `username-<login>` directory directly. ([#73](https://github.com/CodyCBakerPhD/historia/pull/73))
 
 ### 🏠 Internal
