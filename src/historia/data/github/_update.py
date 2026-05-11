@@ -1,11 +1,13 @@
 import datetime
 import pathlib
 
+import beartype
 import tqdm
 
 from ._dump import dump_info_for_date
 
 
+@beartype.beartype
 def update(
     *,
     directory: pathlib.Path,

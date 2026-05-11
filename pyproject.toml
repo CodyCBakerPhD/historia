@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.9.4"
+version = "0.10.1"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -24,6 +24,7 @@ keywords = [
 license = {file = "LICENSE.txt"}
 requires-python = ">=3.10"
 dependencies = [
+    "beartype",
     "requests",
     "tqdm",
     "rich-click",
