@@ -140,6 +140,77 @@ def test_add_to_project_warns_when_no_urls(monkeypatch: pytest.MonkeyPatch, tmp_
 
 
 @pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("kwargs", "exception_type", "match"),
+    [
+        pytest.param(
+            {
+                "directory": "/tmp/not-a-path-object",
+                "project_url": _TEST_PROJECT_URL,
+            },
+            TypeError,
+            "`directory` must be a pathlib.Path",
+            id="directory-must-be-path-object",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "project_url": 123,
+            },
+            TypeError,
+            "`project_url` must be a str",
+            id="project-url-must-be-string",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "project_url": _TEST_PROJECT_URL,
+                "status": 123,
+            },
+            TypeError,
+            "`status` must be a str",
+            id="status-must-be-string-or-none",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "project_url": _TEST_PROJECT_URL,
+                "end_date_placeholder_days": "180",
+            },
+            TypeError,
+            "`end_date_placeholder_days` must be an int",
+            id="placeholder-days-must-be-int",
+        ),
+    ],
+)
+def test_add_to_project_validates_input_types(
+    kwargs: dict[str, object],
+    exception_type: type[Exception],
+    match: str,
+) -> None:
+    with pytest.raises(exception_type, match=match):
+        historia.project.add_to_project(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_rejects_file_path_for_directory(tmp_path: pathlib.Path) -> None:
+    file_path = tmp_path / "urls.json"
+    file_path.write_text("[]")
+
+    with pytest.raises(NotADirectoryError, match="must point to a directory"):
+        historia.project.add_to_project(directory=file_path, project_url=_TEST_PROJECT_URL)
+
+
+@pytest.mark.ai_generated
+def test_update_project_item_dates_validates_input_types() -> None:
+    with pytest.raises(TypeError, match="`project_url` must be a str"):
+        update_project_item_dates(project_url=123)  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="`end_date_placeholder_days` must be an int"):
+        update_project_item_dates(project_url=_TEST_PROJECT_URL, end_date_placeholder_days="30")  # type: ignore[arg-type]
+
+
+@pytest.mark.ai_generated
 def test_collect_unique_urls_reads_json_files(tmp_path: pathlib.Path) -> None:
     urls_a = ["https://github.com/owner/repo/pull/1", "https://github.com/owner/repo/pull/2"]
     urls_b = ["https://github.com/owner/repo/pull/2", "https://github.com/owner/repo/issues/3"]

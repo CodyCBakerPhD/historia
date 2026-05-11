@@ -7,6 +7,8 @@ import warnings
 import requests
 import tqdm
 
+from ._input_validation import ensure_directory_path, ensure_int, ensure_optional_str, ensure_str
+
 
 def _parse_project_url(project_url: str, /) -> tuple[str, str, int]:
     """
@@ -79,6 +81,11 @@ def add_to_project(
         when the item has not yet been closed. Default is 180 (approximately 6 months).
 
     """
+    directory = ensure_directory_path(value=directory, name="directory")
+    project_url = ensure_str(value=project_url, name="project_url")
+    status = ensure_optional_str(value=status, name="status")
+    end_date_placeholder_days = ensure_int(value=end_date_placeholder_days, name="end_date_placeholder_days")
+
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
         message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
@@ -628,6 +635,9 @@ def update_project_item_dates(
         when the item has not yet been closed. Default is 180 (approximately 6 months).
 
     """
+    project_url = ensure_str(value=project_url, name="project_url")
+    end_date_placeholder_days = ensure_int(value=end_date_placeholder_days, name="end_date_placeholder_days")
+
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
         message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
@@ -1043,6 +1053,10 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         does not have one of the specified status options.
 
     """
+    project_url = ensure_str(value=project_url, name="project_url")
+    current_status = ensure_str(value=current_status, name="current_status")
+    new_status = ensure_str(value=new_status, name="new_status")
+
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
         message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"

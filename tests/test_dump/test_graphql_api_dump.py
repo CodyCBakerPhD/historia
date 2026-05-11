@@ -160,3 +160,118 @@ def test_update_iterates_over_expected_dates(
     )
 
     assert fetched_dates == ["2026-01-05", "2026-01-04", "2026-01-03"]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("kwargs", "exception_type", "match"),
+    [
+        pytest.param(
+            {
+                "directory": "/tmp/not-a-path-object",
+                "date": "2026-01-05",
+                "username": "codycbakerphd",
+            },
+            TypeError,
+            "`directory` must be a pathlib.Path",
+            id="dump-info-directory-must-be-path",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "date": 20260105,
+                "username": "codycbakerphd",
+            },
+            TypeError,
+            "`date` must be a str",
+            id="dump-info-date-must-be-string",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "date": "2026-01-05",
+                "username": 123,
+            },
+            TypeError,
+            "`username` must be a str",
+            id="dump-info-username-must-be-string",
+        ),
+    ],
+)
+def test_dump_info_for_date_validates_input_types(
+    kwargs: dict[str, object],
+    exception_type: type[Exception],
+    match: str,
+) -> None:
+    with pytest.raises(exception_type, match=match):
+        historia.data.github.dump_info_for_date(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.ai_generated
+def test_dump_specific_info_rejects_file_path_for_directory(tmp_path: pathlib.Path) -> None:
+    file_path = tmp_path / "content.json"
+    file_path.write_text("[]")
+
+    with pytest.raises(NotADirectoryError, match="must point to a directory"):
+        historia.data.github.dump_specific_info(
+            directory=file_path,
+            info_type="issues_opened",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("kwargs", "exception_type", "match"),
+    [
+        pytest.param(
+            {
+                "directory": "/tmp/not-a-path-object",
+                "username": "codycbakerphd",
+                "past_number_of_days": 2,
+            },
+            TypeError,
+            "`directory` must be a pathlib.Path",
+            id="update-directory-must-be-path",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "username": 123,
+                "past_number_of_days": 2,
+            },
+            TypeError,
+            "`username` must be a str",
+            id="update-username-must-be-string",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "username": "codycbakerphd",
+                "past_number_of_days": "2",
+            },
+            TypeError,
+            "`past_number_of_days` must be an int",
+            id="update-recency-must-be-int",
+        ),
+        pytest.param(
+            {
+                "directory": pathlib.Path("/tmp/path"),
+                "username": "codycbakerphd",
+                "past_number_of_days": 2,
+                "start_date": 20260105,
+            },
+            TypeError,
+            "`start_date` must be a str",
+            id="update-start-date-must-be-string-or-none",
+        ),
+    ],
+)
+def test_update_validates_input_types(
+    kwargs: dict[str, object],
+    exception_type: type[Exception],
+    match: str,
+) -> None:
+    with pytest.raises(exception_type, match=match):
+        historia.data.github.update(**kwargs)  # type: ignore[arg-type]

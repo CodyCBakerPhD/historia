@@ -4,6 +4,7 @@ import typing
 
 from ._fetch_info import fetch_info_for_date
 from ..._globals import CACHE_LAYOUT_VERSION, INFO_TYPES
+from ..._input_validation import ensure_directory_path, ensure_str
 
 
 def dump_specific_info(
@@ -38,6 +39,10 @@ def dump_specific_info(
         Whether the GitHub API rate limit was hit during the query.
 
     """
+    directory = ensure_directory_path(value=directory, name="directory")
+    date = ensure_str(value=date, name="date")
+    username = ensure_str(value=username, name="username")
+
     year, month, day = date.split("-")
     subdir = (
         directory
@@ -95,6 +100,10 @@ def dump_info_for_date(
         Whether the GitHub API rate limit was hit during the query.
 
     """
+    directory = ensure_directory_path(value=directory, name="directory")
+    date = ensure_str(value=date, name="date")
+    username = ensure_str(value=username, name="username")
+
     for info_type in INFO_TYPES:
         hit_rate_limit = dump_specific_info(
             directory=directory,
