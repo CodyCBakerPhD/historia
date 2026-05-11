@@ -10,7 +10,7 @@
 ### 🐛 Bug Fix
 
 - Fixed an `IndexError` when a short-form GitHub Project URL (e.g. `https://github.com/{login}/projects/{number}`) was passed to any project command; a new `_parse_project_url` helper now handles both the short user format and the long `users`/`orgs` formats. ([#77](https://github.com/CodyCBakerPhD/historia/pull/77))
-- Added runtime input type checks across public Python APIs for GitHub data updates and project actions, including clear errors for non-`pathlib.Path` directory arguments, file paths passed as directories, and non-integer day-count inputs. ([#95](https://github.com/CodyCBakerPhD/historia/pull/95))
+- Added runtime input type checks across public Python APIs for GitHub data updates and project actions, including clear errors for non-`pathlib.Path` directory arguments, file paths passed as directories, and non-integer day-count inputs. Validation now uses `beartype` for the runtime type checks at API boundaries. ([#95](https://github.com/CodyCBakerPhD/historia/pull/95))
 
 ### 🚀 Enhancement
 
