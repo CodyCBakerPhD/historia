@@ -4,7 +4,7 @@ This tutorial walks you through a complete Historia workflow, from collecting ra
 
 ## Prerequisites
 
-You will also need a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with at minimum `read:project` and `repo` scopes exported as the `GITHUB_TOKEN` environment variable:
+To start, you will need a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `read:project` and `repo` scopes exported as the `GITHUB_TOKEN` environment variable:
 
 ```bash
 export GITHUB_TOKEN="ghp_..."
