@@ -36,7 +36,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
 @pytest.mark.parametrize(
     ("group", "expected_commands"),
     [
-        ("data", ["minify", "update"]),
+        ("data", ["update"]),
         ("project", ["create", "populate", "update", "transition"]),
     ],
 )
@@ -117,25 +117,6 @@ def test_data_update_command_passes_start_date(monkeypatch: pytest.MonkeyPatch, 
 
     assert result.exit_code == 0
     assert called_args["start_date"] == "2026-01-05"
-
-
-@pytest.mark.ai_generated
-def test_data_minify_command_invokes_minify(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    called_args: dict[str, pathlib.Path] = {}
-
-    def _fake_minify(directory: pathlib.Path) -> None:
-        called_args["directory"] = directory
-
-    monkeypatch.setattr(historia._cli, "_minify", _fake_minify)
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        ["data", "minify", "--directory", str(tmp_path)],
-    )
-
-    assert result.exit_code == 0
-    assert called_args["directory"] == tmp_path
 
 
 @pytest.mark.ai_generated

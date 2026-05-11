@@ -228,9 +228,8 @@ jobs:
         run: python -m pip install "$HISTORIA_SPEC"
 
       - name: Fetch new activity
-        run: |
-          cd $REPO_DIR
-          historia data update github --directory ./history --username [user] --recency 2
+        working-directory: ${{ env.REPO_DIR }}
+        run: historia data update github --directory ./history --username [user] --recency 2
 
       - name: Commit and push raw data
         run: |
@@ -238,16 +237,9 @@ jobs:
           git -C $REPO_DIR commit --message "update" || true  # || true in case of no changes
           git -C $REPO_DIR push
 
-      - name: Push minified copy to the `min` branch
-        run: |
-          cd $REPO_DIR
-          historia data minify --directory ./history/version-0+5/
-
-          git push origin --delete min || true  # || true in case the branch doesn't exist yet
-          git checkout -b min
-          git add .
-          git commit --message "update min" || true  # || true in case of no changes
-          git push --set-upstream origin min
+      - name: Create compressed content
+        working-directory: ${{ env.REPO_DIR }}
+        run: tar -czf content.tar.gz content/
 
       - name: Update the project board
         run: |
@@ -259,45 +251,28 @@ jobs:
 Tips:
 
 - The `--recency 2` flag tells **Historia** to refresh just the last two days on each run.
-- The minified copy is pushed to a separate `min` branch as an ephemeral snapshot for the smallest portable payload.
+- The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `historia project populate ... --url [other project url]` lines after the final step to post the same data to multiple project boards.
 
 :::::{note}
-**Optional: data minification**
+**Compressed content download**
 
-Raw JSON responses can be large.
-The `historia data minify` step strips whitespace to reduce storage footprint without losing any information, and is what the workflow above uses to build the `min` branch.
-It can also be run on its own:
-
-::::{tabs}
-:::{tab} CLI
-Pass the username directory:
+Direct downloads of compressed content can be efficiently distributed over the GitHub CDN using `curl`:
 
 ```bash
-historia data minify --directory ./history
+curl -fsSL https://raw.githubusercontent.com/[org or user name]/[repo name]/dist/content.tar.gz | tar -xz
 ```
-:::
-:::{tab} Python API
-```python
-import pathlib
-import historia
 
-historia.data.minify(
-    directory=pathlib.Path("./history")
-)
-```
-:::
-::::
-
-Once published to a `min` branch (as in the workflow above), the minified files can be downloaded directly from `raw.githubusercontent.com` using only the Python standard library:
+Or via the Python standard library:
 
 ```python
-import gzip
-import json
+import io
+import tarfile
 import urllib.request
 
-url = "https://raw.githubusercontent.com/[user]/[repo]/refs/heads/min/data.min.json.gz"
+url = "https://raw.githubusercontent.com/[org or user name]/[repo name]/dist/content.tar.gz"
 with urllib.request.urlopen(url=url) as response:
-    data = json.loads(gzip.decompress(response.read()))
+    with tarfile.open(fileobj=io.BytesIO(response.read()), mode="r:gz") as tar:
+        tar.extractall(filter="data")
 ```
 :::::
