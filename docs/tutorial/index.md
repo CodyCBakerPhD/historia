@@ -14,7 +14,7 @@ export GITHUB_TOKEN="ghp_..."
 
 ## Step 1: Collect GitHub activity data
 
-**Historia** fetches GitHub activity (such as pull requests and issues opened or assigned to a user) for a rolling window of days and saves the results as structured JSON files. The examples below pin that window to a known active date so the tutorial remains reproducible.
+**Historia** fetches GitHub activity (such as pull requests and issues opened or assigned to a user) for a rolling window of days and saves the results as structured JSON files.
 
 ::::{tabs}
 :::{tab} CLI
