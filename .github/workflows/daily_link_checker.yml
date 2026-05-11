@@ -22,9 +22,8 @@ jobs:
             --no-progress
             --exclude '^https://github\.com/CodyCBakerPhD/historia/blob/[^/]+/src/.+#L\d+(-L\d+)?$'
             --exclude '^https://api\.github\.com/graphql$'
-            --exclude '^https://api\.github\.com/(users|orgs)/%7Bowner%7D$'
-            --exclude '^https://github\.com/%7Blogin%7D/projects/%7Bnumber%7D$'
-            --exclude '^https://github\.com/(users|orgs)/%7Blogin%7D/projects/%7Bnumber%7D$'
+            --exclude '^https://api\.github\.com/(users|orgs)/(%7Bowner%7D|\{owner\})$'
+            --exclude '^https://github\.com/((users|orgs)/)?(%7Blogin%7D|\{login\})/projects/(%7Bnumber%7D|\{number\})$'
             --exclude '^https://github\.com/[^/]+/projects/\d+/?$'
             --exclude '^https://github\.com/(users|orgs)/[^/]+/projects/\d+/?$'
             --exclude '^https://github\.com/owner/repo/(issues|pull)/\d+$'
