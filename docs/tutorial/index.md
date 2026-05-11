@@ -292,63 +292,6 @@ jobs:
         run: |
           OWNER_PROJECT_URL="https://github.com/$REPO_OWNER_TYPE/$REPO_OWNER/projects/$PROJECT_NUMBER"
           historia populate --directory ./work-history-data/history --project-url "$OWNER_PROJECT_URL"
-          historia populate --directory ./work-history-data/history --project-url https://github.com/orgs/con/projects/6
-
-
-
-name: Update work history data
-
-on:
-  schedule:
-    - cron: "0 0 * * *"
-  workflow_dispatch:
-
-env:
-  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-  REPO_DIR: ${{ github.event.repository.name }}
-  HISTORIA_SPEC: historia==0.7.1
-
-jobs:
-  Update:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Clone
-        run: git clone -b main https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository_owner }}/$REPO_DIR.git
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.13
-          cache: pip
-          cache-dependency-path: .github/workflows/update.yml
-
-      - name: Configure git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Install historia
-        run: python -m pip install "$HISTORIA_SPEC"
-
-      - name: Fetch new activity
-        working-directory: ${{ env.REPO_DIR }}
-        run: historia update github --directory ./history --username [user] --recency 2
-
-      - name: Commit and push raw data
-        run: |
-          git -C $REPO_DIR add .
-          git -C $REPO_DIR commit --message "update" || true  # || true in case of no changes
-          git -C $REPO_DIR push
-
-      - name: Create compressed content
-        working-directory: ${{ env.REPO_DIR }}
-        run: tar -czf content.tar.gz content/
-
-      - name: Update the project board
-        run: |
-          cd $REPO_DIR
-          historia project populate --directory ./history --url [project url]
           historia project update dates --url [project url]
 ```
 
