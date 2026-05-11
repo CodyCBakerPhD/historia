@@ -7,7 +7,7 @@ Historia Documentation
    :class: dark-light
    :width: 320px
 
-Historia is a command-line tool and Python package for collecting GitHub activity data and project metadata.
+**Historia** is a command-line tool and Python package for collecting GitHub activity data and project metadata.
 
 .. toctree::
    :maxdepth: 1

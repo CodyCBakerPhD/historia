@@ -1,6 +1,6 @@
 # Tutorial
 
-This tutorial walks you through a complete Historia workflow, from collecting raw GitHub activity data all the way to maintaining a live GitHub Project board.
+This tutorial walks you through a complete **Historia** workflow, from collecting raw GitHub activity data all the way to maintaining a live GitHub Project board.
 
 ## Prerequisites
 
@@ -22,9 +22,10 @@ export GITHUB_TOKEN="ghp_..."
 historia data update github --directory ./history --username [user] --recency 3
 ```
 
-- `--directory` — the root directory where data files are stored.
-- `--username` — the GitHub username whose activity to fetch.
-- `--recency` — number of past days to fetch (the two most recent days are always refreshed to account for late-arriving data).
+- `--directory` is the root directory where data files are stored.
+- `--username` is the GitHub username whose activity to fetch.
+- `--recency` is number of past days to fetch.
+  - The two most recent days are always refreshed to account for late-arriving data.
 :::
 :::{tab} Python API
 ```python
@@ -34,7 +35,7 @@ import historia
 historia.data.github.update(
     directory=pathlib.Path("./history"),
     username="[user]",
-    past_number_of_days=90,
+    past_number_of_days=3,
 )
 ```
 :::
@@ -59,7 +60,7 @@ history/
 
 ## Step 2: Create a GitHub Project board
 
-Historia can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualises your collected activity.
+**Historia** can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualizes your collected activity.
 
 ::::{tabs}
 :::{tab} CLI
@@ -75,7 +76,7 @@ ID: PVT_...
 URL: https://github.com/users/[user]/projects/[project number]
 ```
 
-Keep the URL — you will need it in the following steps.
+Keep the URL as you will need it in the following steps.
 :::
 :::{tab} Python API
 ```python
@@ -104,8 +105,9 @@ historia project populate --directory ./history --url [project url]
 
 Optional flags:
 
-- `--status [value]` — pin every item to a specific status instead of deriving it automatically.
-- `--placeholder [days]` — number of days after an item's creation date to use as a placeholder end date for open items (default: `180`).
+- `--status [value]` will pin every item to a specific status instead of deriving it automatically.
+- `--placeholder [days]` is a placeholder end date offset (in days from creation) for open items.
+  - Defaults to `180` days.
 :::
 :::{tab} Python API
 ```python
@@ -113,9 +115,7 @@ import pathlib
 import historia
 
 historia.project.add_to_project(
-    directory=pathlib.Path(
-        "./history"
-    ),
+    directory=pathlib.Path("./history"),
     project_url="[project url]",
 )
 ```
@@ -151,7 +151,8 @@ historia.project.update_project_item_dates(
 
 ## Step 5: Transition item statuses
 
-Move groups of items from one project status to another — for example, archive completed work by transitioning items from `Done` to `History`.
+Move groups of items from one project status to another.
+For example, archive completed work by transitioning items from `Done` to `History`.
 
 ::::{tabs}
 :::{tab} CLI
@@ -184,7 +185,8 @@ The steps above can be wired together into a scheduled [GitHub Actions](https://
 The example below assumes:
 
 - A dedicated repository (e.g. `work-history-data`) hosts the collected JSON files on its `main` branch.
-- A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `read:project`, `project`, and `repo` scopes — enough to fetch activity, push commits, and update the project board.
+- A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`,  and `read:project` scopes.
+  - These permissions are required to fetch activity, push commits, and update the project board.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
@@ -256,7 +258,7 @@ jobs:
 
 Tips:
 
-- The `--recency 2` flag tells Historia to refresh just the last two days on each run.
+- The `--recency 2` flag tells **Historia** to refresh just the last two days on each run.
 - The minified copy is pushed to a separate `min` branch as an ephemeral snapshot for the smallest portable payload.
 - Add additional `historia project populate ... --url [other project url]` lines after the final step to post the same data to multiple project boards.
 
@@ -281,7 +283,7 @@ import pathlib
 import historia
 
 historia.data.minify(
-    directory=pathlib.Path("./history/version-0+5/")
+    directory=pathlib.Path("./history")
 )
 ```
 :::
