@@ -60,7 +60,7 @@ history/
 
 ## Step 2: Create a GitHub Project board
 
-**Historia** can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualises your collected activity.
+**Historia** can create and manage a [GitHub Projects v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) board that visualizes your collected activity.
 
 ::::{tabs}
 :::{tab} CLI
