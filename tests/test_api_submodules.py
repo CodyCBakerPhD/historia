@@ -3,7 +3,6 @@ import pytest
 import historia
 import historia._cli
 import historia.data
-import historia.data.github
 import historia.project
 
 
@@ -12,6 +11,7 @@ import historia.project
     ("attribute_name", "is_exposed"),
     [
         ("data", True),
+        ("github", True),
         ("historia_cli", True),
         ("project", True),
         ("add_to_project", False),
@@ -29,15 +29,15 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
 @pytest.mark.parametrize(
     ("module", "attribute_name", "is_exposed"),
     [
-        (historia.data, "github", True),
+        (historia, "github", True),
         (historia.data, "dump_info_for_date", False),
         (historia.data, "dump_specific_info", False),
         (historia.data, "fetch_info_for_date", False),
         (historia.data, "update", False),
-        (historia.data.github, "dump_info_for_date", True),
-        (historia.data.github, "dump_specific_info", True),
-        (historia.data.github, "fetch_info_for_date", True),
-        (historia.data.github, "update", True),
+        (historia.github, "dump_info_for_date", True),
+        (historia.github, "dump_specific_info", True),
+        (historia.github, "fetch_info_for_date", True),
+        (historia.github, "update", True),
         (historia.project, "add_to_project", True),
         (historia.project, "create_project_page", True),
         (historia.project, "move_done_to_history", True),

@@ -3,6 +3,7 @@ API reference
 
 .. autosummary::
    :toctree: generated
+   :recursive:
 
-   historia.data
+   historia.github
    historia.project

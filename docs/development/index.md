@@ -91,8 +91,8 @@ The **Historia** package exposes a single entry point:
 
 Commands are organized into sub-groups:
 
-- `historia data` — data management
-  - `historia data update github` — fetch raw GitHub activity data for a user
+- `historia update` — data management
+  - `historia update github` — fetch raw GitHub activity data for a user
 - `historia project` — GitHub Project management
   - `historia project create` — create a new GitHub Project page
   - `historia project populate` — populate a project from fetched data
@@ -103,8 +103,7 @@ Since every command requires at least one option, running any command or sub-gro
 
 ```bash
 historia
-historia data
-historia data update
+historia update
 historia project
 ```
 

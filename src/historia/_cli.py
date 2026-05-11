@@ -17,19 +17,13 @@ def historia_cli() -> None:
     pass
 
 
-# historia data
-@historia_cli.group(name="data")
-def _historia_data_cli() -> None:
-    pass
-
-
-# historia data update
-@_historia_data_cli.group(name="update")
+# historia update
+@historia_cli.group(name="update")
 def historia_data_update_cli() -> None:
     pass
 
 
-# historia data update github
+# historia update github
 @historia_data_update_cli.command(name="github")
 @rich_click.option("--directory", type=str, required=True, help="Directory to save the data to.")
 @rich_click.option("--username", type=str, required=True, help="GitHub username to fetch information about.")

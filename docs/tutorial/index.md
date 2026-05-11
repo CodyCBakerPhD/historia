@@ -19,7 +19,7 @@ export GITHUB_TOKEN="ghp_..."
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia data update github --directory ./history --username [user] --recency 3
+historia update github --directory ./history --username [user] --recency 3
 ```
 
 - `--directory` is the root directory where data files are stored.
@@ -32,7 +32,7 @@ historia data update github --directory ./history --username [user] --recency 3
 import pathlib
 import historia
 
-historia.data.github.update(
+historia.github.update(
     directory=pathlib.Path("./history"),
     username="[user]",
     past_number_of_days=3,
@@ -229,7 +229,7 @@ jobs:
 
       - name: Fetch new activity
         working-directory: ${{ env.REPO_DIR }}
-        run: historia data update github --directory ./history --username [user] --recency 2
+        run: historia update github --directory ./history --username [user] --recency 2
 
       - name: Commit and push raw data
         run: |
