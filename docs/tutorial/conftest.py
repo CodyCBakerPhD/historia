@@ -11,7 +11,7 @@ import sybil.parsers.myst
 import historia
 
 _TUTORIAL_GITHUB_OWNER = "CodyCBakerPhD"
-_TUTORIAL_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/1"
+_TUTORIAL_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/5"
 _TUTORIAL_PROJECT_MOCK_RETURN: dict[str, str] = {
     "id": "PVT_tutorial_test_id",
     "url": _TUTORIAL_PROJECT_URL,
@@ -47,11 +47,10 @@ def _bash_evaluator(example: sybil.Example) -> str | None:
 
 
 def _tutorial_setup(namespace: dict[str, Any]) -> None:
-    """Patch all outbound historia API calls so no real network traffic occurs."""
+    """Patch only the project creation step; all other calls use the live network."""
     namespace["project_owner"] = _TUTORIAL_GITHUB_OWNER
     namespace["project_url"] = _TUTORIAL_PROJECT_URL
     patches = [
-        unittest.mock.patch("historia.data.github.update"),
         unittest.mock.patch(
             "historia.project.create_project_page",
             return_value=_TUTORIAL_PROJECT_MOCK_RETURN,
@@ -60,12 +59,6 @@ def _tutorial_setup(namespace: dict[str, Any]) -> None:
             "historia._cli.create_project_page",
             return_value=_TUTORIAL_PROJECT_MOCK_RETURN,
         ),
-        unittest.mock.patch("historia.project.add_to_project"),
-        unittest.mock.patch("historia._cli.add_to_project"),
-        unittest.mock.patch("historia.project.update_project_item_dates"),
-        unittest.mock.patch("historia._cli.update_project_item_dates"),
-        unittest.mock.patch("historia.project.transition_status"),
-        unittest.mock.patch("historia._cli.transition_status"),
     ]
     for patcher in patches:
         patcher.start()
