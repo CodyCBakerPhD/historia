@@ -8,7 +8,7 @@ import requests
 import tqdm
 
 
-def _parse_project_url(project_url: str) -> tuple[str, str, int]:
+def _parse_project_url(project_url: str, /) -> tuple[str, str, int]:
     """
     Parse owner type, owner login, and project number from a GitHub Project URL.
 
@@ -87,7 +87,7 @@ def add_to_project(
     headers = {"Authorization": f"token {github_token}"}
 
     # Collect all unique URLs from JSON files in the directory
-    all_urls = _collect_unique_urls(directory=directory)
+    all_urls = _collect_unique_urls(directory)
 
     if not all_urls:
         warnings.warn(message=f"No URLs found in directory `{directory}`.", stacklevel=2)
@@ -189,7 +189,7 @@ def add_to_project(
             )
 
 
-def _collect_unique_urls(directory: pathlib.Path) -> list[str]:
+def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
     """Collect all unique URLs from GraphQL JSON files under the given directory."""
     all_info_file_paths = list(directory.rglob(pattern="*.json"))
     all_urls: set[str] = set()
@@ -1100,7 +1100,7 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         )
 
 
-def move_done_to_history(project_url: str) -> None:
+def move_done_to_history(project_url: str, /) -> None:
     """
     Move all items with ``Status=Done`` to ``Status=History`` in a GitHub Project (v2).
 
