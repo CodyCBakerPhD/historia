@@ -22,6 +22,14 @@ export GITHUB_TOKEN="ghp_..."
 historia update github --directory ./history --username $PROJECT_OWNER --recency 3 --start 2026-01-01
 ```
 
+```{code-block} python
+:class: hidden
+import pathlib
+
+tutorial_text = pathlib.Path("docs/tutorial/index.md").read_text(encoding="utf-8")
+assert tutorial_text.count("--start 2026-01-01") == 1
+```
+
 - `--directory` is the root directory where data files are stored.
 - `--username` is the GitHub username whose activity to fetch.
 - `--recency` is number of past days to fetch.
@@ -38,8 +46,16 @@ historia.github.update(
     directory=pathlib.Path("./history"),
     username=project_owner,
     past_number_of_days=3,
-    start_date="2026-05-10",
+    start_date="2026-01-01",
 )
+```
+
+```{code-block} python
+:class: hidden
+import pathlib
+
+tutorial_text = pathlib.Path("docs/tutorial/index.md").read_text(encoding="utf-8")
+assert tutorial_text.count('start_date="2026-01-01"') == 1
 ```
 :::
 ::::
