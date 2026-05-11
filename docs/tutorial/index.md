@@ -259,7 +259,7 @@ Tips:
 :::::{note}
 **Compressed content download**
 
-Once published, one-time downloads of compressed content can be efficiently distributed over the GitHub CDN using `curl`:
+Direct downloads of compressed content can be efficiently distributed over the GitHub CDN using `curl`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/[org or user name]/[repo name]/dist/content.tar.gz | tar -xz
