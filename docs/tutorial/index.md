@@ -19,7 +19,7 @@ export GITHUB_TOKEN="ghp_..."
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia update github --directory ./history --username $PROJECT_OWNER --recency 3 --start 2026-05-10
+historia update github --directory ./history --username $PROJECT_OWNER --recency 3 --start 2026-01-01
 ```
 
 - `--directory` is the root directory where data files are stored.
