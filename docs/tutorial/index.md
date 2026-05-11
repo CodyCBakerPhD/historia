@@ -300,6 +300,7 @@ Tips:
 - The `--recency 2` flag tells **Historia** to refresh just the last two days on each run.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `historia project populate ... --url [other project url]` lines after the final step to post the same data to multiple project boards.
+- The workflow leverages efficient caching at every layer, guaranteeing as few wasted action minutes as possible on each CRON cycle.
 
 :::::{note}
 **Compressed content download**
