@@ -228,9 +228,8 @@ jobs:
         run: python -m pip install "$HISTORIA_SPEC"
 
       - name: Fetch new activity
-        run: |
-          cd $REPO_DIR
-          historia data update github --directory ./history --username [user] --recency 2
+        working-directory: ${{ env.REPO_DIR }}
+        run: historia data update github --directory ./history --username [user] --recency 2
 
       - name: Commit and push raw data
         run: |
