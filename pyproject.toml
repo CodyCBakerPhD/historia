@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.9.2"
+version = "0.9.3"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -53,6 +53,7 @@ dev = [
     "pytest",
     "pre-commit",
     "ipython",
+    "sybil",
 ]
 docs = [
     "sphinx>=8.0",
@@ -133,9 +134,12 @@ fixable = ["ALL"]
     "D103",
     "FBT001",
 ]
+# Tutorial conftest accesses private CLI members (SLF001) and omits per-function
+# docstrings for Sybil setup/teardown/evaluator helpers (D103)
+"docs/tutorial/conftest.py" = ["SLF001", "D103"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "docs/tutorial"]
 markers = [
     "ai_generated: mark test as AI-generated",
 ]

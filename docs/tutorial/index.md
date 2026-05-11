@@ -19,7 +19,7 @@ export GITHUB_TOKEN="ghp_..."
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia update github --directory ./history --username [user] --recency 3
+historia update github --directory ./history --username $PROJECT_OWNER --recency 3
 ```
 
 - `--directory` is the root directory where data files are stored.
@@ -34,7 +34,7 @@ import historia
 
 historia.github.update(
     directory=pathlib.Path("./history"),
-    username="[user]",
+    username=project_owner,
     past_number_of_days=3,
 )
 ```
@@ -65,7 +65,7 @@ history/
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project create --owner [org or user] --title "Work History"
+historia project create --owner $PROJECT_OWNER --title "Work History"
 ```
 
 The command prints the new project's numeric ID and URL on success:
@@ -83,7 +83,7 @@ Keep the URL as you will need it in the following steps.
 import historia
 
 project = historia.project.create_project_page(
-    owner="[GitHub organization or username]",
+    owner=project_owner,
     title="Work History",
 )
 print(project["url"])
@@ -100,7 +100,7 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate --directory ./history --url [project url]
+historia project populate --directory ./history --url $PROJECT_URL
 ```
 
 Optional flags:
@@ -116,7 +116,7 @@ import historia
 
 historia.project.add_to_project(
     directory=pathlib.Path("./history"),
-    project_url="[project url]",
+    project_url=project_url,
 )
 ```
 :::
@@ -131,7 +131,7 @@ As items progress and are eventually closed, their recorded end dates should be 
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project update dates --url [project url]
+historia project update dates --url $PROJECT_URL
 ```
 
 Use `--placeholder [days]` to change the placeholder window for still-open items.
@@ -141,7 +141,7 @@ Use `--placeholder [days]` to change the placeholder window for still-open items
 import historia
 
 historia.project.update_project_item_dates(
-    project_url="[project url]",
+    project_url=project_url,
 )
 ```
 :::
@@ -157,7 +157,7 @@ For example, archive completed work by transitioning items from `Done` to `Histo
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project transition --url [project url] --status Done --new History
+historia project transition --url $PROJECT_URL --status Done --new History
 ```
 
 - `--status` — the current status of items to match.
@@ -168,7 +168,7 @@ historia project transition --url [project url] --status Done --new History
 import historia
 
 historia.project.transition_status(
-    project_url="[project url]",
+    project_url=project_url,
     current_status="Done",
     new_status="History",
 )
@@ -313,6 +313,7 @@ curl -fsSL https://raw.githubusercontent.com/[org or user name]/[repo name]/dist
 
 Or via the Python standard library:
 
+<!-- skip: next -->
 ```python
 import io
 import tarfile
