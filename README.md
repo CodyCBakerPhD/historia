@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/historia/"><img alt="PyPI latest release version" src="https://badge.fury.io/py/historia.svg"></a>
+  <a href="https://pypi.org/project/historia/"><img alt="PyPI latest release version" src="https://img.shields.io/pypi/v/historia.svg"></a>
   <a href="https://pypi.org/project/historia/"><img alt="Supported Python versions" src="https://img.shields.io/pypi/pyversions/historia.svg"></a>
   <a href="https://codecov.io/gh/CodyCBakerPhD/historia"><img alt="codecov" src="https://codecov.io/gh/CodyCBakerPhD/historia/branch/main/graph/badge.svg"></a>
 </p>
