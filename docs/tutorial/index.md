@@ -185,7 +185,8 @@ The steps above can be wired together into a scheduled [GitHub Actions](https://
 The example below assumes:
 
 - A dedicated repository (e.g. `work-history-data`) hosts the collected JSON files on its `main` branch.
-- A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `read:project`, `project`, and `repo` scopes — enough to fetch activity, push commits, and update the project board.
+- A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`,  and `read:project` scopes.
+  - These permissions are required to fetch activity, push commits, and update the project board.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
