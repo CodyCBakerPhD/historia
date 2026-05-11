@@ -28,7 +28,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
     result = runner.invoke(historia.historia_cli, ["--help"])
 
     assert result.exit_code == 0
-    assert "data" in result.output
+    assert "update" in result.output
     assert "project" in result.output
 
 
@@ -36,7 +36,7 @@ def test_root_cli_help_shows_nested_groups() -> None:
 @pytest.mark.parametrize(
     ("group", "expected_commands"),
     [
-        ("data", ["update"]),
+        ("update", ["github"]),
         ("project", ["create", "populate", "update", "transition"]),
     ],
 )
@@ -70,7 +70,7 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
 
     result = runner.invoke(
         historia.historia_cli,
-        ["data", "update", "github", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
+        ["update", "github", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
     )
 
     assert result.exit_code == 0
@@ -101,7 +101,6 @@ def test_data_update_command_passes_start_date(monkeypatch: pytest.MonkeyPatch, 
     result = runner.invoke(
         historia.historia_cli,
         [
-            "data",
             "update",
             "github",
             "--directory",
@@ -124,7 +123,7 @@ def test_data_update_command_passes_start_date(monkeypatch: pytest.MonkeyPatch, 
 def test_data_update_help_commands(command: str, expected_present: bool) -> None:
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(historia.historia_cli, ["data", "update", "--help"])
+    result = runner.invoke(historia.historia_cli, ["update", "--help"])
 
     assert result.exit_code == 0
     assert (command in result.output) is expected_present
