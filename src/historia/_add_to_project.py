@@ -4,6 +4,7 @@ import os
 import pathlib
 import warnings
 
+import beartype
 import requests
 import tqdm
 
@@ -38,6 +39,7 @@ def _parse_project_url(project_url: str, /) -> tuple[str, str, int]:
     return owner_type, owner_login, project_number
 
 
+@beartype.beartype
 def add_to_project(
     *,
     directory: pathlib.Path,
@@ -601,6 +603,7 @@ mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
             raise
 
 
+@beartype.beartype
 def update_project_item_dates(
     *,
     project_url: str,
@@ -1021,6 +1024,7 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
     return all_items
 
 
+@beartype.beartype
 def transition_status(*, project_url: str, current_status: str, new_status: str) -> None:
     """
     Move all items with one Status value to another in a GitHub Project (v2).

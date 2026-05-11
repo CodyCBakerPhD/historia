@@ -2,10 +2,13 @@ import json
 import pathlib
 import typing
 
+import beartype
+
 from ._fetch_info import fetch_info_for_date
 from ..._globals import CACHE_LAYOUT_VERSION, INFO_TYPES
 
 
+@beartype.beartype
 def dump_specific_info(
     *,
     directory: pathlib.Path,
@@ -66,6 +69,7 @@ def dump_specific_info(
     return False
 
 
+@beartype.beartype
 def dump_info_for_date(
     *,
     directory: pathlib.Path,

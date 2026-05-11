@@ -4,9 +4,11 @@ import re
 import typing
 import warnings
 
+import beartype
 import requests
 
 
+@beartype.beartype
 def fetch_info_for_date(
     *,
     info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
