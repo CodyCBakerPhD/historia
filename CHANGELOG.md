@@ -25,6 +25,7 @@
 
 ### 🏠 Internal
 
+- Expanded daily link-checker excludes for known placeholder/API-auth URLs in source and tests so line-level false positives no longer fail the workflow. ([#103](https://github.com/CodyCBakerPhD/historia/pull/103))
 - Updated the daily link-checker workflow to ignore GitHub blob source-line URLs under `src/` so line-annotated self-links do not trigger false-positive failures. ([#100](https://github.com/CodyCBakerPhD/historia/pull/100))
 - Tagged live-service tests with the `remote` marker and applied it to the integration and tutorial Sybil suites so remote-dependent coverage is easier to find and select. ([#98](https://github.com/CodyCBakerPhD/historia/pull/98))
 - Added Sybil integration to test all Python and CLI code blocks in the tutorial documentation. All placeholder values (`[user]`, `[project url]`, `[org or user]`) are replaced with live test values; outbound API calls are mocked via `unittest.mock.patch`; and the network-dependent Python snippet is skipped with a Sybil `skip` directive. ([#91](https://github.com/CodyCBakerPhD/historia/pull/91))
