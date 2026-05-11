@@ -34,7 +34,7 @@ import historia
 
 historia.github.update(
     directory=pathlib.Path("./history"),
-    username="CodyCBakerPhD",
+    username=project_owner,
     past_number_of_days=3,
 )
 ```
