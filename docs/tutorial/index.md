@@ -151,7 +151,8 @@ historia.project.update_project_item_dates(
 
 ## Step 5: Transition item statuses
 
-Move groups of items from one project status to another — for example, archive completed work by transitioning items from `Done` to `History`.
+Move groups of items from one project status to another.
+For example, archive completed work by transitioning items from `Done` to `History`.
 
 ::::{tabs}
 :::{tab} CLI
