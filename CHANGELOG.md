@@ -20,6 +20,7 @@
 
 ### 🏠 Internal
 
+- Tagged live-service tests with the `remote` marker and applied it to the integration and tutorial Sybil suites so remote-dependent coverage is easier to find and select. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
 - Added Sybil integration to test all Python and CLI code blocks in the tutorial documentation. All placeholder values (`[user]`, `[project url]`, `[org or user]`) are replaced with live test values; outbound API calls are mocked via `unittest.mock.patch`; and the network-dependent Python snippet is skipped with a Sybil `skip` directive. ([#91](https://github.com/CodyCBakerPhD/historia/pull/91))
 - Required positional-only (`/`) usage for atomic single-input functions, including `_parse_project_url`, `_collect_unique_urls`, and `move_done_to_history`, and documented the signature rule in `AGENTS.md`. ([#90](https://github.com/CodyCBakerPhD/historia/pull/90))
 - Removed `move_done_to_history` entirely; the identical behavior is now available via `historia.project.transition_status(project_url=..., current_status="DONE", new_status="History")`. ([#92](https://github.com/CodyCBakerPhD/historia/pull/92))

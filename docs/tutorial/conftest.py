@@ -6,6 +6,7 @@ import unittest.mock
 from typing import Any
 
 import click.testing
+import pytest
 import requests
 import sybil
 import sybil.parsers.myst
@@ -170,6 +171,12 @@ def _tutorial_teardown(namespace: dict[str, Any]) -> None:
         current_item_ids = _list_project_item_ids(project_node_id=project_node_id, headers=headers)
         for item_id in current_item_ids - pre_test_item_ids:
             _delete_project_item(project_node_id=project_node_id, item_id=item_id, headers=headers)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        if item.path.as_posix().endswith("docs/tutorial/index.md"):
+            item.add_marker(pytest.mark.remote)
 
 
 pytest_collect_file = sybil.Sybil(

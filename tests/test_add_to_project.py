@@ -1605,6 +1605,7 @@ _SKIP_INTEGRATION = pytest.mark.skipif(
 
 
 @_SKIP_INTEGRATION
+@pytest.mark.remote
 @pytest.mark.ai_generated
 def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     """Integration test: adds a known closed PR to the test project, verifies it was added, then removes it."""
