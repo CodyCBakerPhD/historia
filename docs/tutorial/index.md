@@ -114,9 +114,7 @@ import pathlib
 import historia
 
 historia.project.add_to_project(
-    directory=pathlib.Path(
-        "./history"
-    ),
+    directory=pathlib.Path("./history"),
     project_url="[project url]",
 )
 ```
