@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.10.0"
+version = "0.10.1"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -143,6 +143,7 @@ fixable = ["ALL"]
 testpaths = ["tests", "docs/tutorial"]
 markers = [
     "ai_generated: mark test as AI-generated",
+    "remote: mark test as requiring live remote services",
 ]
 
 [tool.ruff.lint.isort]
