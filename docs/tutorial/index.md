@@ -105,8 +105,9 @@ historia project populate --directory ./history --url [project url]
 
 Optional flags:
 
-- `--status [value]` — pin every item to a specific status instead of deriving it automatically.
-- `--placeholder [days]` — number of days after an item's creation date to use as a placeholder end date for open items (default: `180`).
+- `--status [value]` will pin every item to a specific status instead of deriving it automatically.
+- `--placeholder [days]` is a placeholder end date offset (in days from creation) for open items.
+  - Defaults to `180` days.
 :::
 :::{tab} Python API
 ```python
