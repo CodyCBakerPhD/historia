@@ -14,11 +14,11 @@ def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: p
 
     test_directory = tmp_path / "test_dump"
     test_directory.mkdir(exist_ok=True)
-    test_version_directory = test_directory / "version-1"
+    test_version_directory = test_directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}"
     test_username_directory = test_version_directory / f"username-{username}"
 
     expected_directory = pathlib.Path(__file__).parent / "expected_dumps"
-    expected_version_directory = expected_directory / "version-1"
+    expected_version_directory = expected_directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}"
     expected_username_directory = expected_version_directory / f"username-{username}"
 
     def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
@@ -114,7 +114,9 @@ def test_dump_specific_info_overwrite_behavior(
     date = "2026-01-05"
     year, month, day = date.split("-")
     test_directory = tmp_path / "test_dump"
-    versioned_username_directory = test_directory / "version-1" / f"username-{username}"
+    versioned_username_directory = (
+        test_directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}" / f"username-{username}"
+    )
     subdir = versioned_username_directory / f"year-{year}" / f"month-{month}" / f"day-{day}"
     subdir.mkdir(parents=True)
     file_path = subdir / f'info-issues+opened_date-{date.replace("-", "+")}.json'
