@@ -2,6 +2,7 @@ import json
 import os
 import pathlib
 import time
+import typing
 import unittest.mock
 import warnings as _warnings_module
 
@@ -149,7 +150,7 @@ def test_collect_unique_urls_reads_json_files(tmp_path: pathlib.Path) -> None:
     (tmp_path / "a.json").write_text(json.dumps(urls_a))
     (sub / "b.json").write_text(json.dumps(urls_b))
 
-    result = _collect_unique_urls(directory=tmp_path)
+    result = _collect_unique_urls(tmp_path)
 
     assert set(result) == {
         "https://github.com/owner/repo/pull/1",
@@ -172,7 +173,7 @@ def test_collect_unique_urls_ignores_non_list_json(tmp_path: pathlib.Path) -> No
     }
     (tmp_path / "legacy-rest.json").write_text(json.dumps(legacy_rest_response))
 
-    result = _collect_unique_urls(directory=tmp_path)
+    result = _collect_unique_urls(tmp_path)
 
     assert set(result) == set()
 
@@ -190,7 +191,7 @@ def test_collect_unique_urls_mixed_formats(tmp_path: pathlib.Path) -> None:
     (tmp_path / "graphql.json").write_text(json.dumps(graphql_urls))
     (tmp_path / "legacy-rest.json").write_text(json.dumps(legacy_rest_response))
 
-    result = _collect_unique_urls(directory=tmp_path)
+    result = _collect_unique_urls(tmp_path)
 
     assert set(result) == {"https://github.com/owner/repo/pull/1"}
 
@@ -267,6 +268,20 @@ def test_parse_project_url(
     assert owner_type == expected_owner_type
     assert owner_login == expected_login
     assert project_number == expected_number
+
+
+@pytest.mark.ai_generated
+def test_collect_unique_urls_rejects_keyword_call() -> None:
+    function = typing.cast("typing.Any", _collect_unique_urls)
+    with pytest.raises(TypeError, match="positional-only arguments"):
+        function(directory=pathlib.Path("/tmp"))
+
+
+@pytest.mark.ai_generated
+def test_parse_project_url_rejects_keyword_call() -> None:
+    function = typing.cast("typing.Any", _parse_project_url)
+    with pytest.raises(TypeError, match="positional-only arguments"):
+        function(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1490,7 +1505,14 @@ def test_move_done_to_history_raises_without_token(monkeypatch: pytest.MonkeyPat
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
     with pytest.raises(ValueError, match="GITHUB_TOKEN"):
-        move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        move_done_to_history("https://github.com/users/testuser/projects/1")
+
+
+@pytest.mark.ai_generated
+def test_move_done_to_history_rejects_keyword_call() -> None:
+    function = typing.cast("typing.Any", move_done_to_history)
+    with pytest.raises(TypeError, match="positional-only arguments"):
+        function(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1523,7 +1545,7 @@ def test_move_done_to_history_raises_when_done_option_missing(monkeypatch: pytes
         unittest.mock.patch("requests.post", return_value=project_info_response),
         pytest.raises(ValueError, match="'DONE' not found"),
     ):
-        move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        move_done_to_history("https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1556,7 +1578,7 @@ def test_move_done_to_history_raises_when_history_option_missing(monkeypatch: py
         unittest.mock.patch("requests.post", return_value=project_info_response),
         pytest.raises(ValueError, match="'History' not found"),
     ):
-        move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        move_done_to_history("https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1634,7 +1656,7 @@ def test_move_done_to_history_moves_only_done_items(monkeypatch: pytest.MonkeyPa
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        historia.project.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.move_done_to_history("https://github.com/users/testuser/projects/1")
 
     # 4 calls: project_info, list_items, set_status×2
     assert mock_post.call_count == 4
@@ -1698,7 +1720,7 @@ def test_move_done_to_history_no_done_items(monkeypatch: pytest.MonkeyPatch) -> 
     }
 
     with unittest.mock.patch("requests.post", side_effect=[project_info_response, list_items_response]) as mock_post:
-        historia.project.move_done_to_history(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.move_done_to_history("https://github.com/users/testuser/projects/1")
 
     # Only 2 calls: project_info and list_items; no set_status calls
     assert mock_post.call_count == 2

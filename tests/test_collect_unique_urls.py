@@ -18,7 +18,7 @@ def test_collect_unique_urls_reads_graphql_json_files(tmp_path: pathlib.Path) ->
     (sub / "b.json").write_text(json.dumps(urls_b))
     (tmp_path / "other.json").write_text(json.dumps(non_graphql_json))
 
-    result = _collect_unique_urls(directory=tmp_path)
+    result = _collect_unique_urls(tmp_path)
 
     assert set(result) == {
         "https://github.com/owner/repo/pull/1",

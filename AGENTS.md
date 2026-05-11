@@ -7,6 +7,7 @@
 -   Attempt to utilize `pytest.mark.parametrize` wherever appropriate to reduce duplication in test cases
 -   Avoid importing private-marked API functions (those with leading underscores) and always favor importing what is publicly exposed through `__init__.py` files
 -   Always bump the version in `pyproject.toml` appropriately when any file under `src/` (except `tests/` or `docs/`), only once per pull request; do NOT bump the version for changes that are purely CI/workflow, documentation, or configuration (e.g. adding a GitHub Actions workflow, updating `AGENTS.md`, or editing `README.md` badges)
+-   For API signatures, require keyword arguments for multi-input functions using `(*, ...)`. For atomic single-input functions, require positional-only usage with the `/` designator
 -   Leave a short description of the change or addition in the top `## Upcoming` section of the `CHANGELOG.md` under the appropriate subsection (`### 🚀 Enhancement`, `### 🐛 Bug Fix`, `### 📝 Documentation`, `### 🔩 Dependency Updates`, or `### 🏠 Internal`); create the subsection if it does not yet exist; include the GitHub PR link at the end of each entry in the format `([#N](https://github.com/stamped-principles/stamped-checklist/pull/N))`- `### 🚀 Enhancement` — new features
 -   PR titles should be human-readable and in the past tense; they should NOT use conventional commit style
 -   Always add new imports to the top of the file rather than locally scoped inside a function; the only exception is if it is needed to avoid a circular dependency
