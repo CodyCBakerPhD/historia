@@ -1,6 +1,6 @@
 # Tutorial
 
-This tutorial walks you through a complete Historia workflow — from collecting raw GitHub activity data all the way to maintaining a live GitHub Project board.
+This tutorial walks you through a complete Historia workflow, from collecting raw GitHub activity data all the way to maintaining a live GitHub Project board.
 
 ## Prerequisites
 
