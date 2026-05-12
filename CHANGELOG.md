@@ -8,12 +8,14 @@
 
 ### 📝 Documentation
 
+- Pinned the tutorial's live `historia update github` examples to a fixed historical window with `--start` / `start_date` so the remote documentation tests no longer depend on whatever activity happened "today". ([#105](https://github.com/CodyCBakerPhD/historia/pull/105))
 - Replaced the README PyPI version badge image source with a stable `img.shields.io` endpoint so the badge renders correctly instead of showing "not found". ([#102](https://github.com/CodyCBakerPhD/historia/pull/102))
 - Added a Step 6 to the tutorial showing an example scheduled GitHub Actions workflow that runs the full Historia maintenance loop (data fetch, commit, minified `min` branch refresh, and project board update) on a CRON schedule, and moved the optional minify step out of the numbered flow into a `note` admonition at the bottom of the page. ([#75](https://github.com/CodyCBakerPhD/historia/pull/75))
 - Bolded proper-name references to Historia in docs prose for consistency across the tutorial, installation page, docs landing page, and developer guide. ([#81](https://github.com/CodyCBakerPhD/historia/pull/81))
 
 ### 🐛 Bug Fix
 
+- Prevented `historia.project.update_project_item_dates` from failing when a project item is deleted mid-run by skipping only `NOT_FOUND` item-date mutations and continuing with the remaining items. ([#105](https://github.com/CodyCBakerPhD/historia/pull/105))
 - Fixed an `IndexError` when a short-form GitHub Project URL (e.g. `https://github.com/{login}/projects/{number}`) was passed to any project command; a new `_parse_project_url` helper now handles both the short user format and the long `users`/`orgs` formats. ([#77](https://github.com/CodyCBakerPhD/historia/pull/77))
 
 ### 🚀 Enhancement
