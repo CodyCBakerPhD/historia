@@ -135,6 +135,8 @@ fixable = ["ALL"]
     "D100",
     "D103",
     "FBT001",
+    "ARG001",
+    "ARG005",
 ]
 # Tutorial conftest accesses private CLI members (SLF001) and omits per-function
 # docstrings for Sybil setup/teardown/evaluator helpers (D103)

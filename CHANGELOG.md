@@ -4,7 +4,7 @@
 
 ### 🚀 Enhancement
 
-- `create_project_page` now populates new projects with the canonical Historia status options (Incoming, Backlog, Todo, Agenda, Done, History) and four default views. The views are: Sort incoming (Kanban board excluding History items), Roadmap (excluding Done and History items), History (Roadmap layout showing only History items), and All Items (Table with no filter). ([#107](https://github.com/CodyCBakerPhD/historia/pull/107))
+- `create_project_page` now populates new projects with the canonical Historia status options (Incoming, Backlog, Todo, Agenda, Done, History) and four default views. The views are: Sort incoming (Kanban board excluding History items), Roadmap (excluding Done and History items), History (Roadmap layout showing only History items), and All Items (Table with no filter). The Roadmap and History views are also configured to use the newly created "Start date" and "End date" fields as their roadmap timeline bounds. ([#107](https://github.com/CodyCBakerPhD/historia/pull/107))
 - Added runtime input type checking to all public API functions via the `beartype` decorator. The covered functions are `historia.github.fetch_info_for_date`, `dump_specific_info`, `dump_info_for_date`, `update`, and `historia.project.add_to_project`, `transition_status`, `update_project_item_dates`, `create_project_page`. Passing arguments of the wrong type now raises a clear `BeartypeCallHintParamViolation` instead of failing later with a confusing error. For example, passing a `str` for a `pathlib.Path` parameter, or a `str` for an `int` parameter, is now caught at the call site. `beartype` is now a runtime dependency. ([#97](https://github.com/CodyCBakerPhD/historia/pull/97))
 
 ### 📝 Documentation

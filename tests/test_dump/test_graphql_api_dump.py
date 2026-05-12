@@ -66,7 +66,7 @@ def test_dump_specific_info_does_not_create_folder_when_empty(
 ) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:  # noqa: ARG001
+    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
         return ([], False)
 
     monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
@@ -103,7 +103,7 @@ def test_dump_specific_info_overwrite_behavior(
 
     fetched_urls = ["https://github.com/con/nwb2bids/issues/252"]
 
-    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:  # noqa: ARG001
+    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
         if not overwrite:
             pytest.fail("fetch_info_for_date should not be called when the file already exists and overwrite=False")
         return (fetched_urls, False)
@@ -145,7 +145,7 @@ def test_update_iterates_over_expected_dates(
 
     fetched_dates: list[str] = []
 
-    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:  # noqa: ARG001
+    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:
         if info_type == "issues_opened":
             fetched_dates.append(date)
         return ([], False)
