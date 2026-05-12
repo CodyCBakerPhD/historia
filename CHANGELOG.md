@@ -15,6 +15,7 @@
 
 ### 🐛 Bug Fix
 
+- Prevented `historia.project.update_project_item_dates` from failing when a project item is deleted mid-run by skipping only `NOT_FOUND` item-date mutations and continuing with the remaining items. ([#105](https://github.com/CodyCBakerPhD/historia/pull/105))
 - Fixed an `IndexError` when a short-form GitHub Project URL (e.g. `https://github.com/{login}/projects/{number}`) was passed to any project command; a new `_parse_project_url` helper now handles both the short user format and the long `users`/`orgs` formats. ([#77](https://github.com/CodyCBakerPhD/historia/pull/77))
 
 ### 🚀 Enhancement

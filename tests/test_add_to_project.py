@@ -807,6 +807,62 @@ def test_set_item_date_calls_mutation() -> None:
 
 
 @pytest.mark.ai_generated
+def test_set_item_date_skips_missing_project_item() -> None:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": None},
+        "errors": [
+            {
+                "type": "NOT_FOUND",
+                "message": "Could not resolve to a node with the global id of 'PVTI_item_id'.",
+            },
+        ],
+    }
+
+    headers = {"Authorization": "token fake-token"}
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        pytest.warns(UserWarning, match="Skipping date update for missing project item"),
+    ):
+        _set_item_date(
+            project_id="PVT_kwDOA",
+            item_id="PVTI_item_id",
+            field_id="PVTF_date",
+            date="2023-01-15",
+            headers=headers,
+        )
+
+
+@pytest.mark.ai_generated
+def test_set_item_date_raises_for_non_missing_item_errors() -> None:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": None},
+        "errors": [
+            {
+                "type": "SOMETHING_ELSE",
+                "message": "Some other GraphQL error.",
+            },
+        ],
+    }
+
+    headers = {"Authorization": "token fake-token"}
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        pytest.raises(RuntimeError, match="Failed to set date for item"),
+    ):
+        _set_item_date(
+            project_id="PVT_kwDOA",
+            item_id="PVTI_item_id",
+            field_id="PVTF_date",
+            date="2023-01-15",
+            headers=headers,
+        )
+
+
+@pytest.mark.ai_generated
 def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """When the project has Start date / End date fields, they are set on added items."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
