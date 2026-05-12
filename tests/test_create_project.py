@@ -15,7 +15,6 @@ from historia._create_project import (
     _update_status_field_options,
 )
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -77,10 +76,10 @@ def test_get_status_field_id_returns_id_for_status_field() -> None:
                     "nodes": [
                         {"id": "PVTF_title", "name": "Title"},
                         {"id": "PVTSSF_status", "name": "Status"},
-                    ]
-                }
-            }
-        }
+                    ],
+                },
+            },
+        },
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -103,10 +102,10 @@ def test_get_status_field_id_raises_when_not_found() -> None:
                 "fields": {
                     "nodes": [
                         {"id": "PVTF_title", "name": "Title"},
-                    ]
-                }
-            }
-        }
+                    ],
+                },
+            },
+        },
     }
 
     with (
@@ -147,11 +146,7 @@ def test_update_status_field_options_posts_correct_mutation() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "data": {
-            "updateProjectV2Field": {
-                "projectV2Field": {"id": "PVTSSF_status", "name": "Status"}
-            }
-        }
+        "data": {"updateProjectV2Field": {"projectV2Field": {"id": "PVTSSF_status", "name": "Status"}}},
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
@@ -234,10 +229,10 @@ def test_get_default_view_id_returns_first_view_id() -> None:
                 "views": {
                     "nodes": [
                         {"id": "PVV_board", "name": "Board 1"},
-                    ]
-                }
-            }
-        }
+                    ],
+                },
+            },
+        },
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -254,13 +249,7 @@ def test_get_default_view_id_returns_none_when_no_views() -> None:
     """Returns None when the project has no views."""
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "node": {
-                "views": {"nodes": []}
-            }
-        }
-    }
+    mock_response.json.return_value = {"data": {"node": {"views": {"nodes": []}}}}
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
         view_id = _get_default_view_id(
@@ -299,11 +288,7 @@ def test_update_project_view_posts_correct_mutation() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "data": {
-            "updateProjectV2View": {
-                "projectV2View": {"id": "PVV_board", "name": "Sort incoming"}
-            }
-        }
+        "data": {"updateProjectV2View": {"projectV2View": {"id": "PVV_board", "name": "Sort incoming"}}},
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
@@ -358,11 +343,7 @@ def test_create_project_view_without_filter_calls_create_only() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "data": {
-            "createProjectV2View": {
-                "projectV2View": {"id": "PVV_table", "name": "All Items"}
-            }
-        }
+        "data": {"createProjectV2View": {"projectV2View": {"id": "PVV_table", "name": "All Items"}}},
     }
 
     with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
@@ -387,21 +368,13 @@ def test_create_project_view_with_filter_calls_create_then_update() -> None:
     create_response = unittest.mock.MagicMock()
     create_response.status_code = 200
     create_response.json.return_value = {
-        "data": {
-            "createProjectV2View": {
-                "projectV2View": {"id": "PVV_roadmap", "name": "Roadmap"}
-            }
-        }
+        "data": {"createProjectV2View": {"projectV2View": {"id": "PVV_roadmap", "name": "Roadmap"}}},
     }
 
     update_response = unittest.mock.MagicMock()
     update_response.status_code = 200
     update_response.json.return_value = {
-        "data": {
-            "updateProjectV2View": {
-                "projectV2View": {"id": "PVV_roadmap", "name": "Roadmap"}
-            }
-        }
+        "data": {"updateProjectV2View": {"projectV2View": {"id": "PVV_roadmap", "name": "Roadmap"}}},
     }
 
     with unittest.mock.patch("requests.post", side_effect=[create_response, update_response]) as mock_post:
@@ -526,19 +499,15 @@ def test_create_project_page_calls_setup_statuses_and_views(
                 "projectV2": {
                     "id": "PVT_project",
                     "url": "https://github.com/users/octocat/projects/1",
-                }
-            }
-        }
+                },
+            },
+        },
     }
 
     date_field_response = unittest.mock.MagicMock()
     date_field_response.status_code = 200
     date_field_response.json.return_value = {
-        "data": {
-            "createProjectV2Field": {
-                "projectV2Field": {"id": "PVTF_start", "name": "Start date"}
-            }
-        }
+        "data": {"createProjectV2Field": {"projectV2Field": {"id": "PVTF_start", "name": "Start date"}}},
     }
 
     def _fake_setup_statuses(*, project_id, headers):
@@ -553,9 +522,8 @@ def test_create_project_page_calls_setup_statuses_and_views(
     with unittest.mock.patch(
         "requests.post",
         side_effect=[create_project_response, date_field_response, date_field_response],
-    ):
-        with unittest.mock.patch("requests.get", return_value=owner_response):
-            result = historia.project.create_project_page(owner="octocat", title="My Project")
+    ), unittest.mock.patch("requests.get", return_value=owner_response):
+        result = historia.project.create_project_page(owner="octocat", title="My Project")
 
     assert result == {
         "id": "PVT_project",
