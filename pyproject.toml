@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.10.1"
+version = "0.10.2"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -104,9 +104,10 @@ ignore = [
     # Common HTTP status codes (200, 403, ...) and other small integer
     # literals are clearer inline than as named module-level constants
     "PLR2004",
-    # GraphQL uses exceeds the branch / complexity thresholds; unavoidable
+    # GraphQL uses exceeds the branch / complexity / argument thresholds; unavoidable
     "C901",
     "PLR0912",
+    "PLR0913",
     # Long, descriptive messages constructed at the raise site are preferred
     # over per-call-site exception subclasses for one-off internal errors
     "TRY003",
