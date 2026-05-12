@@ -238,6 +238,27 @@ def _check_graphql_response(*, response: requests.Response, context: str) -> dic
     return result
 
 
+def _is_missing_project_item_error(*, response: requests.Response, item_id: str) -> bool:
+    """Return ``True`` when a GraphQL response indicates the project item no longer exists."""
+    if response.status_code != 200:
+        return False
+
+    result = response.json()
+    errors = result.get("errors")
+    if not isinstance(errors, list):
+        return False
+
+    for error in errors:
+        if not isinstance(error, dict):
+            continue
+        if error.get("type") != "NOT_FOUND":
+            continue
+        message = error.get("message")
+        if isinstance(message, str) and f"'{item_id}'" in message:
+            return True
+    return False
+
+
 def _get_project_info(
     *,
     project_url: str,
@@ -599,8 +620,15 @@ mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
             context=f"Failed to set date for item `{item_id}` in project `{project_id}`.",
         )
     except RuntimeError:
-        if response.status_code != 403:
-            raise
+        if response.status_code == 403:
+            return
+        if _is_missing_project_item_error(response=response, item_id=item_id):
+            warnings.warn(
+                message=f"Skipping date update for missing project item `{item_id}` in project `{project_id}`.",
+                stacklevel=2,
+            )
+            return
+        raise
 
 
 @beartype.beartype
