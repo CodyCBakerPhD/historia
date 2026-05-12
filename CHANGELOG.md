@@ -8,6 +8,7 @@
 
 ### 📝 Documentation
 
+- Added Zenodo DOI badge to README.md. ([#111](https://github.com/CodyCBakerPhD/historia/pull/111))
 - Pinned the tutorial's live `historia update github` examples to a fixed historical window with `--start` / `start_date` so the remote documentation tests no longer depend on whatever activity happened "today". ([#105](https://github.com/CodyCBakerPhD/historia/pull/105))
 - Replaced the README PyPI version badge image source with a stable `img.shields.io` endpoint so the badge renders correctly instead of showing "not found". ([#102](https://github.com/CodyCBakerPhD/historia/pull/102))
 - Added a Step 6 to the tutorial showing an example scheduled GitHub Actions workflow that runs the full Historia maintenance loop (data fetch, commit, minified `min` branch refresh, and project board update) on a CRON schedule, and moved the optional minify step out of the numbered flow into a `note` admonition at the bottom of the page. ([#75](https://github.com/CodyCBakerPhD/historia/pull/75))

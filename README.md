@@ -13,6 +13,7 @@
   <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml"><img alt="Daily tests" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_tests.yml/badge.svg"></a>
   <a href="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_link_checker.yml"><img alt="Daily link checker" src="https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_link_checker.yml/badge.svg"></a>
   <a href="https://github.com/CodyCBakerPhD/historia/blob/main/LICENSE.txt"><img alt="License" src="https://img.shields.io/pypi/l/historia.svg"></a>
+  <a href="https://doi.org/10.5281/zenodo.20104482"><img alt="DOI" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20104482-blue"></a>
 </p>
 
 A command-line tool for backing up records of GitHub activity for use in creating dashboard reports of work history.
