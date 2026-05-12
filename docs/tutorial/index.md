@@ -27,7 +27,8 @@ historia update github --directory ./history --username $PROJECT_OWNER --recency
 import pathlib
 
 tutorial_text = pathlib.Path("docs/tutorial/index.md").read_text(encoding="utf-8")
-assert tutorial_text.count("--start 2026-01-01") == 1
+target_cli_start_flag = "--start " + "2026-01-01"
+assert tutorial_text.count(target_cli_start_flag) == 1
 ```
 
 - `--directory` is the root directory where data files are stored.
@@ -55,7 +56,8 @@ historia.github.update(
 import pathlib
 
 tutorial_text = pathlib.Path("docs/tutorial/index.md").read_text(encoding="utf-8")
-assert tutorial_text.count('start_date="2026-01-01"') == 1
+target_python_start_date = 'start_date="' + "2026-01-01" + '"'
+assert tutorial_text.count(target_python_start_date) == 1
 ```
 :::
 ::::
