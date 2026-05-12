@@ -254,7 +254,7 @@ def _is_missing_project_item_error(*, response: requests.Response, item_id: str)
         if error.get("type") != "NOT_FOUND":
             continue
         message = error.get("message")
-        if isinstance(message, str) and item_id in message:
+        if isinstance(message, str) and f"'{item_id}'" in message:
             return True
     return False
 
