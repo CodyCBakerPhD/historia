@@ -315,37 +315,6 @@ def test_update_project_view_posts_correct_mutation() -> None:
     assert variables["name"] == "Sort incoming"
     assert variables["layout"] == "BOARD_LAYOUT"
     assert variables["filter"] == "-status:History"
-    assert "startDateFieldId" not in variables
-    assert "targetDateFieldId" not in variables
-
-
-@pytest.mark.ai_generated
-def test_update_project_view_includes_date_fields_in_mutation_when_provided() -> None:
-    """When date field IDs are given, the mutation includes startDateField and targetDateField."""
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"updateProjectV2View": {"projectV2View": {"id": "PVV_roadmap", "name": "Roadmap"}}},
-    }
-
-    with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
-        _update_project_view(
-            project_id="PVT_project",
-            view_id="PVV_roadmap",
-            name="Roadmap",
-            layout="ROADMAP_LAYOUT",
-            filter_text="-status:Done,History",
-            start_date_field_id="PVTF_start",
-            end_date_field_id="PVTF_end",
-            headers={"Authorization": "token fake"},
-        )
-
-    call_body = mock_post.call_args.kwargs["json"]
-    assert "startDateField" in call_body["query"]
-    assert "targetDateField" in call_body["query"]
-    variables = call_body["variables"]
-    assert variables["startDateFieldId"] == "PVTF_start"
-    assert variables["targetDateFieldId"] == "PVTF_end"
 
 
 @pytest.mark.ai_generated
@@ -487,8 +456,6 @@ def test_setup_default_views_update_and_create(
         name: str,
         layout: str,
         filter_text: str,
-        start_date_field_id: str | None = None,
-        end_date_field_id: str | None = None,
         headers: dict,
     ) -> None:
         captured["updated"].append(name)
@@ -499,8 +466,6 @@ def test_setup_default_views_update_and_create(
         name: str,
         layout: str,
         filter_text: str,
-        start_date_field_id: str | None = None,
-        end_date_field_id: str | None = None,
         headers: dict,
     ) -> None:
         captured["created"].append(name)
@@ -514,50 +479,6 @@ def test_setup_default_views_update_and_create(
     assert captured["created"] == expected_created
 
 
-@pytest.mark.ai_generated
-def test_setup_default_views_passes_date_field_ids_to_roadmap_views(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Date field IDs are forwarded to roadmap views but not to board/table views."""
-    captured: list[dict] = []
-
-    monkeypatch.setattr(
-        "historia._create_project._get_default_view_id",
-        lambda *, project_id, headers: None,
-    )
-
-    def _fake_create(
-        *,
-        project_id: str,
-        name: str,
-        layout: str,
-        filter_text: str,
-        start_date_field_id: str | None = None,
-        end_date_field_id: str | None = None,
-        headers: dict,
-    ) -> None:
-        captured.append({"name": name, "start": start_date_field_id, "end": end_date_field_id})
-
-    monkeypatch.setattr("historia._create_project._create_project_view", _fake_create)
-
-    _setup_default_views(
-        project_id="PVT_project",
-        start_date_field_id="PVTF_start",
-        end_date_field_id="PVTF_end",
-        headers={"Authorization": "token fake"},
-    )
-
-    by_name = {entry["name"]: entry for entry in captured}
-    assert by_name["Sort incoming"]["start"] is None
-    assert by_name["Sort incoming"]["end"] is None
-    assert by_name["Roadmap"]["start"] == "PVTF_start"
-    assert by_name["Roadmap"]["end"] == "PVTF_end"
-    assert by_name["History"]["start"] == "PVTF_start"
-    assert by_name["History"]["end"] == "PVTF_end"
-    assert by_name["All Items"]["start"] is None
-    assert by_name["All Items"]["end"] is None
-
-
 # ---------------------------------------------------------------------------
 # create_project_page integration (full mock)
 # ---------------------------------------------------------------------------
@@ -567,9 +488,9 @@ def test_setup_default_views_passes_date_field_ids_to_roadmap_views(
 def test_create_project_page_calls_setup_statuses_and_views(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """create_project_page calls _setup_default_statuses and _setup_default_views with date field IDs."""
+    """create_project_page calls _setup_default_statuses and _setup_default_views after creating date fields."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
-    captured: dict = {"statuses": False, "views_kwargs": {}}
+    captured: dict = {"statuses": False, "views": False}
 
     owner_response = unittest.mock.MagicMock()
     owner_response.status_code = 200
@@ -603,18 +524,8 @@ def test_create_project_page_calls_setup_statuses_and_views(
     def _fake_setup_statuses(*, project_id: str, headers: dict) -> None:
         captured["statuses"] = True
 
-    def _fake_setup_views(
-        *,
-        project_id: str,
-        headers: dict,
-        start_date_field_id: str | None = None,
-        end_date_field_id: str | None = None,
-    ) -> None:
-        captured["views_kwargs"] = {
-            "project_id": project_id,
-            "start_date_field_id": start_date_field_id,
-            "end_date_field_id": end_date_field_id,
-        }
+    def _fake_setup_views(*, project_id: str, headers: dict) -> None:
+        captured["views"] = True
 
     monkeypatch.setattr("historia._create_project._setup_default_statuses", _fake_setup_statuses)
     monkeypatch.setattr("historia._create_project._setup_default_views", _fake_setup_views)
@@ -633,5 +544,4 @@ def test_create_project_page_calls_setup_statuses_and_views(
         "url": "https://github.com/users/octocat/projects/1",
     }
     assert captured["statuses"] is True
-    assert captured["views_kwargs"]["start_date_field_id"] == "PVTF_start"
-    assert captured["views_kwargs"]["end_date_field_id"] == "PVTF_end"
+    assert captured["views"] is True

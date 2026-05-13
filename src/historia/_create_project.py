@@ -82,18 +82,15 @@ mutation CreateProject($ownerId: ID!, $title: String!) {
     project = result["data"]["createProjectV2"]["projectV2"]
     project_id = project["id"]
 
-    # Create the canonical date fields expected by the populate / update-dates commands
-    start_date_field_id = _create_date_field(project_id=project_id, field_name="Start date", headers=headers)
-    end_date_field_id = _create_date_field(project_id=project_id, field_name="End date", headers=headers)
+    # Create the canonical date fields expected by the populate / update-dates commands.
+    # The returned field IDs are not used here because the GitHub GraphQL API does not
+    # support configuring roadmap view timeline fields via updateProjectV2View.
+    _create_date_field(project_id=project_id, field_name="Start date", headers=headers)
+    _create_date_field(project_id=project_id, field_name="End date", headers=headers)
 
     # Replace the default Status options and create the default set of views
     _setup_default_statuses(project_id=project_id, headers=headers)
-    _setup_default_views(
-        project_id=project_id,
-        headers=headers,
-        start_date_field_id=start_date_field_id,
-        end_date_field_id=end_date_field_id,
-    )
+    _setup_default_views(project_id=project_id, headers=headers)
 
     return {"id": project_id, "url": project["url"]}
 
@@ -366,15 +363,10 @@ def _update_project_view(
     name: str,
     layout: str,
     filter_text: str,
-    start_date_field_id: str | None = None,
-    end_date_field_id: str | None = None,
     headers: dict[str, str],
 ) -> None:
     """
     Update the name, layout, and filter of an existing project view.
-
-    For roadmap views, ``start_date_field_id`` and ``end_date_field_id`` may
-    also be provided to configure which date fields drive the roadmap timeline.
 
     Parameters
     ----------
@@ -388,18 +380,10 @@ def _update_project_view(
         The new layout for the view (e.g. ``"BOARD_LAYOUT"``).
     filter_text : str
         The filter string to apply to the view (empty string for no filter).
-    start_date_field_id : str or None
-        The node ID of the date field to use as the roadmap start date.
-        Only relevant for ``ROADMAP_LAYOUT`` views; ignored otherwise.
-    end_date_field_id : str or None
-        The node ID of the date field to use as the roadmap target date.
-        Only relevant for ``ROADMAP_LAYOUT`` views; ignored otherwise.
     headers : dict[str, str]
         HTTP headers including the Authorization token.
 
     """
-    extra_params = ""
-    extra_input = ""
     variables: dict = {
         "projectId": project_id,
         "viewId": view_id,
@@ -408,37 +392,27 @@ def _update_project_view(
         "filter": filter_text,
     }
 
-    if start_date_field_id is not None:
-        extra_params += "\n    $startDateFieldId: ID!"
-        extra_input += "\n        startDateField: $startDateFieldId"
-        variables["startDateFieldId"] = start_date_field_id
-
-    if end_date_field_id is not None:
-        extra_params += "\n    $targetDateFieldId: ID!"
-        extra_input += "\n        targetDateField: $targetDateFieldId"
-        variables["targetDateFieldId"] = end_date_field_id
-
-    mutation = f"""
+    mutation = """
 mutation UpdateView(
     $projectId: ID!,
     $viewId: ID!,
     $name: String!,
     $layout: ProjectV2ViewLayout!,
-    $filter: String!{extra_params}
-) {{
-    updateProjectV2View(input: {{
+    $filter: String!
+) {
+    updateProjectV2View(input: {
         projectId: $projectId
         viewId: $viewId
         name: $name
         layout: $layout
-        filter: $filter{extra_input}
-    }}) {{
-        projectV2View {{
+        filter: $filter
+    }) {
+        projectV2View {
             id
             name
-        }}
-    }}
-}}
+        }
+    }
+}
 """
     response = requests.post(
         url="https://api.github.com/graphql",
@@ -460,12 +434,10 @@ def _create_project_view(
     name: str,
     layout: str,
     filter_text: str,
-    start_date_field_id: str | None = None,
-    end_date_field_id: str | None = None,
     headers: dict[str, str],
 ) -> None:
     """
-    Create a new project view and optionally apply a filter and date fields to it.
+    Create a new project view and optionally apply a filter to it.
 
     Parameters
     ----------
@@ -477,12 +449,6 @@ def _create_project_view(
         The layout for the new view (e.g. ``"ROADMAP_LAYOUT"``).
     filter_text : str
         The filter string to apply (empty string for no filter).
-    start_date_field_id : str or None
-        The node ID of the date field to use as the roadmap start date.
-        Only relevant for ``ROADMAP_LAYOUT`` views; ignored otherwise.
-    end_date_field_id : str or None
-        The node ID of the date field to use as the roadmap target date.
-        Only relevant for ``ROADMAP_LAYOUT`` views; ignored otherwise.
     headers : dict[str, str]
         HTTP headers including the Authorization token.
 
@@ -515,7 +481,7 @@ mutation CreateView($projectId: ID!, $name: String!, $layout: ProjectV2ViewLayou
         message = f"GitHub GraphQL API mutation to create view `{name}` failed!\nStatus code {status}: {result}"
         raise RuntimeError(message)
 
-    needs_update = filter_text != "" or start_date_field_id is not None or end_date_field_id is not None
+    needs_update = filter_text != ""
     if not needs_update:
         return
 
@@ -526,19 +492,11 @@ mutation CreateView($projectId: ID!, $name: String!, $layout: ProjectV2ViewLayou
         name=name,
         layout=layout,
         filter_text=filter_text,
-        start_date_field_id=start_date_field_id,
-        end_date_field_id=end_date_field_id,
         headers=headers,
     )
 
 
-def _setup_default_views(
-    *,
-    project_id: str,
-    start_date_field_id: str | None = None,
-    end_date_field_id: str | None = None,
-    headers: dict[str, str],
-) -> None:
+def _setup_default_views(*, project_id: str, headers: dict[str, str]) -> None:
     """
     Configure the default set of views for a newly created Historia project.
 
@@ -550,20 +508,10 @@ def _setup_default_views(
     - History (Roadmap layout, filter ``status:History``)
     - All Items (Table layout, no filter)
 
-    When ``start_date_field_id`` and ``end_date_field_id`` are provided, the
-    Roadmap and History views are also configured to use those date fields for
-    their roadmap timeline start and target dates.
-
     Parameters
     ----------
     project_id : str
         The global node ID of the GitHub Project v2.
-    start_date_field_id : str or None
-        The node ID of the project's "Start date" field, used to configure
-        the roadmap timeline start date on Roadmap and History views.
-    end_date_field_id : str or None
-        The node ID of the project's "End date" field, used to configure
-        the roadmap timeline target date on Roadmap and History views.
     headers : dict[str, str]
         HTTP headers including the Authorization token.
 
@@ -591,13 +539,10 @@ def _setup_default_views(
         )
 
     for view in remaining_views:
-        is_roadmap = view["layout"] == "ROADMAP_LAYOUT"
         _create_project_view(
             project_id=project_id,
             name=view["name"],
             layout=view["layout"],
             filter_text=view["filter"],
-            start_date_field_id=start_date_field_id if is_roadmap else None,
-            end_date_field_id=end_date_field_id if is_roadmap else None,
             headers=headers,
         )
