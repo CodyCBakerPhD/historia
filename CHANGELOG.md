@@ -28,6 +28,7 @@
 
 ### 🏠 Internal
 
+- Split the CI test suite into two separate workflows. `testing.yml` now runs only non-remote tests and `testing_remote.yml` runs only remote-marked tests. Both are triggered on pull requests so remote connectivity failures no longer block merging. The daily schedule runs both workflows and sends separate failure notification emails per suite. ([#112](https://github.com/CodyCBakerPhD/historia/pull/112))
 - Expanded daily link-checker excludes for known placeholder and authentication-required API URLs in source and tests so line-level false positives no longer fail the workflow. ([#103](https://github.com/CodyCBakerPhD/historia/pull/103))
 - Updated the daily link-checker workflow to ignore GitHub blob source-line URLs under `src/` so line-annotated self-links do not trigger false-positive failures. ([#100](https://github.com/CodyCBakerPhD/historia/pull/100))
 - Tagged live-service tests with the `remote` marker and applied it to the integration and tutorial Sybil suites so remote-dependent coverage is easier to find and select. ([#98](https://github.com/CodyCBakerPhD/historia/pull/98))
