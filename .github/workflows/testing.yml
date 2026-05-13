@@ -4,9 +4,9 @@ on:
   workflow_call:
     inputs:
       marks:
-        description: "Pytest mark expression passed to -m (e.g. 'not remote' or 'remote')"
+        description: "Pytest mark expression passed to -m (e.g. 'not remote' or 'remote'). Omit to run all tests"
         type: string
-        required: true
+        required: false
 
 env:
   GITHUB_TOKEN: ${{ secrets._GITHUB_API_KEY }}
@@ -30,7 +30,9 @@ jobs:
         run: pip install -e . --group dev pytest-cov
 
       - name: Run tests
-        run: pytest -m "${{ inputs.marks }}" --cov=src/historia --cov-report=xml
+        run: pytest ${MARKS:+-m "$MARKS"} --cov=src/historia --cov-report=xml
+        env:
+          MARKS: ${{ inputs.marks }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
