@@ -1,0 +1,11 @@
+name: Testing (PR)
+
+on:
+  pull_request:
+
+jobs:
+  Testing:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/testing.yml
+    secrets: inherit
