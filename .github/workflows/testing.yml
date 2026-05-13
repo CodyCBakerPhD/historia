@@ -7,7 +7,6 @@ on:
       marks:
         description: "Pytest mark expression passed to -m (e.g. 'not remote' or 'remote')"
         type: string
-        default: "not remote"
 
 env:
   GITHUB_TOKEN: ${{ secrets._GITHUB_API_KEY }}
