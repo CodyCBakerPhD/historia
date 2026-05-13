@@ -3,6 +3,11 @@ name: Testing
 on:
   pull_request:
   workflow_call:
+    inputs:
+      marks:
+        description: "Pytest mark expression passed to -m (e.g. 'not remote' or 'remote')"
+        type: string
+        default: "not remote"
 
 env:
   GITHUB_TOKEN: ${{ secrets._GITHUB_API_KEY }}
@@ -26,7 +31,7 @@ jobs:
         run: pip install -e . --group dev pytest-cov
 
       - name: Run tests
-        run: pytest -m "not remote" --cov=src/historia --cov-report=xml
+        run: pytest -m "${{ inputs.marks || 'not remote' }}" --cov=src/historia --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

@@ -15,8 +15,10 @@ jobs:
   DailyTestsRemote:
     permissions:
       contents: read
-    uses: ./.github/workflows/testing_remote.yml
+    uses: ./.github/workflows/testing.yml
     secrets: inherit
+    with:
+      marks: remote
 
   NotifyOnFailure:
     runs-on: ubuntu-latest
