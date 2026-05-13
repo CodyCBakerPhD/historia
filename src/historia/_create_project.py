@@ -389,7 +389,7 @@ def _update_project_view(
         "viewId": view_id,
         "name": name,
         "layout": layout,
-        "filterBy": filter_text,
+        "filterText": filter_text,
     }
 
     mutation = """
@@ -398,14 +398,14 @@ mutation UpdateView(
     $viewId: ID!,
     $name: String!,
     $layout: ProjectV2ViewLayout!,
-    $filterBy: String!
+    $filterText: String!
 ) {
     updateProjectV2View(input: {
         projectId: $projectId
         viewId: $viewId
         name: $name
         layout: $layout
-        filterBy: $filterBy
+        filterBy: { text: $filterText }
     }) {
         projectV2View {
             id

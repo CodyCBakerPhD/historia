@@ -314,7 +314,7 @@ def test_update_project_view_posts_correct_mutation() -> None:
     assert variables["viewId"] == "PVV_board"
     assert variables["name"] == "Sort incoming"
     assert variables["layout"] == "BOARD_LAYOUT"
-    assert variables["filterBy"] == "-status:History"
+    assert variables["filterText"] == "-status:History"
 
 
 @pytest.mark.ai_generated
@@ -397,7 +397,7 @@ def test_create_project_view_with_filter_calls_create_then_update() -> None:
     assert "createProjectV2View" in create_body["query"]
     update_body = mock_post.call_args_list[1].kwargs["json"]
     assert "updateProjectV2View" in update_body["query"]
-    assert update_body["variables"]["filterBy"] == "-status:Done,History"
+    assert update_body["variables"]["filterText"] == "-status:Done,History"
     assert update_body["variables"]["viewId"] == "PVV_roadmap"
 
 
