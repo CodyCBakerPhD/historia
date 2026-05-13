@@ -28,12 +28,12 @@ def test_default_status_options_names() -> None:
 
 
 @pytest.mark.ai_generated
-def test_default_status_options_all_have_required_keys() -> None:
+@pytest.mark.parametrize("opt", _DEFAULT_STATUS_OPTIONS, ids=[opt["name"] for opt in _DEFAULT_STATUS_OPTIONS])
+def test_default_status_option_has_required_keys(opt: dict) -> None:
     """Every status option has name, color, and description keys."""
-    for opt in _DEFAULT_STATUS_OPTIONS:
-        assert "name" in opt
-        assert "color" in opt
-        assert "description" in opt
+    assert "name" in opt
+    assert "color" in opt
+    assert "description" in opt
 
 
 @pytest.mark.ai_generated
@@ -50,13 +50,19 @@ def test_default_views_names_and_layouts() -> None:
 
 
 @pytest.mark.ai_generated
-def test_default_views_filters() -> None:
-    """The default views carry the expected filter strings."""
+@pytest.mark.parametrize(
+    ("view_name", "expected_filter"),
+    [
+        ("Sort incoming", "-status:History"),
+        ("Roadmap", "-status:Done,History"),
+        ("History", "status:History"),
+        ("All Items", ""),
+    ],
+)
+def test_default_view_filter(view_name: str, expected_filter: str) -> None:
+    """Each default view carries the expected filter string."""
     filters = {v["name"]: v["filter"] for v in _DEFAULT_VIEWS}
-    assert filters["Sort incoming"] == "-status:History"
-    assert filters["Roadmap"] == "-status:Done,History"
-    assert filters["History"] == "status:History"
-    assert filters["All Items"] == ""
+    assert filters[view_name] == expected_filter
 
 
 # ---------------------------------------------------------------------------
@@ -452,15 +458,26 @@ def test_create_project_view_raises_on_create_error() -> None:
 
 
 @pytest.mark.ai_generated
-def test_setup_default_views_updates_existing_view_and_creates_three_more(
+@pytest.mark.parametrize(
+    ("existing_view_id", "expected_updated", "expected_created"),
+    [
+        ("PVV_existing", ["Sort incoming"], ["Roadmap", "History", "All Items"]),
+        (None, [], ["Sort incoming", "Roadmap", "History", "All Items"]),
+    ],
+    ids=["existing_default_view", "no_default_view"],
+)
+def test_setup_default_views_update_and_create(
     monkeypatch: pytest.MonkeyPatch,
+    existing_view_id: str | None,
+    expected_updated: list[str],
+    expected_created: list[str],
 ) -> None:
-    """When a default view exists, it is updated; three more views are created."""
+    """Updates the existing view (if present) and creates the remaining views."""
     captured: dict = {"updated": [], "created": []}
 
     monkeypatch.setattr(
         "historia._create_project._get_default_view_id",
-        lambda *, project_id, headers: "PVV_existing",
+        lambda *, project_id, headers: existing_view_id,
     )
 
     def _fake_update(
@@ -493,54 +510,8 @@ def test_setup_default_views_updates_existing_view_and_creates_three_more(
 
     _setup_default_views(project_id="PVT_project", headers={"Authorization": "token fake"})
 
-    assert captured["updated"] == ["Sort incoming"]
-    assert captured["created"] == ["Roadmap", "History", "All Items"]
-
-
-@pytest.mark.ai_generated
-def test_setup_default_views_creates_all_views_when_no_default(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """When no default view exists, all four views are created."""
-    captured: dict = {"updated": [], "created": []}
-
-    monkeypatch.setattr(
-        "historia._create_project._get_default_view_id",
-        lambda *, project_id, headers: None,
-    )
-
-    def _fake_update(
-        *,
-        project_id: str,
-        view_id: str,
-        name: str,
-        layout: str,
-        filter_text: str,
-        start_date_field_id: str | None = None,
-        end_date_field_id: str | None = None,
-        headers: dict,
-    ) -> None:
-        captured["updated"].append(name)
-
-    def _fake_create(
-        *,
-        project_id: str,
-        name: str,
-        layout: str,
-        filter_text: str,
-        start_date_field_id: str | None = None,
-        end_date_field_id: str | None = None,
-        headers: dict,
-    ) -> None:
-        captured["created"].append(name)
-
-    monkeypatch.setattr("historia._create_project._update_project_view", _fake_update)
-    monkeypatch.setattr("historia._create_project._create_project_view", _fake_create)
-
-    _setup_default_views(project_id="PVT_project", headers={"Authorization": "token fake"})
-
-    assert captured["updated"] == []
-    assert captured["created"] == ["Sort incoming", "Roadmap", "History", "All Items"]
+    assert captured["updated"] == expected_updated
+    assert captured["created"] == expected_created
 
 
 @pytest.mark.ai_generated
