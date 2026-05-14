@@ -314,7 +314,7 @@ jobs:
       - name: Push to GitHub project
         run: |
           OWNER_PROJECT_URL="https://github.com/$REPO_OWNER_TYPE/$REPO_OWNER/projects/$PROJECT_NUMBER"
-          historia populate --directory ./work-history-data/history --project-url "$OWNER_PROJECT_URL"
+          historia project populate --directory ./work-history-data/history --project-url "$OWNER_PROJECT_URL"
           historia project update dates --url [project url]
 ```
 
