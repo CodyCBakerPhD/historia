@@ -27,7 +27,7 @@ jobs:
     needs: [DailyTests]
     if: ${{ always() && needs.DailyTests.result == 'failure' }}
     steps:
-      - uses: dawidd6/action-send-mail@v3
+      - uses: dawidd6/action-send-mail@v17
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -43,7 +43,7 @@ jobs:
     needs: [DailyTestsRemote]
     if: ${{ always() && needs.DailyTestsRemote.result == 'failure' }}
     steps:
-      - uses: dawidd6/action-send-mail@v3
+      - uses: dawidd6/action-send-mail@v17
         with:
           server_address: smtp.gmail.com
           server_port: 465
