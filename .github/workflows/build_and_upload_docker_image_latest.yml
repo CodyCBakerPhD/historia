@@ -59,7 +59,7 @@ jobs:
           password: ${{ secrets._GITHUB_API_KEY }}
 
       - name: Build image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: containers/Dockerfile.latest
