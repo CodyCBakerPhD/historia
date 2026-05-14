@@ -2,7 +2,9 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
 
+- Removed the redundant `push: tags: v*` trigger from the PyPI release workflow. Publishing a GitHub Release already pushes its tag, causing the workflow to fire twice. The workflow now only responds to `release: published`. ([#116](https://github.com/CodyCBakerPhD/historia/pull/116))
 
 ## v0.10.2
 
