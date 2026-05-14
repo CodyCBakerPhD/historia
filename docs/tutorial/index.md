@@ -281,13 +281,15 @@ jobs:
 
       - name: Install historia
         if: steps.pip-cache.outputs.cache-hit != 'true'
-        run: python -m pip install --user "$HISTORIA_SPEC"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --user "$HISTORIA_SPEC"
 
       - name: Add user-local bin to PATH
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run update
-        run: historia data github update --directory ./work-history-data/history --username "$USERNAME" --recency 2
+        run: historia update github --directory ./work-history-data/history --username "$USERNAME" --recency 2
 
       - name: Upload new content
         working-directory: ${{ env.REPO_DIR }}
