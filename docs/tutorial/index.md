@@ -309,12 +309,12 @@ jobs:
           git rm -rf --cached .
           git add content.tar.gz
           git commit -m "update dist archive [skip ci]"
-          git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/$REPO_FULL_NAME.git HEAD:dist
+          git push --force https://x-access-token:${{ secrets.GH_PAT }}@github.com/$REPO_FULL_NAME.git HEAD:dist
 
       - name: Push to GitHub project
         run: |
           OWNER_PROJECT_URL="https://github.com/$REPO_OWNER_TYPE/$REPO_OWNER/projects/$PROJECT_NUMBER"
-          historia project populate --directory ./work-history-data/history --project-url "$OWNER_PROJECT_URL"
+          historia project populate --directory ./work-history-data/history --url "$OWNER_PROJECT_URL"
           historia project update dates --url [project url]
 ```
 
