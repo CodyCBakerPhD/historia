@@ -2,7 +2,9 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
 
+- Prevented the PyPI release workflow from publishing twice when a GitHub Release is created. Publishing a release pushes its tag, which was firing both the `push: tags` and `release: published` triggers simultaneously. Added an `if: github.event_name == 'release'` guard on the publish job so it only runs on the release event, while keeping both triggers for future compatibility. ([#116](https://github.com/CodyCBakerPhD/historia/pull/116))
 
 ## v0.10.2
 
