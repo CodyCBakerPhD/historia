@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+
+
+## v0.10.2
+
 ### 🚀 Enhancement
 
 - Added runtime input type checking to all public API functions via the `beartype` decorator. The covered functions are `historia.github.fetch_info_for_date`, `dump_specific_info`, `dump_info_for_date`, `update`, and `historia.project.add_to_project`, `transition_status`, `update_project_item_dates`, `create_project_page`. Passing arguments of the wrong type now raises a clear `BeartypeCallHintParamViolation` instead of failing later with a confusing error. For example, passing a `str` for a `pathlib.Path` parameter, or a `str` for an `int` parameter, is now caught at the call site. `beartype` is now a runtime dependency. ([#97](https://github.com/CodyCBakerPhD/historia/pull/97))
