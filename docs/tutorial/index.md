@@ -240,7 +240,7 @@ jobs:
     steps:
       - name: Restore repository cache
         id: repo-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.REPO_DIR }}
           key: repo-${{ runner.os }}-${{ github.repository }}-${{ hashFiles('.github/workflows/update.yml') }}
@@ -251,7 +251,7 @@ jobs:
         working-directory: ${{ env.REPO_DIR }}
         run: |
           git fetch origin main
-          git checkout main
+          git checkout -f main
           git reset --hard origin/main
           git clean -fd
 
@@ -265,13 +265,13 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Restore pip cache
         id: pip-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/pip
