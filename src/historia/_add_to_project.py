@@ -1013,6 +1013,69 @@ def update_project_item_dates(
             )
 
 
+@beartype.beartype
+def update_project_item_members(*, project_url: str) -> None:
+    """
+    Update the Members text field on all items already added to a GitHub Project (v2).
+
+    Member attribution is inferred from assignee usernames and pull request reviewer usernames.
+    Items without assignees or reviewers are skipped.
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2,
+        e.g., ``https://github.com/users/username/projects/1``
+        or ``https://github.com/orgs/orgname/projects/1``.
+
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token is None:
+        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
+        raise ValueError(message)
+
+    headers = {"Authorization": f"token {github_token}"}
+
+    project_id, _status_field_id, _status_options, _start_date_field_id, _end_date_field_id, members_field_id = (
+        _get_project_info(
+            project_url=project_url,
+            headers=headers,
+        )
+    )
+
+    if members_field_id is None:
+        warnings.warn(
+            message=f"Project `{project_url}` has no 'Members' field. No member updates were performed.",
+            stacklevel=2,
+        )
+        return
+
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
+    all_items = _list_project_items_with_member_usernames(
+        owner_type=owner_type,
+        owner_login=owner_login,
+        project_number=project_number,
+        headers=headers,
+    )
+
+    for item_id, member_usernames in tqdm.tqdm(
+        iterable=all_items,
+        desc="Updating item members",
+        unit="items",
+        dynamic_ncols=True,
+    ):
+        members_value = _merge_member_values(current_value=None, usernames=member_usernames)
+        if members_value is None:
+            continue
+        _set_item_text(
+            project_id=project_id,
+            item_id=item_id,
+            field_id=members_field_id,
+            text=members_value,
+            headers=headers,
+        )
+
+
 def _list_project_item_content_urls(
     *,
     owner_type: str,
@@ -1330,6 +1393,147 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
         after_cursor = page_info["endCursor"]
 
     return items_by_url
+
+
+def _list_project_items_with_member_usernames(
+    *,
+    owner_type: str,
+    owner_login: str,
+    project_number: int,
+    headers: dict[str, str],
+) -> list[tuple[str, set[str]]]:
+    """Return project item IDs and inferred member usernames from assignees/reviewers."""
+    if owner_type == "users":
+        query = """
+query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
+    user(login: $login) {
+        projectV2(number: $number) {
+            items(first: 100, after: $after) {
+                nodes {
+                    id
+                    content {
+                        ... on PullRequest {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                            reviewRequests(first: 20) {
+                                nodes {
+                                    requestedReviewer {
+                                        ... on User {
+                                            login
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ... on Issue {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                        }
+                    }
+                }
+                pageInfo { hasNextPage endCursor }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "user", "projectV2", "items"]
+    else:
+        query = """
+query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
+    organization(login: $login) {
+        projectV2(number: $number) {
+            items(first: 100, after: $after) {
+                nodes {
+                    id
+                    content {
+                        ... on PullRequest {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                            reviewRequests(first: 20) {
+                                nodes {
+                                    requestedReviewer {
+                                        ... on User {
+                                            login
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ... on Issue {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                        }
+                    }
+                }
+                pageInfo { hasNextPage endCursor }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "organization", "projectV2", "items"]
+
+    items_with_members: list[tuple[str, set[str]]] = []
+    after_cursor = None
+
+    while True:
+        variables = {"login": owner_login, "number": project_number, "after": after_cursor}
+        response = requests.post(
+            url="https://api.github.com/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=30,
+        )
+        result = _check_graphql_response(
+            response=response,
+            context=f"Failed to list project members for project {project_number}.",
+        )
+        items_data = result
+        for key in data_path:
+            items_data = items_data[key]
+
+        for node in items_data["nodes"]:
+            content = node.get("content")
+            if content is None:
+                continue
+
+            member_usernames: set[str] = set()
+
+            for assignee in content.get("assignees", {}).get("nodes", []):
+                assignee_login = assignee.get("login")
+                if assignee_login is not None:
+                    member_usernames.add(assignee_login)
+
+            for review_request in content.get("reviewRequests", {}).get("nodes", []):
+                requested_reviewer = review_request.get("requestedReviewer")
+                if requested_reviewer is None:
+                    continue
+                reviewer_login = requested_reviewer.get("login")
+                if reviewer_login is not None:
+                    member_usernames.add(reviewer_login)
+
+            if member_usernames:
+                items_with_members.append((node["id"], member_usernames))
+
+        page_info = items_data["pageInfo"]
+        if not page_info["hasNextPage"]:
+            break
+        after_cursor = page_info["endCursor"]
+
+    return items_with_members
 
 
 def _list_project_items_with_status(
