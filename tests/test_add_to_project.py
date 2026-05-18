@@ -20,6 +20,7 @@ from historia._add_to_project import (
     _list_project_items_with_status,
     _merge_member_values,
     _parse_project_url,
+    _resolve_latest_version_data_directory,
     _set_item_date,
     _set_item_status,
     _set_item_text,
@@ -130,6 +131,80 @@ def test_collect_url_member_usernames_from_directory_paths(tmp_path: pathlib.Pat
         cody_only_url: {"cody"},
         alex_only_url: {"alex"},
     }
+
+
+@pytest.mark.ai_generated
+def test_resolve_data_directory_selects_latest_version_with_warning(
+    tmp_path: pathlib.Path,
+) -> None:
+    version_one = tmp_path / "version-1"
+    version_two = tmp_path / "version-2"
+    version_one.mkdir()
+    version_two.mkdir()
+
+    with pytest.warns(
+        UserWarning,
+        match="Incompatible database versions detected! Using only the latest - please run database migration.",
+    ):
+        result = _resolve_latest_version_data_directory(tmp_path)
+
+    assert result == version_two
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_processes_latest_version_when_multiple_exist(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    version_one = tmp_path / "version-1"
+    version_one.mkdir()
+    version_two = tmp_path / "version-2"
+    version_two.mkdir()
+    (version_one / "v1.json").write_text(json.dumps(["https://github.com/owner/repo/issues/1"]))
+    latest_url = "https://github.com/owner/repo/issues/2"
+    (version_two / "v2.json").write_text(json.dumps([latest_url]))
+
+    seen_urls: list[str] = []
+
+    def _mock_get_project_info(
+        *,
+        project_url: str,  # noqa: ARG001
+        headers: dict[str, str],  # noqa: ARG001
+    ) -> tuple[str, str, dict[str, str], None, None, None]:
+        return ("project-id", "status-field", {"Todo": "opt-1"}, None, None, None)
+
+    def _mock_list_project_item_content_urls(
+        *,
+        owner_type: str,  # noqa: ARG001
+        owner_login: str,  # noqa: ARG001
+        project_number: int,  # noqa: ARG001
+        headers: dict[str, str],  # noqa: ARG001
+    ) -> set[str]:
+        return set()
+
+    monkeypatch.setattr(
+        "historia._add_to_project._get_project_info",
+        _mock_get_project_info,
+    )
+    monkeypatch.setattr(
+        "historia._add_to_project._list_project_item_content_urls",
+        _mock_list_project_item_content_urls,
+    )
+
+    def _mock_get_item_info(*, url: str, headers: dict[str, str]) -> None:  # noqa: ARG001
+        seen_urls.append(url)
+
+    monkeypatch.setattr("historia._add_to_project._get_item_info", _mock_get_item_info)
+
+    with pytest.warns(
+        UserWarning,
+        match="Incompatible database versions detected! Using only the latest - please run database migration.",
+    ):
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+
+    assert seen_urls == [latest_url]
 
 
 @pytest.mark.ai_generated
