@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import pathlib
+import typing
 import warnings
 
 import beartype
@@ -46,6 +47,7 @@ def add_to_project(
     project_url: str,
     status: str | None = None,
     end_date_placeholder_days: int = 180,
+    members: bool = False,
 ) -> None:
     """
     Add all unique URLs from the derivatives directory to a GitHub Project (v2).
@@ -79,6 +81,9 @@ def add_to_project(
     end_date_placeholder_days : int, optional
         Number of days after the item's creation date to use as the placeholder end date
         when the item has not yet been closed. Default is 180 (approximately 6 months).
+    members : bool, optional
+        When ``True``, update the project's custom ``Members`` text field using usernames
+        inferred from ``username-*`` directory names in the data tree.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")
@@ -89,33 +94,66 @@ def add_to_project(
     headers = {"Authorization": f"token {github_token}"}
 
     # Collect all unique URLs from JSON files in the directory
-    all_urls = _collect_unique_urls(directory)
+    url_to_members = _collect_url_member_usernames(directory) if members else {}
+    all_urls = list(url_to_members) if members else _collect_unique_urls(directory)
 
     if not all_urls:
         warnings.warn(message=f"No URLs found in directory `{directory}`.", stacklevel=2)
         return
 
     # Resolve the project node ID and get Status / date field info
-    project_id, status_field_id, status_options, start_date_field_id, end_date_field_id = _get_project_info(
-        project_url=project_url,
-        headers=headers,
+    project_id, status_field_id, status_options, start_date_field_id, end_date_field_id, members_field_id = (
+        _get_project_info(
+            project_url=project_url,
+            headers=headers,
+        )
     )
 
     # Parse owner type, login, and number from URL
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    # Fetch existing project item URLs to skip items already present in the project
-    existing_urls = _list_project_item_content_urls(
-        owner_type=owner_type,
-        owner_login=owner_login,
-        project_number=project_number,
-        headers=headers,
-    )
+    members_field_id_for_mode = ""
+    if members:
+        if members_field_id is None:
+            message = f"No 'Members' field found in project `{project_url}`."
+            raise ValueError(message)
+        members_field_id_for_mode = members_field_id
+        existing_items = _list_project_items_with_member_values(
+            owner_type=owner_type,
+            owner_login=owner_login,
+            project_number=project_number,
+            members_field_id=members_field_id_for_mode,
+            headers=headers,
+        )
+    else:
+        existing_items = {
+            url: {"item_id": "", "members": None}
+            for url in _list_project_item_content_urls(
+                owner_type=owner_type,
+                owner_login=owner_login,
+                project_number=project_number,
+                headers=headers,
+            )
+        }
 
-    # Exclude items already in the project
-    new_urls = [url for url in all_urls if url not in existing_urls]
+    for url in tqdm.tqdm(iterable=all_urls, desc="Adding items to project", unit="items", dynamic_ncols=True):
+        if url in existing_items:
+            if members:
+                existing_item_info = existing_items[url]
+                updated_members = _merge_member_values(
+                    current_value=existing_item_info["members"],
+                    usernames=url_to_members.get(url, set()),
+                )
+                if updated_members is not None:
+                    _set_item_text(
+                        project_id=project_id,
+                        item_id=typing.cast("str", existing_item_info["item_id"]),
+                        field_id=members_field_id_for_mode,
+                        text=updated_members,
+                        headers=headers,
+                    )
+            continue
 
-    for url in tqdm.tqdm(iterable=new_urls, desc="Adding items to project", unit="items", dynamic_ncols=True):
         # Determine the item type, state, and dates from the URL
         item_info = _get_item_info(url=url, headers=headers)
         if item_info is None:
@@ -127,68 +165,28 @@ def add_to_project(
         if item_id is None:
             continue
 
-        # Determine the correct status
-        status_name: str | None
-        if status is not None:
-            status_name = status
-        else:
-            status_name = {
-                ("PullRequest", "closed"): "Done",
-                ("PullRequest", "merged"): "Done",
-                ("Issue", "closed"): "Done",
-                ("PullRequest", "open"): "In Progress",
-                ("Issue", "open"): "Todo",
-            }.get((item_type, item_state))
-            if status_name is None:
-                message = (
-                    f"Unrecognised item type/state combination `({item_type}, {item_state})` for `{url}`; skipping."
-                )
-                warnings.warn(message=message, stacklevel=2)
-                continue
-
-        # Find the option ID for the desired status
-        option_id = status_options.get(status_name)
-        if option_id is None:
-            message = (
-                f"Status option `{status_name}` not found in project. "
-                f"Available options: {list(status_options.keys())}."
-            )
-            warnings.warn(message=message, stacklevel=2)
-            continue
-
-        _set_item_status(
-            project_id=project_id,
-            item_id=item_id,
-            field_id=status_field_id,
-            option_id=option_id,
+        _set_initial_project_item_fields(
+            item_values={
+                "url": url,
+                "item_id": item_id,
+                "item_type": item_type,
+                "item_state": item_state,
+                "created_at": created_at,
+                "closed_at": closed_at,
+            },
+            project_values={
+                "project_id": project_id,
+                "status": status,
+                "status_field_id": status_field_id,
+                "status_options": status_options,
+                "start_date_field_id": start_date_field_id,
+                "end_date_field_id": end_date_field_id,
+                "end_date_placeholder_days": end_date_placeholder_days,
+                "members_field_id": members_field_id_for_mode if members else None,
+                "member_usernames": url_to_members.get(url, set()),
+            },
             headers=headers,
         )
-
-        # Set start date (item creation date)
-        if start_date_field_id is not None:
-            start_date = created_at[:10]  # Extract YYYY-MM-DD from ISO datetime
-            _set_item_date(
-                project_id=project_id,
-                item_id=item_id,
-                field_id=start_date_field_id,
-                date=start_date,
-                headers=headers,
-            )
-
-        # Set end date (closed date, or placeholder)
-        if end_date_field_id is not None:
-            if closed_at is not None:
-                end_date = closed_at[:10]
-            else:
-                creation_date = datetime.date.fromisoformat(created_at[:10])
-                end_date = (creation_date + datetime.timedelta(days=end_date_placeholder_days)).isoformat()
-            _set_item_date(
-                project_id=project_id,
-                item_id=item_id,
-                field_id=end_date_field_id,
-                date=end_date,
-                headers=headers,
-            )
 
 
 def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
@@ -203,6 +201,179 @@ def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
                 if isinstance(value, str):
                     all_urls.add(value)
     return list(all_urls)
+
+
+def _collect_url_member_usernames(directory: pathlib.Path, /) -> dict[str, set[str]]:
+    """Map each URL under ``directory`` to the set of usernames inferred from its path."""
+    url_to_members: dict[str, set[str]] = {}
+    all_info_file_paths = list(directory.rglob(pattern="*.json"))
+
+    for info_file_path in all_info_file_paths:
+        with info_file_path.open(mode="r") as file_stream:
+            info = json.load(file_stream)
+        if not isinstance(info, list):
+            continue
+
+        username = _infer_username_from_data_path(directory=directory, info_file_path=info_file_path)
+        for value in info:
+            if not isinstance(value, str):
+                continue
+            if value not in url_to_members:
+                url_to_members[value] = set()
+            url_to_members[value].add(username)
+
+    return url_to_members
+
+
+def _infer_username_from_data_path(*, directory: pathlib.Path, info_file_path: pathlib.Path) -> str:
+    """Infer a username from ``username-*`` path segments; fallback to directory name."""
+    relative_parts = info_file_path.relative_to(directory).parts
+    for part in relative_parts:
+        if part.startswith("username-"):
+            username = part.removeprefix("username-")
+            if username:
+                return username
+    if directory.name.startswith("username-"):
+        username = directory.name.removeprefix("username-")
+        if username:
+            return username
+    return directory.name
+
+
+def _merge_member_values(*, current_value: str | None, usernames: set[str]) -> str | None:
+    """Return a normalized comma-separated members value after merging usernames."""
+    values = {value.strip() for value in (current_value or "").split(",") if value.strip()}
+    values.update({username.strip() for username in usernames if username.strip()})
+    if not values:
+        return None
+    return ", ".join(sorted(values))
+
+
+def _set_initial_project_item_fields(
+    *,
+    item_values: dict[str, str | None],
+    project_values: dict[str, object],
+    headers: dict[str, str],
+) -> None:
+    """Set status/date/member fields for a newly added project item."""
+    url = item_values["url"]
+    item_id = item_values["item_id"]
+    item_type = item_values["item_type"]
+    item_state = item_values["item_state"]
+    created_at = item_values["created_at"]
+    if url is None or item_id is None or item_type is None or item_state is None or created_at is None:
+        return
+
+    status_options = typing.cast("dict[str, str]", project_values["status_options"])
+    status = typing.cast("str | None", project_values["status"])
+    status_name = _resolve_status_name(
+        url=url,
+        item_type=item_type,
+        item_state=item_state,
+        status=status,
+    )
+    if status_name is None:
+        return
+
+    option_id = status_options.get(status_name)
+    if option_id is None:
+        message = (
+            f"Status option `{status_name}` not found in project. Available options: {list(status_options.keys())}."
+        )
+        warnings.warn(message=message, stacklevel=3)
+        return
+
+    _set_item_status(
+        project_id=typing.cast("str", project_values["project_id"]),
+        item_id=item_id,
+        field_id=typing.cast("str", project_values["status_field_id"]),
+        option_id=option_id,
+        headers=headers,
+    )
+    _set_item_dates_for_content(
+        item_values=item_values,
+        project_values=project_values,
+        headers=headers,
+    )
+
+    members_field_id = typing.cast("str | None", project_values["members_field_id"])
+    member_usernames = typing.cast("set[str]", project_values["member_usernames"])
+    if members_field_id is not None:
+        initial_members = _merge_member_values(
+            current_value=None,
+            usernames=member_usernames,
+        )
+        if initial_members is not None:
+            _set_item_text(
+                project_id=typing.cast("str", project_values["project_id"]),
+                item_id=item_id,
+                field_id=members_field_id,
+                text=initial_members,
+                headers=headers,
+            )
+
+
+def _resolve_status_name(*, url: str, item_type: str, item_state: str, status: str | None) -> str | None:
+    """Resolve status name from explicit override or item type/state mapping."""
+    if status is not None:
+        return status
+
+    status_name = {
+        ("PullRequest", "closed"): "Done",
+        ("PullRequest", "merged"): "Done",
+        ("Issue", "closed"): "Done",
+        ("PullRequest", "open"): "In Progress",
+        ("Issue", "open"): "Todo",
+    }.get((item_type, item_state))
+    if status_name is None:
+        message = f"Unrecognised item type/state combination `({item_type}, {item_state})` for `{url}`; skipping."
+        warnings.warn(message=message, stacklevel=3)
+    return status_name
+
+
+def _set_item_dates_for_content(
+    *,
+    item_values: dict[str, str | None],
+    project_values: dict[str, object],
+    headers: dict[str, str],
+) -> None:
+    """Set start and end date fields for a project item when date fields exist."""
+    item_id = item_values["item_id"]
+    created_at = item_values["created_at"]
+    closed_at = item_values["closed_at"]
+    if item_id is None or created_at is None:
+        return
+
+    project_id = typing.cast("str", project_values["project_id"])
+    start_date_field_id = typing.cast("str | None", project_values["start_date_field_id"])
+    end_date_field_id = typing.cast("str | None", project_values["end_date_field_id"])
+    end_date_placeholder_days = typing.cast("int", project_values["end_date_placeholder_days"])
+
+    if start_date_field_id is not None:
+        start_date = created_at[:10]  # Extract YYYY-MM-DD from ISO datetime
+        _set_item_date(
+            project_id=project_id,
+            item_id=item_id,
+            field_id=start_date_field_id,
+            date=start_date,
+            headers=headers,
+        )
+
+    if end_date_field_id is None:
+        return
+
+    if closed_at is not None:
+        end_date = closed_at[:10]
+    else:
+        creation_date = datetime.date.fromisoformat(created_at[:10])
+        end_date = (creation_date + datetime.timedelta(days=end_date_placeholder_days)).isoformat()
+    _set_item_date(
+        project_id=project_id,
+        item_id=item_id,
+        field_id=end_date_field_id,
+        date=end_date,
+        headers=headers,
+    )
 
 
 def _check_graphql_response(*, response: requests.Response, context: str) -> dict:
@@ -263,7 +434,7 @@ def _get_project_info(
     *,
     project_url: str,
     headers: dict[str, str],
-) -> tuple[str, str, dict[str, str], str | None, str | None]:
+) -> tuple[str, str, dict[str, str], str | None, str | None, str | None]:
     """
     Retrieve project node ID, Status field ID, Status option name-to-ID mapping, and Start/End date field IDs.
 
@@ -276,11 +447,12 @@ def _get_project_info(
 
     Returns
     -------
-    tuple[str, str, dict[str, str], str | None, str | None]
+    tuple[str, str, dict[str, str], str | None, str | None, str | None]
         A tuple of (project_id, status_field_id, status_options, start_date_field_id,
-        end_date_field_id) where status_options maps option name → option ID, and
+        end_date_field_id, members_field_id) where status_options maps option name → option ID, and
         start_date_field_id / end_date_field_id are the IDs of the project's "Start date"
-        and "End date" date fields respectively (or None if not present).
+        and "End date" date fields respectively (or None if not present). ``members_field_id``
+        is the ID of the project's "Members" field (or None if not present).
 
     """
     # Parse owner type, owner login, and project number from URL
@@ -368,6 +540,7 @@ query GetProject($login: String!, $number: Int!) {
     status_options: dict[str, str] = {}
     start_date_field_id = None
     end_date_field_id = None
+    members_field_id = None
 
     for field in project_data["fields"]["nodes"]:
         if not field:
@@ -381,12 +554,14 @@ query GetProject($login: String!, $number: Int!) {
             start_date_field_id = field["id"]
         elif field.get("dataType") == "DATE" and field_name == "End date":
             end_date_field_id = field["id"]
+        elif field_name == "Members":
+            members_field_id = field["id"]
 
     if status_field_id is None:
         message = f"No 'Status' field found in project `{project_url}`."
         raise ValueError(message)
 
-    return project_id, status_field_id, status_options, start_date_field_id, end_date_field_id
+    return project_id, status_field_id, status_options, start_date_field_id, end_date_field_id, members_field_id
 
 
 def _get_item_info(*, url: str, headers: dict[str, str]) -> tuple[str, str, str, str, str | None] | None:
@@ -631,6 +806,53 @@ mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
         raise
 
 
+def _set_item_text(
+    *,
+    project_id: str,
+    item_id: str,
+    field_id: str,
+    text: str,
+    headers: dict[str, str],
+) -> None:
+    """Set a text field value on a project item."""
+    mutation = """
+mutation SetText($projectId: ID!, $itemId: ID!, $fieldId: ID!, $text: String!) {
+    updateProjectV2ItemFieldValue(
+        input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { text: $text }
+        }
+    ) {
+        projectV2Item {
+            id
+        }
+    }
+}
+"""
+    variables = {
+        "projectId": project_id,
+        "itemId": item_id,
+        "fieldId": field_id,
+        "text": text,
+    }
+    response = requests.post(
+        url="https://api.github.com/graphql",
+        json={"query": mutation, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    try:
+        _check_graphql_response(
+            response=response,
+            context=f"Failed to set text for item `{item_id}` in project `{project_id}`.",
+        )
+    except RuntimeError:
+        if response.status_code != 403:
+            raise
+
+
 @beartype.beartype
 def update_project_item_dates(
     *,
@@ -666,9 +888,11 @@ def update_project_item_dates(
 
     headers = {"Authorization": f"token {github_token}"}
 
-    project_id, _status_field_id, _status_options, start_date_field_id, end_date_field_id = _get_project_info(
-        project_url=project_url,
-        headers=headers,
+    project_id, _status_field_id, _status_options, start_date_field_id, end_date_field_id, _members_field_id = (
+        _get_project_info(
+            project_url=project_url,
+            headers=headers,
+        )
     )
 
     if start_date_field_id is None and end_date_field_id is None:
@@ -925,6 +1149,121 @@ query GetItems($login: String!, $number: Int!, $after: String) {
     return all_items
 
 
+def _list_project_items_with_member_values(
+    *,
+    owner_type: str,
+    owner_login: str,
+    project_number: int,
+    members_field_id: str,
+    headers: dict[str, str],
+) -> dict[str, dict[str, str | None]]:
+    """Return project item IDs and current Members text values indexed by content URL."""
+    if owner_type == "users":
+        query = """
+query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
+    user(login: $login) {
+        projectV2(number: $number) {
+            items(first: 100, after: $after) {
+                nodes {
+                    id
+                    content {
+                        ... on PullRequest { url }
+                        ... on Issue { url }
+                    }
+                    fieldValues(first: 20) {
+                        nodes {
+                            ... on ProjectV2ItemFieldTextValue {
+                                text
+                                field {
+                                    ... on ProjectV2Field {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                pageInfo { hasNextPage endCursor }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "user", "projectV2", "items"]
+    else:
+        query = """
+query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
+    organization(login: $login) {
+        projectV2(number: $number) {
+            items(first: 100, after: $after) {
+                nodes {
+                    id
+                    content {
+                        ... on PullRequest { url }
+                        ... on Issue { url }
+                    }
+                    fieldValues(first: 20) {
+                        nodes {
+                            ... on ProjectV2ItemFieldTextValue {
+                                text
+                                field {
+                                    ... on ProjectV2Field {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                pageInfo { hasNextPage endCursor }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "organization", "projectV2", "items"]
+
+    items_by_url: dict[str, dict[str, str | None]] = {}
+    after_cursor = None
+
+    while True:
+        variables = {"login": owner_login, "number": project_number, "after": after_cursor}
+        response = requests.post(
+            url="https://api.github.com/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=30,
+        )
+        result = _check_graphql_response(
+            response=response,
+            context=f"Failed to list project member values for project {project_number}.",
+        )
+        items_data = result
+        for key in data_path:
+            items_data = items_data[key]
+
+        for node in items_data["nodes"]:
+            content = node.get("content")
+            if not content or "url" not in content:
+                continue
+
+            members_value = None
+            for field_value in node["fieldValues"]["nodes"]:
+                field = field_value.get("field")
+                if field and field.get("id") == members_field_id:
+                    members_value = field_value.get("text")
+                    break
+
+            items_by_url[content["url"]] = {"item_id": node["id"], "members": members_value}
+
+        page_info = items_data["pageInfo"]
+        if not page_info["hasNextPage"]:
+            break
+        after_cursor = page_info["endCursor"]
+
+    return items_by_url
+
+
 def _list_project_items_with_status(
     *,
     owner_type: str,
@@ -1082,9 +1421,11 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
 
     headers = {"Authorization": f"token {github_token}"}
 
-    project_id, status_field_id, status_options, _start_date_field_id, _end_date_field_id = _get_project_info(
-        project_url=project_url,
-        headers=headers,
+    project_id, status_field_id, status_options, _start_date_field_id, _end_date_field_id, _members_field_id = (
+        _get_project_info(
+            project_url=project_url,
+            headers=headers,
+        )
     )
 
     current_option_id = status_options.get(current_status)
