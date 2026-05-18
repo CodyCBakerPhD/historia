@@ -1621,7 +1621,7 @@ def test_add_to_project_members_mode_sets_members_for_new_item(
         historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
-            members=True,
+            assign_members=True,
         )
 
     assert mock_post.call_count == 6
@@ -1710,7 +1710,7 @@ def test_add_to_project_members_mode_updates_existing_item(
         historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
-            members=True,
+            assign_members=True,
         )
 
     assert mock_post.call_count == 3

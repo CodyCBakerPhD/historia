@@ -149,7 +149,7 @@ def _historia_project_populate_cli(
             project_url=project_url,
             status=status,
             end_date_placeholder_days=end_date_placeholder_days,
-            members=assign_members,
+            assign_members=assign_members,
         )
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))

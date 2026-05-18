@@ -47,7 +47,7 @@ def add_to_project(
     project_url: str,
     status: str | None = None,
     end_date_placeholder_days: int = 180,
-    members: bool = False,
+    assign_members: bool = False,
 ) -> None:
     """
     Add all unique URLs from the derivatives directory to a GitHub Project (v2).
@@ -81,7 +81,7 @@ def add_to_project(
     end_date_placeholder_days : int, optional
         Number of days after the item's creation date to use as the placeholder end date
         when the item has not yet been closed. Default is 180 (approximately 6 months).
-    members : bool, optional
+    assign_members : bool, optional
         When ``True``, update the project's custom ``Members`` text field using usernames
         inferred from ``username-*`` directory names in the data tree.
 
@@ -94,8 +94,8 @@ def add_to_project(
     headers = {"Authorization": f"token {github_token}"}
 
     # Collect all unique URLs from JSON files in the directory
-    url_to_members = _collect_url_member_usernames(directory) if members else {}
-    all_urls = list(url_to_members) if members else _collect_unique_urls(directory)
+    url_to_members = _collect_url_member_usernames(directory) if assign_members else {}
+    all_urls = list(url_to_members) if assign_members else _collect_unique_urls(directory)
 
     if not all_urls:
         warnings.warn(message=f"No URLs found in directory `{directory}`.", stacklevel=2)
@@ -113,7 +113,7 @@ def add_to_project(
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     validated_members_field_id: str | None = None
-    if members:
+    if assign_members:
         if members_field_id is None:
             message = f"No 'Members' field found in project `{project_url}`."
             raise ValueError(message)
@@ -138,7 +138,7 @@ def add_to_project(
 
     for url in tqdm.tqdm(iterable=all_urls, desc="Adding items to project", unit="items", dynamic_ncols=True):
         if url in existing_items:
-            if members:
+            if assign_members:
                 existing_item_info = existing_items[url]
                 updated_members = _merge_member_values(
                     current_value=existing_item_info["members"],
@@ -182,7 +182,7 @@ def add_to_project(
                 "start_date_field_id": start_date_field_id,
                 "end_date_field_id": end_date_field_id,
                 "end_date_placeholder_days": end_date_placeholder_days,
-                "members_field_id": validated_members_field_id if members else None,
+                "members_field_id": validated_members_field_id if assign_members else None,
                 "member_usernames": url_to_members.get(url, set()),
             },
             headers=headers,
