@@ -48,6 +48,7 @@ jobs:
 
   NotifyOnFailure:
     runs-on: ubuntu-latest
+    permissions: {}
     needs: [build-test-push]
     if: ${{ always() && needs.build-test-push.result == 'failure' }}
     steps:

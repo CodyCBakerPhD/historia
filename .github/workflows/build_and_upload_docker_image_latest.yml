@@ -80,6 +80,7 @@ jobs:
 
   NotifyOnFailure:
     runs-on: ubuntu-latest
+    permissions: {}
     needs: [release-image]
     if: ${{ always() && needs.release-image.result == 'failure' }}
     steps:
