@@ -16,15 +16,18 @@ from historia._add_to_project import (
     _get_project_info,
     _list_project_item_content_urls,
     _list_project_items_with_dates,
+    _list_project_items_with_member_usernames,
     _list_project_items_with_member_values,
     _list_project_items_with_status,
     _merge_member_values,
     _parse_project_url,
+    _resolve_latest_version_data_directory,
     _set_item_date,
     _set_item_status,
     _set_item_text,
     transition_status,
     update_project_item_dates,
+    update_project_item_members,
 )
 
 _TEST_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/5"
@@ -133,9 +136,84 @@ def test_collect_url_member_usernames_from_directory_paths(tmp_path: pathlib.Pat
 
 
 @pytest.mark.ai_generated
+def test_resolve_data_directory_selects_latest_version_with_warning(
+    tmp_path: pathlib.Path,
+) -> None:
+    version_one = tmp_path / "version-1"
+    version_two = tmp_path / "version-2"
+    version_one.mkdir()
+    version_two.mkdir()
+
+    with pytest.warns(
+        UserWarning,
+        match="Incompatible database versions detected! Using only the latest - please run database migration.",
+    ):
+        result = _resolve_latest_version_data_directory(tmp_path)
+
+    assert result == version_two
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_processes_latest_version_when_multiple_exist(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    version_one = tmp_path / "version-1"
+    version_one.mkdir()
+    version_two = tmp_path / "version-2"
+    version_two.mkdir()
+    (version_one / "v1.json").write_text(json.dumps(["https://github.com/owner/repo/issues/1"]))
+    latest_url = "https://github.com/owner/repo/issues/2"
+    (version_two / "v2.json").write_text(json.dumps([latest_url]))
+
+    seen_urls: list[str] = []
+
+    def _mock_get_project_info(
+        *,
+        project_url: str,  # noqa: ARG001
+        headers: dict[str, str],  # noqa: ARG001
+    ) -> tuple[str, str, dict[str, str], None, None, None]:
+        return ("project-id", "status-field", {"Todo": "opt-1"}, None, None, None)
+
+    def _mock_list_project_item_content_urls(
+        *,
+        owner_type: str,  # noqa: ARG001
+        owner_login: str,  # noqa: ARG001
+        project_number: int,  # noqa: ARG001
+        headers: dict[str, str],  # noqa: ARG001
+    ) -> set[str]:
+        return set()
+
+    monkeypatch.setattr(
+        "historia._add_to_project._get_project_info",
+        _mock_get_project_info,
+    )
+    monkeypatch.setattr(
+        "historia._add_to_project._list_project_item_content_urls",
+        _mock_list_project_item_content_urls,
+    )
+
+    def _mock_get_item_info(*, url: str, headers: dict[str, str]) -> None:  # noqa: ARG001
+        seen_urls.append(url)
+
+    monkeypatch.setattr("historia._add_to_project._get_item_info", _mock_get_item_info)
+
+    with pytest.warns(
+        UserWarning,
+        match="Incompatible database versions detected! Using only the latest - please run database migration.",
+    ):
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+
+    assert seen_urls == [latest_url]
+
+
+@pytest.mark.ai_generated
 @pytest.mark.parametrize(
     ("current_value", "new_usernames", "expected"),
     [
+        (None, set(), None),
         (None, {"cody"}, "cody"),
         ("cody", {"alex"}, "alex,cody"),
         ("alex, cody", {"cody"}, "alex,cody"),
@@ -1288,6 +1366,143 @@ def test_update_project_item_dates_updates_items(monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.ai_generated
+def test_update_project_item_members_raises_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+    with pytest.raises(ValueError, match="GITHUB_TOKEN"):
+        update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
+
+
+@pytest.mark.ai_generated
+def test_update_project_item_members_warns_when_no_members_field(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    project_info_response = unittest.mock.MagicMock()
+    project_info_response.status_code = 200
+    project_info_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_project",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_status",
+                                "name": "Status",
+                                "options": [{"id": "opt_done", "name": "Done"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    with (
+        unittest.mock.patch("requests.post", return_value=project_info_response),
+        pytest.warns(UserWarning, match="has no 'Members' field"),
+    ):
+        update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
+
+
+@pytest.mark.ai_generated
+def test_update_project_item_members_updates_items(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    project_info_response = unittest.mock.MagicMock()
+    project_info_response.status_code = 200
+    project_info_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_project",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_status",
+                                "name": "Status",
+                                "options": [{"id": "opt_done", "name": "Done"}],
+                            },
+                            {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    list_items_response = unittest.mock.MagicMock()
+    list_items_response.status_code = 200
+    list_items_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [
+                            {
+                                "id": "PVTI_issue",
+                                "content": {
+                                    "assignees": {"nodes": [{"login": "alex"}, {"login": "cody"}]},
+                                },
+                            },
+                            {
+                                "id": "PVTI_pr",
+                                "content": {
+                                    "assignees": {"nodes": [{"login": "cody"}]},
+                                    "reviewRequests": {
+                                        "nodes": [
+                                            {"requestedReviewer": {"login": "zeus"}},
+                                            {"requestedReviewer": {"name": "infra-team"}},
+                                        ],
+                                    },
+                                },
+                            },
+                            {
+                                "id": "PVTI_none",
+                                "content": {
+                                    "assignees": {"nodes": []},
+                                    "reviewRequests": {"nodes": []},
+                                },
+                            },
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                },
+            },
+        },
+    }
+
+    set_members_response = unittest.mock.MagicMock()
+    set_members_response.status_code = 200
+    set_members_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_issue"}}},
+    }
+
+    response_sequence = [
+        project_info_response,
+        list_items_response,
+        set_members_response,
+        set_members_response,
+    ]
+
+    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
+        update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
+
+    assert mock_post.call_count == 4
+
+    issue_members = mock_post.call_args_list[2].kwargs["json"]["variables"]
+    assert issue_members["itemId"] == "PVTI_issue"
+    assert issue_members["fieldId"] == "PVTF_members"
+    assert issue_members["text"] == "alex,cody"
+
+    pr_members = mock_post.call_args_list[3].kwargs["json"]["variables"]
+    assert pr_members["itemId"] == "PVTI_pr"
+    assert pr_members["fieldId"] == "PVTF_members"
+    assert pr_members["text"] == "cody,zeus"
+    assert {issue_members["itemId"], pr_members["itemId"]} == {"PVTI_issue", "PVTI_pr"}
+
+
+@pytest.mark.ai_generated
 def test_list_project_items_with_dates_returns_items() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
@@ -1325,6 +1540,52 @@ def test_list_project_items_with_dates_returns_items() -> None:
     assert items[0]["id"] == "PVTI_1"
     assert items[0]["createdAt"] == "2023-01-01T00:00:00Z"
     assert items[0]["closedAt"] == "2023-06-01T00:00:00Z"
+
+
+@pytest.mark.ai_generated
+def test_list_project_items_with_member_usernames_returns_items() -> None:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [
+                            {
+                                "id": "PVTI_1",
+                                "content": {
+                                    "assignees": {"nodes": [{"login": "alex"}]},
+                                    "reviewRequests": {"nodes": [{"requestedReviewer": {"login": "cody"}}]},
+                                },
+                            },
+                            {
+                                "id": "PVTI_empty",
+                                "content": {
+                                    "assignees": {"nodes": []},
+                                    "reviewRequests": {"nodes": []},
+                                },
+                            },
+                            {"id": "PVTI_no_content", "content": None},
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                },
+            },
+        },
+    }
+
+    with unittest.mock.patch("requests.post", return_value=mock_response):
+        items = _list_project_items_with_member_usernames(
+            owner_type="users",
+            owner_login="testuser",
+            project_number=1,
+            headers={"Authorization": "token fake-token"},
+        )
+
+    assert len(items) == 1
+    assert items[0][0] == "PVTI_1"
+    assert items[0][1] == {"alex", "cody"}
 
 
 @pytest.mark.ai_generated

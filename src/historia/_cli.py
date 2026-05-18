@@ -4,7 +4,13 @@ import pathlib
 import rich_click
 
 from . import data
-from .project import add_to_project, create_project_page, transition_status, update_project_item_dates
+from .project import (
+    add_to_project,
+    create_project_page,
+    transition_status,
+    update_project_item_dates,
+    update_project_item_members,
+)
 
 
 # historia
@@ -91,7 +97,8 @@ def _historia_project_create_cli(*, owner: str, title: str) -> None:
     required=True,
     help=(
         "The specific subdirectory containing derivatives JSON files; should be for a specific version and username. "
-        "E.g., `/path/to/version-1/username-codycbakerphd`."
+        "E.g., `/path/to/version-1/username-codycbakerphd`. If a parent directory containing multiple "
+        "`version-*` subdirectories is provided, only the latest version is used."
     ),
 )
 @rich_click.option(
@@ -190,6 +197,27 @@ def _historia_project_update_cli() -> None:
 def _historia_project_update_dates_cli(*, project_url: str, end_date_placeholder_days: int) -> None:
     try:
         update_project_item_dates(project_url=project_url, end_date_placeholder_days=end_date_placeholder_days)
+    except (ValueError, RuntimeError) as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
+
+
+# historia project update members
+@_historia_project_update_cli.command(name="members")
+@rich_click.option(
+    "--url",
+    "project_url",
+    type=str,
+    required=True,
+    help=(
+        "The URL of the GitHub Project v2 whose item member attribution should be updated. "
+        "E.g., `https://github.com/users/username/projects/1` "
+        "or `https://github.com/orgs/orgname/projects/1`."
+    ),
+)
+def _historia_project_update_members_cli(*, project_url: str) -> None:
+    try:
+        update_project_item_members(project_url=project_url)
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))
         raise SystemExit(1) from exception

@@ -5,10 +5,16 @@
 ### 🚀 Enhancement
 
 - Added optional member-assignment mode to project population via `--members` and `historia.project.add_to_project(..., assign_members=True)`. In this mode, new items get a `Members` field value inferred from `username-*` folders and existing project items merge in additional usernames as a deduplicated comma-separated list. ([#117](https://github.com/CodyCBakerPhD/historia/pull/117))
+- Added `historia project update members` and `historia.project.update_project_item_members(project_url=...)` to backfill each project's `Members` field from issue assignees and pull-request assignees/reviewers. ([#118](https://github.com/CodyCBakerPhD/historia/pull/118))
 
 ### 🐛 Bug Fix
 
 - Prevented the PyPI release workflow from publishing twice when a GitHub Release is created. Publishing a release pushes its tag, which was firing both the `push: tags` and `release: published` triggers simultaneously. Added an `if: github.event_name == 'release'` guard on the publish job so it only runs on the release event, while keeping both triggers for future compatibility. ([#116](https://github.com/CodyCBakerPhD/historia/pull/116))
+- Updated `historia project populate` / `historia.project.add_to_project` to detect incompatible mixed `version-*` data directories, warn, and use only the latest version directory during population. ([#134](https://github.com/CodyCBakerPhD/historia/pull/134))
+
+### 🏠 Internal
+
+- Added a regression test that verifies `dump_specific_info` writes to only the active `version-*` cache layout and does not clobber same-day files in other cache layout versions. ([#134](https://github.com/CodyCBakerPhD/historia/pull/134))
 
 ## v0.10.2
 

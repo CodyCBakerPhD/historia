@@ -71,6 +71,8 @@ def add_to_project(
         The directory containing the derivatives JSON files.
         Should be a specific username subdirectory,
         e.g., ``/path/to/version-1/username-codycbakerphd``.
+        If a parent directory with multiple ``version-*`` subdirectories is provided,
+        only the latest version is used and a warning is emitted.
     project_url : str
         The URL of the GitHub Project v2 to add items to,
         e.g., ``https://github.com/users/username/projects/1``
@@ -93,12 +95,14 @@ def add_to_project(
 
     headers = {"Authorization": f"token {github_token}"}
 
+    data_directory = _resolve_latest_version_data_directory(directory)
+
     # Collect all unique URLs from JSON files in the directory
-    url_to_members = _collect_url_member_usernames(directory) if assign_members else {}
-    all_urls = list(url_to_members) if assign_members else _collect_unique_urls(directory)
+    url_to_members = _collect_url_member_usernames(data_directory) if assign_members else {}
+    all_urls = list(url_to_members) if assign_members else _collect_unique_urls(data_directory)
 
     if not all_urls:
-        warnings.warn(message=f"No URLs found in directory `{directory}`.", stacklevel=2)
+        warnings.warn(message=f"No URLs found in directory `{data_directory}`.", stacklevel=2)
         return
 
     # Resolve the project node ID and get Status / date field info
@@ -201,6 +205,51 @@ def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
                 if isinstance(value, str):
                     all_urls.add(value)
     return list(all_urls)
+
+
+def _resolve_latest_version_data_directory(directory: pathlib.Path, /) -> pathlib.Path:
+    """
+    Return the directory to scan for project population data files.
+
+    Parameters
+    ----------
+    directory : pathlib.Path
+        User-supplied base directory for project population.
+
+    Returns
+    -------
+    pathlib.Path
+        ``directory`` by default. If ``directory`` contains more than one numeric
+        ``version-*`` subdirectory, this returns only the highest version directory.
+
+    Warns
+    -----
+    UserWarning
+        Emitted when multiple numeric ``version-*`` directories are detected and
+        only the highest version directory is selected.
+
+    """
+    if not directory.exists() or not directory.is_dir():
+        return directory
+
+    version_directories: list[tuple[int, pathlib.Path]] = []
+    for child in directory.iterdir():
+        if not child.is_dir() or not child.name.startswith("version-"):
+            continue
+        version_number = child.name.removeprefix("version-")
+        if version_number.isdigit():
+            version_directories.append((int(version_number), child))
+
+    if len(version_directories) <= 1:
+        return directory
+
+    latest_version_entry = max(version_directories, key=lambda entry: entry[0])
+    latest_version_directory = latest_version_entry[1]
+    warnings.warn(
+        message="Incompatible database versions detected! Using only the latest - please run database migration.",
+        stacklevel=2,
+    )
+    return latest_version_directory
 
 
 def _collect_url_member_usernames(directory: pathlib.Path, /) -> dict[str, set[str]]:
@@ -964,6 +1013,69 @@ def update_project_item_dates(
             )
 
 
+@beartype.beartype
+def update_project_item_members(*, project_url: str) -> None:
+    """
+    Update the Members text field on all items already added to a GitHub Project (v2).
+
+    Member attribution is inferred from assignee usernames and pull request reviewer usernames.
+    Items without assignees or reviewers are skipped.
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2,
+        e.g., ``https://github.com/users/username/projects/1``
+        or ``https://github.com/orgs/orgname/projects/1``.
+
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token is None:
+        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
+        raise ValueError(message)
+
+    headers = {"Authorization": f"token {github_token}"}
+
+    project_id, _status_field_id, _status_options, _start_date_field_id, _end_date_field_id, members_field_id = (
+        _get_project_info(
+            project_url=project_url,
+            headers=headers,
+        )
+    )
+
+    if members_field_id is None:
+        warnings.warn(
+            message=f"Project `{project_url}` has no 'Members' field. No member updates were performed.",
+            stacklevel=2,
+        )
+        return
+
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
+    all_items = _list_project_items_with_member_usernames(
+        owner_type=owner_type,
+        owner_login=owner_login,
+        project_number=project_number,
+        headers=headers,
+    )
+
+    for item_id, member_usernames in tqdm.tqdm(
+        iterable=all_items,
+        desc="Updating item members",
+        unit="items",
+        dynamic_ncols=True,
+    ):
+        members_value = _merge_member_values(current_value=None, usernames=member_usernames)
+        if members_value is None:
+            continue
+        _set_item_text(
+            project_id=project_id,
+            item_id=item_id,
+            field_id=members_field_id,
+            text=members_value,
+            headers=headers,
+        )
+
+
 def _list_project_item_content_urls(
     *,
     owner_type: str,
@@ -1281,6 +1393,147 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
         after_cursor = page_info["endCursor"]
 
     return items_by_url
+
+
+def _list_project_items_with_member_usernames(
+    *,
+    owner_type: str,
+    owner_login: str,
+    project_number: int,
+    headers: dict[str, str],
+) -> list[tuple[str, set[str]]]:
+    """Return project item IDs and inferred member usernames from assignees/reviewers."""
+    if owner_type == "users":
+        query = """
+query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
+    user(login: $login) {
+        projectV2(number: $number) {
+            items(first: 100, after: $after) {
+                nodes {
+                    id
+                    content {
+                        ... on PullRequest {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                            reviewRequests(first: 20) {
+                                nodes {
+                                    requestedReviewer {
+                                        ... on User {
+                                            login
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ... on Issue {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                        }
+                    }
+                }
+                pageInfo { hasNextPage endCursor }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "user", "projectV2", "items"]
+    else:
+        query = """
+query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
+    organization(login: $login) {
+        projectV2(number: $number) {
+            items(first: 100, after: $after) {
+                nodes {
+                    id
+                    content {
+                        ... on PullRequest {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                            reviewRequests(first: 20) {
+                                nodes {
+                                    requestedReviewer {
+                                        ... on User {
+                                            login
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ... on Issue {
+                            assignees(first: 20) {
+                                nodes {
+                                    login
+                                }
+                            }
+                        }
+                    }
+                }
+                pageInfo { hasNextPage endCursor }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "organization", "projectV2", "items"]
+
+    items_with_members: list[tuple[str, set[str]]] = []
+    after_cursor = None
+
+    while True:
+        variables = {"login": owner_login, "number": project_number, "after": after_cursor}
+        response = requests.post(
+            url="https://api.github.com/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=30,
+        )
+        result = _check_graphql_response(
+            response=response,
+            context=f"Failed to list project members for project {project_number}.",
+        )
+        items_data = result
+        for key in data_path:
+            items_data = items_data[key]
+
+        for node in items_data["nodes"]:
+            content = node.get("content")
+            if content is None:
+                continue
+
+            member_usernames: set[str] = set()
+
+            for assignee in content.get("assignees", {}).get("nodes", []):
+                assignee_login = assignee.get("login")
+                if assignee_login is not None:
+                    member_usernames.add(assignee_login)
+
+            for review_request in content.get("reviewRequests", {}).get("nodes", []):
+                requested_reviewer = review_request.get("requestedReviewer")
+                if requested_reviewer is None:
+                    continue
+                reviewer_login = requested_reviewer.get("login")
+                if reviewer_login is not None:
+                    member_usernames.add(reviewer_login)
+
+            if member_usernames:
+                items_with_members.append((node["id"], member_usernames))
+
+        page_info = items_data["pageInfo"]
+        if not page_info["hasNextPage"]:
+            break
+        after_cursor = page_info["endCursor"]
+
+    return items_with_members
 
 
 def _list_project_items_with_status(
