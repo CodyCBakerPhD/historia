@@ -6,6 +6,10 @@
 
 - Fixed `containers/Dockerfile.latest` builds. ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
 
+### 📝 Documentation
+
+- Clarified the tutorial `--start` / `start_date` date-string format as `YYYY-MM-DD` and updated the example value to `2026-02-09` in both CLI and Python snippets. ([#140](https://github.com/CodyCBakerPhD/historia/pull/140))
+
 ### 🏠 Internal
 
 - Added failure email notifications to both Docker image workflows (`build_and_upload_docker_image_latest.yml` and `build_and_upload_docker_image_dev.yml`) using the same `dawidd6/action-send-mail` pattern as the daily tests and link checker. ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
