@@ -5,6 +5,7 @@
 ### 🚀 Enhancement
 
 - Added optional member-assignment mode to project population via `--members` and `historia.project.add_to_project(..., assign_members=True)`. In this mode, new items get a `Members` field value inferred from `username-*` folders and existing project items merge in additional usernames as a deduplicated comma-separated list. ([#117](https://github.com/CodyCBakerPhD/historia/pull/117))
+- Added `historia project update members` and `historia.project.update_project_item_members(project_url=...)` to backfill each project's `Members` field from issue assignees and pull-request assignees/reviewers. ([#118](https://github.com/CodyCBakerPhD/historia/pull/118))
 
 ### 🐛 Bug Fix
 

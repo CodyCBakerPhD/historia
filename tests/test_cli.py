@@ -247,6 +247,31 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
 
 
 @pytest.mark.ai_generated
+def test_project_update_members_command_invokes_update_item_members(monkeypatch: pytest.MonkeyPatch) -> None:
+    called_args: dict[str, str] = {}
+
+    def _fake_update_project_item_members(project_url: str) -> None:
+        called_args["project_url"] = project_url
+
+    monkeypatch.setattr(historia._cli, "update_project_item_members", _fake_update_project_item_members)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "update",
+            "members",
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
+
+
+@pytest.mark.ai_generated
 def test_project_transition_command_invokes_transition_status(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, str] = {}
 
@@ -317,6 +342,16 @@ def test_project_transition_command_invokes_transition_status(monkeypatch: pytes
                 "History",
             ],
         ),
+        (
+            "update_project_item_members",
+            lambda _: [
+                "project",
+                "update",
+                "members",
+                "--url",
+                "https://github.com/users/octocat/projects/1",
+            ],
+        ),
     ],
 )
 def test_project_command_shows_error_on_exception(
@@ -353,6 +388,7 @@ def test_project_command_shows_error_on_exception(
             ["--url", "--placeholder"],
             ["--project-url", "--projecturl", "--end-date-placeholder-days", "--enddateplaceholderdays"],
         ),
+        ("update members", ["--url"], ["--project-url", "--projecturl"]),
         ("transition", ["--url", "--status", "--new"], ["--project-url", "--projecturl"]),
     ],
 )
