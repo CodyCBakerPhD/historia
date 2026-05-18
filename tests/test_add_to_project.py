@@ -137,8 +137,8 @@ def test_collect_url_member_usernames_from_directory_paths(tmp_path: pathlib.Pat
     ("current_value", "new_usernames", "expected"),
     [
         (None, {"cody"}, "cody"),
-        ("cody", {"alex"}, "alex, cody"),
-        ("alex, cody", {"cody"}, "alex, cody"),
+        ("cody", {"alex"}, "alex,cody"),
+        ("alex, cody", {"cody"}, "alex,cody"),
         ("", set(), None),
     ],
 )
@@ -1718,7 +1718,7 @@ def test_add_to_project_members_mode_updates_existing_item(
     members_variables = members_call.kwargs["json"]["variables"]
     assert members_variables["fieldId"] == "PVTF_members"
     assert members_variables["itemId"] == "PVTI_existing"
-    assert members_variables["text"] == "alex, cody"
+    assert members_variables["text"] == "alex,cody"
 
 
 @pytest.mark.ai_generated

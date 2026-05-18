@@ -265,7 +265,7 @@ def _merge_member_values(*, current_value: str | None, usernames: set[str]) -> s
     values.update({username.strip() for username in usernames if username.strip()})
     if not values:
         return None
-    return ", ".join(sorted(values))
+    return ",".join(sorted(values))
 
 
 def _set_initial_project_item_fields(
