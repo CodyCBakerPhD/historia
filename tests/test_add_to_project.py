@@ -1059,7 +1059,7 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
 
 @pytest.mark.ai_generated
 def test_add_to_project_sets_extra_field_values(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """Extra field mappings are applied to each new item when the fields exist on the project."""
+    """Verify that extra field mappings are applied to new items when the fields exist on the project."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
     issue_url = "https://github.com/owner/repo/issues/12"

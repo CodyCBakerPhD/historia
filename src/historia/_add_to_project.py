@@ -471,7 +471,15 @@ def _get_project_extra_field_definitions(
     project_url: str,
     headers: dict[str, str],
 ) -> dict[str, dict[str, str | dict[str, str]]]:
-    """Return project field metadata by field name for extra-field updates."""
+    """
+    Return project field metadata by field name for extra-field updates.
+
+    The returned mapping uses field names as keys. Each value contains:
+    - ``id``: project field node ID.
+    - ``data_type``: GitHub Project field type string.
+    - ``options``: option-name to option-ID mapping for single-select fields only.
+
+    """
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     if owner_type == "users":
@@ -788,12 +796,20 @@ def _set_item_extra_field_value(
     field_value: str,
     headers: dict[str, str],
 ) -> None:
-    """Set an extra project field value on a project item."""
+    """
+    Set an extra project field value on a project item.
+
+    ``field_definition`` must contain ``id`` and ``data_type`` keys. For
+    single-select fields it may also contain an ``options`` dictionary mapping
+    option names to option IDs.
+
+    """
     field_id = field_definition.get("id")
     data_type = field_definition.get("data_type")
     if not isinstance(field_id, str) or not isinstance(data_type, str):
         return
 
+    variables: dict[str, str | float]
     if data_type == "SINGLE_SELECT":
         raw_options = field_definition.get("options", {})
         options = raw_options if isinstance(raw_options, dict) else {}
@@ -820,7 +836,7 @@ mutation SetExtraSingleSelect($projectId: ID!, $itemId: ID!, $fieldId: ID!, $opt
     }
 }
 """
-        variables: dict[str, str | float] = {
+        variables = {
             "projectId": project_id,
             "itemId": item_id,
             "fieldId": field_id,
