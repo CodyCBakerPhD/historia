@@ -12,7 +12,7 @@
 
 ### 🏠 Internal
 
-- Added a regression test that verifies `dump_specific_info` writes to only the active `version-*` cache layout and does not clobber same-day files in other cache layout versions. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
+- Added a regression test that verifies `dump_specific_info` writes to only the active `version-*` cache layout and does not clobber same-day files in other cache layout versions. ([#134](https://github.com/CodyCBakerPhD/historia/pull/134))
 
 ## v0.10.2
 
