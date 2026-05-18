@@ -109,7 +109,7 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
 
     # Resolve the project node ID (needed for cleanup mutations).
     try:
-        project_id, _, _, _, _ = _get_project_info(project_url=_TEST_PROJECT_URL, headers=headers)
+        project_id, _, _, _, _, _ = _get_project_info(project_url=_TEST_PROJECT_URL, headers=headers)
     except (PermissionError, RuntimeError) as exc:
         pytest.skip(str(exc))
 
