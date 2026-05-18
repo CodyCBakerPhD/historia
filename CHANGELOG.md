@@ -10,6 +10,10 @@
 
 - Prevented the PyPI release workflow from publishing twice when a GitHub Release is created. Publishing a release pushes its tag, which was firing both the `push: tags` and `release: published` triggers simultaneously. Added an `if: github.event_name == 'release'` guard on the publish job so it only runs on the release event, while keeping both triggers for future compatibility. ([#116](https://github.com/CodyCBakerPhD/historia/pull/116))
 
+### 🏠 Internal
+
+- Added a regression test that verifies `dump_specific_info` writes to only the active `version-*` cache layout and does not clobber same-day files in other cache layout versions. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
+
 ## v0.10.2
 
 ### 🚀 Enhancement

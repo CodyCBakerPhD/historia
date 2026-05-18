@@ -137,6 +137,60 @@ def test_dump_specific_info_overwrite_behavior(
 
 
 @pytest.mark.ai_generated
+def test_dump_specific_info_ignores_previous_cache_layout_version(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    fetched_urls = ["https://github.com/con/nwb2bids/issues/252"]
+    fetch_call_count = 0
+
+    def _mock_fetch_info_for_date(info_type: str, date: str, username: str) -> tuple[list[str], bool]:  # noqa: ARG001
+        nonlocal fetch_call_count
+        fetch_call_count += 1
+        return (fetched_urls, False)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+
+    username = "codycbakerphd"
+    date = "2026-01-05"
+    year, month, day = date.split("-")
+    test_directory = tmp_path / "test_dump"
+    previous_layout_directory = (
+        test_directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION + 1}" / f"username-{username}"
+    )
+    previous_layout_subdir = previous_layout_directory / f"year-{year}" / f"month-{month}" / f"day-{day}"
+    previous_layout_subdir.mkdir(parents=True)
+    previous_layout_file_path = previous_layout_subdir / f'info-issues+opened_date-{date.replace("-", "+")}.json'
+    previous_layout_contents = '["stale-previous-layout"]'
+    previous_layout_file_path.write_text(data=previous_layout_contents, encoding="utf-8")
+
+    historia.data.github.dump_specific_info(
+        directory=test_directory,
+        info_type="issues_opened",
+        date=date,
+        username=username,
+        overwrite=False,
+    )
+
+    current_layout_file_path = (
+        test_directory
+        / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}"
+        / f"username-{username}"
+        / f"year-{year}"
+        / f"month-{month}"
+        / f"day-{day}"
+        / f'info-issues+opened_date-{date.replace("-", "+")}.json'
+    )
+    with current_layout_file_path.open(mode="r") as file_stream:
+        current_layout_content = json.load(file_stream)
+    assert current_layout_content == fetched_urls
+    assert previous_layout_file_path.read_text(encoding="utf-8") == previous_layout_contents
+    assert fetch_call_count == 1
+
+
+@pytest.mark.ai_generated
 def test_update_iterates_over_expected_dates(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
