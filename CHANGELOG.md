@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
+
+- Fixed `containers/Dockerfile.latest` which was installing `nwb2bids` instead of `historia`, causing the Docker release to fail with "executable file not found in $PATH". ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
+
 
 
 ## v0.10.5
