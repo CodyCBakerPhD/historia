@@ -2,6 +2,18 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
+
+- Fixed `containers/Dockerfile.latest` builds. ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
+
+### 🏠 Internal
+
+- Added failure email notifications to both Docker image workflows (`build_and_upload_docker_image_latest.yml` and `build_and_upload_docker_image_dev.yml`) using the same `dawidd6/action-send-mail` pattern as the daily tests and link checker. ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
+
+
+
+## v0.10.5
+
 ### 🚀 Enhancement
 
 - Added optional member-assignment mode to project population via `--members` and `historia.project.add_to_project(..., assign_members=True)`. In this mode, new items get a `Members` field value inferred from `username-*` folders and existing project items merge in additional usernames as a deduplicated comma-separated list. ([#117](https://github.com/CodyCBakerPhD/historia/pull/117))
@@ -15,6 +27,8 @@
 ### 🏠 Internal
 
 - Added a regression test that verifies `dump_specific_info` writes to only the active `version-*` cache layout and does not clobber same-day files in other cache layout versions. ([#134](https://github.com/CodyCBakerPhD/historia/pull/134))
+
+
 
 ## v0.10.2
 

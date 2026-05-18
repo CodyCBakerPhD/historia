@@ -3,7 +3,7 @@ FROM python:3.13-slim
 LABEL org.opencontainers.image.source="https://github.com/CodyCBakerPhD/historia"
 LABEL org.opencontainers.image.description="A Docker image of the latest released version of Historia."
 
-RUN pip install --no-cache-dir nwb2bids
+RUN pip install --no-cache-dir historia
 
 ENTRYPOINT ["historia"]
 CMD ["--help"]
