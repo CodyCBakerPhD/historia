@@ -129,6 +129,7 @@ Optional flags:
 - `--status [value]` will pin every item to a specific status instead of deriving it automatically.
 - `--placeholder [days]` is a placeholder end date offset (in days from creation) for open items.
   - Defaults to `180` days.
+- `--members` writes each item's custom `Members` text field using usernames from `username-*` folders.
 :::
 :::{tab} Python API
 ```python

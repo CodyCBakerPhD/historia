@@ -127,12 +127,21 @@ def _historia_project_create_cli(*, owner: str, title: str) -> None:
         "when the item has not yet been closed. Default is 180 (approximately 6 months)."
     ),
 )
+@rich_click.option(
+    "--members",
+    "assign_members",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Assign the custom 'Members' field based on username directories.",
+)
 def _historia_project_populate_cli(
     *,
     directory: str,
     project_url: str,
     status: str | None,
     end_date_placeholder_days: int,
+    assign_members: bool,
 ) -> None:
     try:
         add_to_project(
@@ -140,6 +149,7 @@ def _historia_project_populate_cli(
             project_url=project_url,
             status=status,
             end_date_placeholder_days=end_date_placeholder_days,
+            assign_members=assign_members,
         )
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))

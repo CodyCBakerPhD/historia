@@ -11,14 +11,18 @@ from historia._add_to_project import (
     _add_item_to_project,
     _check_graphql_response,
     _collect_unique_urls,
+    _collect_url_member_usernames,
     _get_item_info,
     _get_project_info,
     _list_project_item_content_urls,
     _list_project_items_with_dates,
+    _list_project_items_with_member_values,
     _list_project_items_with_status,
+    _merge_member_values,
     _parse_project_url,
     _set_item_date,
     _set_item_status,
+    _set_item_text,
     transition_status,
     update_project_item_dates,
 )
@@ -104,6 +108,48 @@ def test_collect_unique_urls_mixed_formats(tmp_path: pathlib.Path) -> None:
     result = _collect_unique_urls(tmp_path)
 
     assert set(result) == {"https://github.com/owner/repo/pull/1"}
+
+
+@pytest.mark.ai_generated
+def test_collect_url_member_usernames_from_directory_paths(tmp_path: pathlib.Path) -> None:
+    cody_dir = tmp_path / "username-cody"
+    alex_dir = tmp_path / "username-alex"
+    cody_dir.mkdir()
+    alex_dir.mkdir()
+
+    shared_url = "https://github.com/owner/repo/pull/1"
+    cody_only_url = "https://github.com/owner/repo/issues/2"
+    alex_only_url = "https://github.com/owner/repo/pull/3"
+    (cody_dir / "urls.json").write_text(json.dumps([shared_url, cody_only_url]))
+    (alex_dir / "urls.json").write_text(json.dumps([shared_url, alex_only_url]))
+
+    result = _collect_url_member_usernames(tmp_path)
+
+    assert result == {
+        shared_url: {"cody", "alex"},
+        cody_only_url: {"cody"},
+        alex_only_url: {"alex"},
+    }
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("current_value", "new_usernames", "expected"),
+    [
+        (None, {"cody"}, "cody"),
+        ("cody", {"alex"}, "alex,cody"),
+        ("alex, cody", {"cody"}, "alex,cody"),
+        ("", set(), None),
+    ],
+)
+def test_merge_member_values(
+    current_value: str | None,
+    new_usernames: set[str],
+    expected: str | None,
+) -> None:
+    result = _merge_member_values(current_value=current_value, usernames=new_usernames)
+
+    assert result == expected
 
 
 @pytest.mark.ai_generated
@@ -225,16 +271,21 @@ def test_get_project_info_parses_user_url() -> None:
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        project_id, status_field_id, status_options, start_date_field_id, end_date_field_id = _get_project_info(
-            project_url="https://github.com/users/testuser/projects/1",
-            headers=headers,
-        )
+        (
+            project_id,
+            status_field_id,
+            status_options,
+            start_date_field_id,
+            end_date_field_id,
+            members_field_id,
+        ) = _get_project_info(project_url="https://github.com/users/testuser/projects/1", headers=headers)
 
     assert project_id == "PVT_kwDOA"
     assert status_field_id == "PVTSSF_id"
     assert status_options == {"Todo": "opt1", "In Progress": "opt2", "Done": "opt3"}
     assert start_date_field_id == "PVTF_start"
     assert end_date_field_id == "PVTF_end"
+    assert members_field_id is None
 
 
 @pytest.mark.ai_generated
@@ -265,16 +316,21 @@ def test_get_project_info_parses_short_user_url() -> None:
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        project_id, status_field_id, status_options, start_date_field_id, end_date_field_id = _get_project_info(
-            project_url="https://github.com/testuser/projects/7",
-            headers=headers,
-        )
+        (
+            project_id,
+            status_field_id,
+            status_options,
+            start_date_field_id,
+            end_date_field_id,
+            members_field_id,
+        ) = _get_project_info(project_url="https://github.com/testuser/projects/7", headers=headers)
 
     assert project_id == "PVT_kwDOB"
     assert status_field_id == "PVTSSF_id2"
     assert status_options == {"Todo": "opt1"}
     assert start_date_field_id is None
     assert end_date_field_id is None
+    assert members_field_id is None
 
 
 @pytest.mark.ai_generated
@@ -303,7 +359,7 @@ def test_get_project_info_returns_none_for_missing_date_fields() -> None:
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        _, _, _, _, _ = _get_project_info(
+        _, _, _, _, _, _ = _get_project_info(
             project_url="https://github.com/users/testuser/projects/1",
             headers=headers,
         )
@@ -460,6 +516,33 @@ def test_set_item_status_calls_mutation() -> None:
     assert variables["itemId"] == "PVTI_item_id"
     assert variables["fieldId"] == "PVTSSF_id"
     assert variables["optionId"] == "opt_done"
+
+
+@pytest.mark.ai_generated
+def test_set_item_text_calls_mutation() -> None:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}},
+    }
+
+    headers = {"Authorization": "token fake-token"}
+    with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
+        _set_item_text(
+            project_id="PVT_kwDOA",
+            item_id="PVTI_item_id",
+            field_id="PVTF_members",
+            text="cody",
+            headers=headers,
+        )
+
+    mock_post.assert_called_once()
+    call_kwargs = mock_post.call_args.kwargs
+    variables = call_kwargs["json"]["variables"]
+    assert variables["projectId"] == "PVT_kwDOA"
+    assert variables["itemId"] == "PVTI_item_id"
+    assert variables["fieldId"] == "PVTF_members"
+    assert variables["text"] == "cody"
 
 
 @pytest.mark.ai_generated
@@ -1310,6 +1393,53 @@ def test_list_project_item_content_urls_returns_empty_set_when_no_items() -> Non
 
 
 @pytest.mark.ai_generated
+def test_list_project_items_with_member_values_returns_items() -> None:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [
+                            {
+                                "id": "PVTI_1",
+                                "content": {"url": "https://github.com/owner/repo/pull/1"},
+                                "fieldValues": {
+                                    "nodes": [
+                                        {"text": "cody", "field": {"id": "PVTF_members"}},
+                                    ],
+                                },
+                            },
+                            {
+                                "id": "PVTI_2",
+                                "content": {"url": "https://github.com/owner/repo/issues/2"},
+                                "fieldValues": {"nodes": []},
+                            },
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                },
+            },
+        },
+    }
+
+    with unittest.mock.patch("requests.post", return_value=mock_response):
+        items = _list_project_items_with_member_values(
+            owner_type="users",
+            owner_login="testuser",
+            project_number=1,
+            members_field_id="PVTF_members",
+            headers={"Authorization": "token fake-token"},
+        )
+
+    assert items == {
+        "https://github.com/owner/repo/pull/1": {"item_id": "PVTI_1", "members": "cody"},
+        "https://github.com/owner/repo/issues/2": {"item_id": "PVTI_2", "members": None},
+    }
+
+
+@pytest.mark.ai_generated
 def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
     """Items whose URLs are already in the project are excluded and not re-added."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
@@ -1404,6 +1534,191 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
     # Verify add_item was called with the node ID for the new item only
     add_item_call = mock_post.call_args_list[3]
     assert add_item_call.kwargs["json"]["variables"]["contentId"] == "PR2_node_id"
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_members_mode_sets_members_for_new_item(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    user_directory = tmp_path / "username-cody"
+    user_directory.mkdir()
+    new_pr_url = "https://github.com/owner/repo/pull/2"
+    (user_directory / "urls.json").write_text(json.dumps([new_pr_url]))
+
+    project_info_response = unittest.mock.MagicMock()
+    project_info_response.status_code = 200
+    project_info_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_project",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_status",
+                                "name": "Status",
+                                "options": [{"id": "opt_done", "name": "Done"}],
+                            },
+                            {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    list_members_response = unittest.mock.MagicMock()
+    list_members_response.status_code = 200
+    list_members_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                },
+            },
+        },
+    }
+
+    item_info_response = unittest.mock.MagicMock()
+    item_info_response.status_code = 200
+    item_info_response.json.return_value = {
+        "data": {
+            "resource": {
+                "id": "PR2_node_id",
+                "state": "CLOSED",
+                "createdAt": "2023-05-01T00:00:00Z",
+                "closedAt": "2023-06-01T00:00:00Z",
+            },
+        },
+    }
+
+    add_item_response = unittest.mock.MagicMock()
+    add_item_response.status_code = 200
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
+
+    set_field_response = unittest.mock.MagicMock()
+    set_field_response.status_code = 200
+    set_field_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
+    }
+
+    response_sequence = [
+        project_info_response,
+        list_members_response,
+        item_info_response,
+        add_item_response,
+        set_field_response,
+        set_field_response,
+    ]
+
+    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
+        historia.project.add_to_project(
+            directory=tmp_path,
+            project_url="https://github.com/users/testuser/projects/1",
+            assign_members=True,
+        )
+
+    assert mock_post.call_count == 6
+    members_call = mock_post.call_args_list[-1]
+    members_variables = members_call.kwargs["json"]["variables"]
+    assert members_variables["fieldId"] == "PVTF_members"
+    assert members_variables["itemId"] == "PVTI_new"
+    assert members_variables["text"] == "cody"
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_members_mode_updates_existing_item(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    user_directory = tmp_path / "username-alex"
+    user_directory.mkdir()
+    existing_pr_url = "https://github.com/owner/repo/pull/1"
+    (user_directory / "urls.json").write_text(json.dumps([existing_pr_url]))
+
+    project_info_response = unittest.mock.MagicMock()
+    project_info_response.status_code = 200
+    project_info_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_project",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_status",
+                                "name": "Status",
+                                "options": [{"id": "opt_done", "name": "Done"}],
+                            },
+                            {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    list_members_response = unittest.mock.MagicMock()
+    list_members_response.status_code = 200
+    list_members_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [
+                            {
+                                "id": "PVTI_existing",
+                                "content": {"url": existing_pr_url},
+                                "fieldValues": {
+                                    "nodes": [
+                                        {
+                                            "text": "cody",
+                                            "field": {"id": "PVTF_members"},
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                },
+            },
+        },
+    }
+
+    set_members_response = unittest.mock.MagicMock()
+    set_members_response.status_code = 200
+    set_members_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_existing"}}},
+    }
+
+    response_sequence = [
+        project_info_response,
+        list_members_response,
+        set_members_response,
+    ]
+
+    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
+        historia.project.add_to_project(
+            directory=tmp_path,
+            project_url="https://github.com/users/testuser/projects/1",
+            assign_members=True,
+        )
+
+    assert mock_post.call_count == 3
+    members_call = mock_post.call_args_list[-1]
+    members_variables = members_call.kwargs["json"]["variables"]
+    assert members_variables["fieldId"] == "PVTF_members"
+    assert members_variables["itemId"] == "PVTI_existing"
+    assert members_variables["text"] == "alex,cody"
 
 
 @pytest.mark.ai_generated
