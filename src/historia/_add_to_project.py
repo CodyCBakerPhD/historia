@@ -1476,7 +1476,8 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
                 if reviewer_login is not None:
                     member_usernames.add(reviewer_login)
 
-            items_with_members.append((node["id"], member_usernames))
+            if member_usernames:
+                items_with_members.append((node["id"], member_usernames))
 
         page_info = items_data["pageInfo"]
         if not page_info["hasNextPage"]:

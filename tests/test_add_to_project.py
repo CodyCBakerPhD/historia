@@ -138,6 +138,7 @@ def test_collect_url_member_usernames_from_directory_paths(tmp_path: pathlib.Pat
 @pytest.mark.parametrize(
     ("current_value", "new_usernames", "expected"),
     [
+        (None, set(), None),
         (None, {"cody"}, "cody"),
         ("cody", {"alex"}, "alex,cody"),
         ("alex, cody", {"cody"}, "alex,cody"),
@@ -1423,6 +1424,7 @@ def test_update_project_item_members_updates_items(monkeypatch: pytest.MonkeyPat
     assert pr_members["itemId"] == "PVTI_pr"
     assert pr_members["fieldId"] == "PVTF_members"
     assert pr_members["text"] == "cody,zeus"
+    assert {issue_members["itemId"], pr_members["itemId"]} == {"PVTI_issue", "PVTI_pr"}
 
 
 @pytest.mark.ai_generated
@@ -1480,6 +1482,13 @@ def test_list_project_items_with_member_usernames_returns_items() -> None:
                                 "content": {
                                     "assignees": {"nodes": [{"login": "alex"}]},
                                     "reviewRequests": {"nodes": [{"requestedReviewer": {"login": "cody"}}]},
+                                },
+                            },
+                            {
+                                "id": "PVTI_empty",
+                                "content": {
+                                    "assignees": {"nodes": []},
+                                    "reviewRequests": {"nodes": []},
                                 },
                             },
                             {"id": "PVTI_no_content", "content": None},
