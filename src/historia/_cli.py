@@ -97,7 +97,8 @@ def _historia_project_create_cli(*, owner: str, title: str) -> None:
     required=True,
     help=(
         "The specific subdirectory containing derivatives JSON files; should be for a specific version and username. "
-        "E.g., `/path/to/version-1/username-codycbakerphd`."
+        "E.g., `/path/to/version-1/username-codycbakerphd`. If a parent directory containing multiple "
+        "`version-*` subdirectories is provided, only the latest version is used."
     ),
 )
 @rich_click.option(
