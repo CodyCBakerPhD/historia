@@ -6,6 +6,10 @@
 
 - Fixed `containers/Dockerfile.latest` which was installing `nwb2bids` instead of `historia`, causing the Docker release to fail with "executable file not found in $PATH". ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
 
+### 🏠 Internal
+
+- Added failure email notifications to both Docker image workflows (`build_and_upload_docker_image_latest.yml` and `build_and_upload_docker_image_dev.yml`) using the same `dawidd6/action-send-mail` pattern as the daily tests and link checker. ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
+
 
 
 ## v0.10.5
