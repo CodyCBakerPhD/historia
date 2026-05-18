@@ -112,17 +112,17 @@ def add_to_project(
     # Parse owner type, login, and number from URL
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    members_field_id_for_mode = ""
+    validated_members_field_id: str | None = None
     if members:
         if members_field_id is None:
             message = f"No 'Members' field found in project `{project_url}`."
             raise ValueError(message)
-        members_field_id_for_mode = members_field_id
+        validated_members_field_id = members_field_id
         existing_items = _list_project_items_with_member_values(
             owner_type=owner_type,
             owner_login=owner_login,
             project_number=project_number,
-            members_field_id=members_field_id_for_mode,
+            members_field_id=validated_members_field_id,
             headers=headers,
         )
     else:
@@ -148,7 +148,7 @@ def add_to_project(
                     _set_item_text(
                         project_id=project_id,
                         item_id=typing.cast("str", existing_item_info["item_id"]),
-                        field_id=members_field_id_for_mode,
+                        field_id=typing.cast("str", validated_members_field_id),
                         text=updated_members,
                         headers=headers,
                     )
@@ -182,7 +182,7 @@ def add_to_project(
                 "start_date_field_id": start_date_field_id,
                 "end_date_field_id": end_date_field_id,
                 "end_date_placeholder_days": end_date_placeholder_days,
-                "members_field_id": members_field_id_for_mode if members else None,
+                "members_field_id": validated_members_field_id if members else None,
                 "member_usernames": url_to_members.get(url, set()),
             },
             headers=headers,
@@ -218,15 +218,19 @@ def _collect_url_member_usernames(directory: pathlib.Path, /) -> dict[str, set[s
         for value in info:
             if not isinstance(value, str):
                 continue
-            if value not in url_to_members:
-                url_to_members[value] = set()
-            url_to_members[value].add(username)
+            url_to_members.setdefault(value, set()).add(username)
 
     return url_to_members
 
 
 def _infer_username_from_data_path(*, directory: pathlib.Path, info_file_path: pathlib.Path) -> str:
-    """Infer a username from ``username-*`` path segments; fallback to directory name."""
+    """
+    Infer a username from the first ``username-*`` path segment for a data file.
+
+    If no non-empty ``username-*`` segment exists in the file path relative to ``directory``,
+    this falls back to ``directory.name``.
+
+    """
     relative_parts = info_file_path.relative_to(directory).parts
     for part in relative_parts:
         if part.startswith("username-"):
@@ -241,7 +245,22 @@ def _infer_username_from_data_path(*, directory: pathlib.Path, info_file_path: p
 
 
 def _merge_member_values(*, current_value: str | None, usernames: set[str]) -> str | None:
-    """Return a normalized comma-separated members value after merging usernames."""
+    """
+    Merge existing member text with username values into a deduplicated list.
+
+    Parameters
+    ----------
+    current_value : str or None
+        Existing comma-separated value currently stored in the project's Members field.
+    usernames : set[str]
+        Usernames inferred from the local history directory structure.
+
+    Returns
+    -------
+    str or None
+        Sorted comma-separated member names, or ``None`` if no non-empty values are present.
+
+    """
     values = {value.strip() for value in (current_value or "").split(",") if value.strip()}
     values.update({username.strip() for username in usernames if username.strip()})
     if not values:

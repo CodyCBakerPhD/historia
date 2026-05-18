@@ -111,7 +111,7 @@ def test_collect_unique_urls_mixed_formats(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.ai_generated
-def test_collect_url_member_usernames_uses_username_directory_paths(tmp_path: pathlib.Path) -> None:
+def test_collect_url_member_usernames_from_directory_paths(tmp_path: pathlib.Path) -> None:
     cody_dir = tmp_path / "username-cody"
     alex_dir = tmp_path / "username-alex"
     cody_dir.mkdir()
