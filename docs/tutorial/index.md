@@ -242,7 +242,7 @@ jobs:
     steps:
       - name: Restore repository cache
         id: repo-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.REPO_DIR }}
           key: repo-${{ runner.os }}-${{ github.repository }}-${{ hashFiles('.github/workflows/update.yml') }}
@@ -253,7 +253,7 @@ jobs:
         working-directory: ${{ env.REPO_DIR }}
         run: |
           git fetch origin main
-          git checkout main
+          git checkout -f main
           git reset --hard origin/main
           git clean -fd
 
@@ -267,13 +267,13 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Restore pip cache
         id: pip-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/pip
@@ -283,13 +283,15 @@ jobs:
 
       - name: Install historia
         if: steps.pip-cache.outputs.cache-hit != 'true'
-        run: python -m pip install --user "$HISTORIA_SPEC"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --user "$HISTORIA_SPEC"
 
       - name: Add user-local bin to PATH
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run update
-        run: historia data github update --directory ./work-history-data/history --username "$USERNAME" --recency 2
+        run: historia update github --directory ./work-history-data/history --username "$USERNAME" --recency 2
 
       - name: Upload new content
         working-directory: ${{ env.REPO_DIR }}
@@ -300,21 +302,22 @@ jobs:
 
       - name: Create compressed content
         working-directory: ${{ env.REPO_DIR }}
-        run: tar -czf content.tar.gz content/
+        run: tar -czf content.tar.gz ./history/
 
       - name: Push archive to dist branch
         working-directory: ${{ env.REPO_DIR }}
         run: |
+          git branch -D dist || true
           git checkout --orphan dist
           git rm -rf --cached .
           git add content.tar.gz
           git commit -m "update dist archive [skip ci]"
-          git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/$REPO_FULL_NAME.git HEAD:dist
+          git push --force https://x-access-token:${{ secrets.GH_PAT }}@github.com/$REPO_FULL_NAME.git HEAD:dist
 
       - name: Push to GitHub project
         run: |
           OWNER_PROJECT_URL="https://github.com/$REPO_OWNER_TYPE/$REPO_OWNER/projects/$PROJECT_NUMBER"
-          historia populate --directory ./work-history-data/history --project-url "$OWNER_PROJECT_URL"
+          historia project populate --directory ./work-history-data/history --url "$OWNER_PROJECT_URL"
           historia project update dates --url [project url]
 ```
 
