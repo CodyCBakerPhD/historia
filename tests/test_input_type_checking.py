@@ -86,6 +86,16 @@ def test_add_to_project_rejects_string_for_int_end_date_placeholder_days(tmp_pat
 
 
 @pytest.mark.ai_generated
+def test_add_to_project_rejects_non_mapping_extra_field_values(tmp_path: pathlib.Path) -> None:
+    with pytest.raises(beartype.roar.BeartypeCallHintParamViolation):
+        historia.project.add_to_project(
+            directory=tmp_path,
+            project_url="https://github.com/users/codycbakerphd/projects/1",
+            extra_field_values=["Member:Cody"],
+        )
+
+
+@pytest.mark.ai_generated
 def test_update_project_item_dates_rejects_non_string_url() -> None:
     with pytest.raises(beartype.roar.BeartypeCallHintParamViolation):
         historia.project.update_project_item_dates(project_url=12345)

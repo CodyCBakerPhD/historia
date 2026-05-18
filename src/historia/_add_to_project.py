@@ -46,6 +46,7 @@ def add_to_project(
     project_url: str,
     status: str | None = None,
     end_date_placeholder_days: int = 180,
+    extra_field_values: dict[str, str] | None = None,
 ) -> None:
     """
     Add all unique URLs from the derivatives directory to a GitHub Project (v2).
@@ -79,6 +80,9 @@ def add_to_project(
     end_date_placeholder_days : int, optional
         Number of days after the item's creation date to use as the placeholder end date
         when the item has not yet been closed. Default is 180 (approximately 6 months).
+    extra_field_values : dict[str, str] or None, optional
+        Additional project fields to set for each new item, provided as a mapping
+        from field name to desired value.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")
@@ -114,6 +118,9 @@ def add_to_project(
 
     # Exclude items already in the project
     new_urls = [url for url in all_urls if url not in existing_urls]
+    extra_project_fields = (
+        _get_project_extra_field_definitions(project_url=project_url, headers=headers) if extra_field_values else {}
+    )
 
     for url in tqdm.tqdm(iterable=new_urls, desc="Adding items to project", unit="items", dynamic_ncols=True):
         # Determine the item type, state, and dates from the URL
@@ -187,6 +194,15 @@ def add_to_project(
                 item_id=item_id,
                 field_id=end_date_field_id,
                 date=end_date,
+                headers=headers,
+            )
+
+        if extra_field_values is not None:
+            _apply_extra_field_values_for_item(
+                item_identifiers=(project_id, item_id),
+                project_url=project_url,
+                extra_field_values=extra_field_values,
+                extra_project_fields=extra_project_fields,
                 headers=headers,
             )
 
@@ -450,6 +466,112 @@ query GetItem($url: URI!) {
     return node_id, item_type, item_state, created_at, closed_at
 
 
+def _get_project_extra_field_definitions(
+    *,
+    project_url: str,
+    headers: dict[str, str],
+) -> dict[str, dict[str, str | dict[str, str]]]:
+    """Return project field metadata by field name for extra-field updates."""
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
+
+    if owner_type == "users":
+        query = """
+query GetProjectExtraFields($login: String!, $number: Int!) {
+    user(login: $login) {
+        projectV2(number: $number) {
+            fields(first: 50) {
+                nodes {
+                    ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        dataType
+                        options {
+                            id
+                            name
+                        }
+                    }
+                    ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+        variables = {"login": owner_login, "number": project_number}
+        data_path = ["data", "user", "projectV2"]
+    else:
+        query = """
+query GetProjectExtraFields($login: String!, $number: Int!) {
+    organization(login: $login) {
+        projectV2(number: $number) {
+            fields(first: 50) {
+                nodes {
+                    ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        dataType
+                        options {
+                            id
+                            name
+                        }
+                    }
+                    ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+        variables = {"login": owner_login, "number": project_number}
+        data_path = ["data", "organization", "projectV2"]
+
+    response = requests.post(
+        url="https://api.github.com/graphql",
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    result = _check_graphql_response(
+        response=response,
+        context=f"Failed to retrieve project field definitions for `{project_url}`.",
+    )
+
+    project_data = result
+    for key in data_path:
+        project_data = project_data[key]
+
+    field_definitions: dict[str, dict[str, str | dict[str, str]]] = {}
+    for field in project_data["fields"]["nodes"]:
+        if not field:
+            continue
+        field_name = field.get("name")
+        field_id = field.get("id")
+        data_type = field.get("dataType")
+        if not isinstance(field_name, str) or not isinstance(field_id, str) or not isinstance(data_type, str):
+            continue
+
+        definition: dict[str, str | dict[str, str]] = {"id": field_id, "data_type": data_type}
+        if data_type == "SINGLE_SELECT":
+            options: dict[str, str] = {}
+            for option in field.get("options", []):
+                option_name = option.get("name")
+                option_id = option.get("id")
+                if isinstance(option_name, str) and isinstance(option_id, str):
+                    options[option_name] = option_id
+            definition["options"] = options
+        field_definitions[field_name] = definition
+
+    return field_definitions
+
+
 def _add_item_to_project(*, project_id: str, content_id: str, headers: dict[str, str]) -> str | None:
     """
     Add an item to a GitHub Project v2 by its content node ID.
@@ -629,6 +751,179 @@ mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
             )
             return
         raise
+
+
+def _apply_extra_field_values_for_item(
+    *,
+    item_identifiers: tuple[str, str],
+    project_url: str,
+    extra_field_values: dict[str, str],
+    extra_project_fields: dict[str, dict[str, str | dict[str, str]]],
+    headers: dict[str, str],
+) -> None:
+    """Apply configured extra field values to a project item."""
+    project_id, item_id = item_identifiers
+    for field_name, field_value in extra_field_values.items():
+        field_definition = extra_project_fields.get(field_name)
+        if field_definition is None:
+            warnings.warn(
+                message=f"Field `{field_name}` not found in project `{project_url}`. Skipping extra field update.",
+                stacklevel=2,
+            )
+            continue
+        _set_item_extra_field_value(
+            project_id=project_id,
+            item_id=item_id,
+            field_definition=field_definition,
+            field_value=field_value,
+            headers=headers,
+        )
+
+
+def _set_item_extra_field_value(
+    *,
+    project_id: str,
+    item_id: str,
+    field_definition: dict[str, str | dict[str, str]],
+    field_value: str,
+    headers: dict[str, str],
+) -> None:
+    """Set an extra project field value on a project item."""
+    field_id = field_definition.get("id")
+    data_type = field_definition.get("data_type")
+    if not isinstance(field_id, str) or not isinstance(data_type, str):
+        return
+
+    if data_type == "SINGLE_SELECT":
+        raw_options = field_definition.get("options", {})
+        options = raw_options if isinstance(raw_options, dict) else {}
+        option_id = options.get(field_value)
+        if option_id is None:
+            warnings.warn(
+                message=f"Option `{field_value}` not found for single-select field `{field_id}`. Skipping update.",
+                stacklevel=2,
+            )
+            return
+        mutation = """
+mutation SetExtraSingleSelect($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+    updateProjectV2ItemFieldValue(
+        input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { singleSelectOptionId: $optionId }
+        }
+    ) {
+        projectV2Item {
+            id
+        }
+    }
+}
+"""
+        variables: dict[str, str | float] = {
+            "projectId": project_id,
+            "itemId": item_id,
+            "fieldId": field_id,
+            "optionId": option_id,
+        }
+    elif data_type == "TEXT":
+        mutation = """
+mutation SetExtraText($projectId: ID!, $itemId: ID!, $fieldId: ID!, $text: String!) {
+    updateProjectV2ItemFieldValue(
+        input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { text: $text }
+        }
+    ) {
+        projectV2Item {
+            id
+        }
+    }
+}
+"""
+        variables = {
+            "projectId": project_id,
+            "itemId": item_id,
+            "fieldId": field_id,
+            "text": field_value,
+        }
+    elif data_type == "DATE":
+        mutation = """
+mutation SetExtraDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
+    updateProjectV2ItemFieldValue(
+        input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { date: $date }
+        }
+    ) {
+        projectV2Item {
+            id
+        }
+    }
+}
+"""
+        variables = {
+            "projectId": project_id,
+            "itemId": item_id,
+            "fieldId": field_id,
+            "date": field_value,
+        }
+    elif data_type == "NUMBER":
+        try:
+            parsed_number = float(field_value)
+        except ValueError:
+            warnings.warn(
+                message=f"Invalid numeric value `{field_value}` for field `{field_id}`. Skipping update.",
+                stacklevel=2,
+            )
+            return
+        mutation = """
+mutation SetExtraNumber($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
+    updateProjectV2ItemFieldValue(
+        input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { number: $number }
+        }
+    ) {
+        projectV2Item {
+            id
+        }
+    }
+}
+"""
+        variables = {
+            "projectId": project_id,
+            "itemId": item_id,
+            "fieldId": field_id,
+            "number": parsed_number,
+        }
+    else:
+        warnings.warn(
+            message=f"Unsupported field type `{data_type}` for field `{field_id}`. Skipping update.",
+            stacklevel=2,
+        )
+        return
+
+    response = requests.post(
+        url="https://api.github.com/graphql",
+        json={"query": mutation, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    try:
+        _check_graphql_response(
+            response=response,
+            context=f"Failed to set extra field `{field_id}` for item `{item_id}` in project `{project_id}`.",
+        )
+    except RuntimeError:
+        if response.status_code != 403:
+            raise
 
 
 @beartype.beartype

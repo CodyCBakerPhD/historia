@@ -7,6 +7,30 @@ from . import data
 from .project import add_to_project, create_project_page, transition_status, update_project_item_dates
 
 
+def _parse_extra_field_values(extra_field_values: str | None, /) -> dict[str, str] | None:
+    """Parse ``Field:Value`` pairs from ``--extra`` into a mapping."""
+    if extra_field_values is None:
+        return None
+
+    parsed_values: dict[str, str] = {}
+    for pair in extra_field_values.split(","):
+        cleaned_pair = pair.strip()
+        if not cleaned_pair:
+            continue
+        if ":" not in cleaned_pair:
+            message = f"Invalid --extra entry `{cleaned_pair}`. Expected `Field:Value` format."
+            raise ValueError(message)
+        field_name, field_value = cleaned_pair.split(":", 1)
+        cleaned_field_name = field_name.strip()
+        cleaned_field_value = field_value.strip()
+        if not cleaned_field_name or not cleaned_field_value:
+            message = f"Invalid --extra entry `{cleaned_pair}`. Expected non-empty `Field:Value` parts."
+            raise ValueError(message)
+        parsed_values[cleaned_field_name] = cleaned_field_value
+
+    return parsed_values or None
+
+
 # historia
 @rich_click.group(name="historia")
 @rich_click.version_option(
@@ -127,19 +151,34 @@ def _historia_project_create_cli(*, owner: str, title: str) -> None:
         "when the item has not yet been closed. Default is 180 (approximately 6 months)."
     ),
 )
+@rich_click.option(
+    "--extra",
+    "extra_field_values",
+    type=str,
+    default=None,
+    required=False,
+    help=(
+        "Optional additional project field values to set for each new item, "
+        "formatted as comma-separated `Field:Value` pairs, "
+        "for example `Member:Cody,Type:RaisedIssue`."
+    ),
+)
 def _historia_project_populate_cli(
     *,
     directory: str,
     project_url: str,
     status: str | None,
     end_date_placeholder_days: int,
+    extra_field_values: str | None,
 ) -> None:
     try:
+        parsed_extra_field_values = _parse_extra_field_values(extra_field_values)
         add_to_project(
             directory=pathlib.Path(directory),
             project_url=project_url,
             status=status,
             end_date_placeholder_days=end_date_placeholder_days,
+            extra_field_values=parsed_extra_field_values,
         )
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))

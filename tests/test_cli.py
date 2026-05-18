@@ -174,18 +174,20 @@ def test_project_populate_command_invokes_add_to_project(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
 ) -> None:
-    called_args: dict[str, pathlib.Path | str | int | None] = {}
+    called_args: dict[str, pathlib.Path | str | int | dict[str, str] | None] = {}
 
     def _fake_add_to_project(
         directory: pathlib.Path,
         project_url: str,
         status: str | None,
         end_date_placeholder_days: int,
+        extra_field_values: dict[str, str] | None,
     ) -> None:
         called_args["directory"] = directory
         called_args["project_url"] = project_url
         called_args["status"] = status
         called_args["end_date_placeholder_days"] = end_date_placeholder_days
+        called_args["extra_field_values"] = extra_field_values
 
     monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
     runner = click.testing.CliRunner()
@@ -203,6 +205,8 @@ def test_project_populate_command_invokes_add_to_project(
             "In Progress",
             "--placeholder",
             "90",
+            "--extra",
+            "Member:Cody,Type:RaisedIssue",
         ],
     )
 
@@ -211,6 +215,7 @@ def test_project_populate_command_invokes_add_to_project(
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
     assert called_args["status"] == "In Progress"
     assert called_args["end_date_placeholder_days"] == 90
+    assert called_args["extra_field_values"] == {"Member": "Cody", "Type": "RaisedIssue"}
 
 
 @pytest.mark.ai_generated
@@ -341,7 +346,7 @@ def test_project_command_shows_error_on_exception(
     [
         (
             "populate",
-            ["--url", "--placeholder"],
+            ["--url", "--placeholder", "--extra"],
             ["--project-url", "--projecturl", "--end-date-placeholder-days", "--enddateplaceholderdays"],
         ),
         (

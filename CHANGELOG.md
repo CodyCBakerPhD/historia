@@ -6,6 +6,10 @@
 
 - Prevented the PyPI release workflow from publishing twice when a GitHub Release is created. Publishing a release pushes its tag, which was firing both the `push: tags` and `release: published` triggers simultaneously. Added an `if: github.event_name == 'release'` guard on the publish job so it only runs on the release event, while keeping both triggers for future compatibility. ([#116](https://github.com/CodyCBakerPhD/historia/pull/116))
 
+### 🚀 Enhancement
+
+- Added `--extra` support to `historia project populate` so additional project fields can be set when adding items, using comma-separated `Field:Value` pairs such as `Member:Cody,Type:RaisedIssue`. ([#117](https://github.com/CodyCBakerPhD/historia/pull/117))
+
 ## v0.10.2
 
 ### 🚀 Enhancement

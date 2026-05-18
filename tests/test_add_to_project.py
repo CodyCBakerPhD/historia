@@ -1058,6 +1058,130 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
 
 
 @pytest.mark.ai_generated
+def test_add_to_project_sets_extra_field_values(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """Extra field mappings are applied to each new item when the fields exist on the project."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    issue_url = "https://github.com/owner/repo/issues/12"
+    (tmp_path / "urls.json").write_text(json.dumps([issue_url]))
+
+    project_info_response = unittest.mock.MagicMock()
+    project_info_response.status_code = 200
+    project_info_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_project",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_status",
+                                "name": "Status",
+                                "options": [{"id": "opt_todo", "name": "Todo"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    project_extra_fields_response = unittest.mock.MagicMock()
+    project_extra_fields_response.status_code = 200
+    project_extra_fields_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTF_member",
+                                "name": "Member",
+                                "dataType": "TEXT",
+                            },
+                            {
+                                "id": "PVTSSF_type",
+                                "name": "Type",
+                                "dataType": "SINGLE_SELECT",
+                                "options": [{"id": "opt_raised_issue", "name": "RaisedIssue"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    empty_project_response = unittest.mock.MagicMock()
+    empty_project_response.status_code = 200
+    empty_project_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                },
+            },
+        },
+    }
+
+    item_info_response = unittest.mock.MagicMock()
+    item_info_response.status_code = 200
+    item_info_response.json.return_value = {
+        "data": {
+            "resource": {
+                "id": "ISSUE_node_id",
+                "state": "OPEN",
+                "createdAt": "2023-03-05T08:00:00Z",
+                "closedAt": None,
+            },
+        },
+    }
+
+    add_item_response = unittest.mock.MagicMock()
+    add_item_response.status_code = 200
+    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
+
+    set_field_response = unittest.mock.MagicMock()
+    set_field_response.status_code = 200
+    set_field_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
+    }
+
+    response_sequence = [
+        project_info_response,
+        empty_project_response,
+        project_extra_fields_response,
+        item_info_response,
+        add_item_response,
+        set_field_response,  # set_status
+        set_field_response,  # set_member_text
+        set_field_response,  # set_type_single_select
+    ]
+
+    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
+        historia.project.add_to_project(
+            directory=tmp_path,
+            project_url="https://github.com/users/testuser/projects/1",
+            extra_field_values={"Member": "Cody", "Type": "RaisedIssue"},
+        )
+
+    assert mock_post.call_count == 8
+
+    member_call = mock_post.call_args_list[6]
+    member_variables = member_call.kwargs["json"]["variables"]
+    assert member_variables["fieldId"] == "PVTF_member"
+    assert member_variables["text"] == "Cody"
+
+    type_call = mock_post.call_args_list[7]
+    type_variables = type_call.kwargs["json"]["variables"]
+    assert type_variables["fieldId"] == "PVTSSF_type"
+    assert type_variables["optionId"] == "opt_raised_issue"
+
+
+@pytest.mark.ai_generated
 def test_update_project_item_dates_raises_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
