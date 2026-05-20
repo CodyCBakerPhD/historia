@@ -36,6 +36,7 @@ jobs:
 
   NotifyOnFailure:
     runs-on: ubuntu-latest
+    permissions: {}
     needs: [LinkChecker]
     if: ${{ always() && needs.LinkChecker.result == 'failure' }}
     steps:
