@@ -151,10 +151,10 @@ def _fetch_info_for_date_graphql(
     if status == 403:
         hit_rate_limit = True
         try:
-            result: dict[str, typing.Any] | str = response.json()
+            rate_limit_result = response.json()
         except requests.exceptions.JSONDecodeError:
-            result = response.text.strip() or "<empty response body>"
-        message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}"
+            rate_limit_result = response.text.strip() or "<empty response body>"
+        message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {rate_limit_result}"
         warnings.warn(message=message, stacklevel=2)
         return [], hit_rate_limit
     try:
