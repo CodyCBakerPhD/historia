@@ -5,6 +5,7 @@ import unittest.mock
 import warnings as _warnings_module
 
 import pytest
+import requests
 
 import historia
 from historia._add_to_project import (
@@ -259,6 +260,17 @@ def test_check_graphql_response_raises_on_errors_key() -> None:
 
     with pytest.raises(RuntimeError):
         _check_graphql_response(response=mock_response, context="test errors")
+
+
+@pytest.mark.ai_generated
+def test_check_graphql_response_raises_on_non_json_response() -> None:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 500
+    mock_response.text = ""
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "<empty>", 0)
+
+    with pytest.raises(RuntimeError, match="not valid JSON"):
+        _check_graphql_response(response=mock_response, context="test non-json")
 
 
 @pytest.mark.ai_generated

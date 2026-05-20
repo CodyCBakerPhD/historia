@@ -148,16 +148,35 @@ def _fetch_info_for_date_graphql(
         timeout=30,
     )
     status = response.status_code
-    result = response.json()
-
-    message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}"
-    hit_rate_limit = False
     if status == 403:
         hit_rate_limit = True
+        try:
+            rate_limit_result = response.json()
+        except requests.exceptions.JSONDecodeError:
+            rate_limit_result = response.text.strip() or "<empty response body>"
+        message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {rate_limit_result}"
         warnings.warn(message=message, stacklevel=2)
         return [], hit_rate_limit
-    if "errors" in result or status != 200:
+    try:
+        result = response.json()
+    except requests.exceptions.JSONDecodeError as exception:
+        response_body = response.text.strip() or "<empty response body>"
+        message = (
+            f"GitHub GraphQL API query `{query}` failed!\n"
+            f"Status code {status}: GitHub returned a non-JSON response body: {response_body}"
+        )
+        raise RuntimeError(message) from exception
+    message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}"
+    if status != 200:
         raise RuntimeError(message)
-
-    unpacked_result = [node["node"]["url"] for node in result["data"]["search"]["edges"]]
-    return unpacked_result, hit_rate_limit
+    try:
+        if result.get("errors") is not None:
+            raise RuntimeError(message)
+        unpacked_result = [node["node"]["url"] for node in result["data"]["search"]["edges"]]
+    except (AttributeError, KeyError, TypeError) as exception:
+        unexpected_payload_message = (
+            f"GitHub GraphQL API query `{query}` failed!\n"
+            f"Status code {status}: GitHub returned an unexpected JSON payload: {result}"
+        )
+        raise RuntimeError(unexpected_payload_message) from exception
+    return unpacked_result, False
