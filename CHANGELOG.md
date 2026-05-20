@@ -5,6 +5,7 @@
 ### 🐛 Bug Fix
 
 - Fixed `containers/Dockerfile.latest` builds. ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
+- Handled empty or non-JSON GitHub GraphQL responses by raising clear runtime errors instead of crashing with `JSONDecodeError` during `historia update github` and project GraphQL operations. ([#144](https://github.com/CodyCBakerPhD/historia/pull/144))
 
 ### 📝 Documentation
 
