@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+
+
+## v0.10.6
+
 ### 🐛 Bug Fix
 
 - Fixed `containers/Dockerfile.latest` builds. ([#136](https://github.com/CodyCBakerPhD/historia/pull/136))
