@@ -1,6 +1,7 @@
 import unittest.mock
 
 import pytest
+import requests
 
 import historia
 
@@ -54,6 +55,25 @@ def test_fetch_info_graphql_warns_on_rate_limit(monkeypatch: pytest.MonkeyPatch)
 
     assert test_info == []
     assert hit_rate_limit is True
+
+
+@pytest.mark.ai_generated
+def test_fetch_info_graphql_raises_on_non_json_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 502
+    mock_response.text = ""
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        pytest.raises(RuntimeError, match="non-JSON response body"),
+    ):
+        historia.data.github.fetch_info_for_date(
+            info_type="issues_opened",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
 
 
 @pytest.mark.ai_generated

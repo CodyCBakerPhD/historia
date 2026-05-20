@@ -148,14 +148,27 @@ def _fetch_info_for_date_graphql(
         timeout=30,
     )
     status = response.status_code
-    result = response.json()
+    if status == 403:
+        hit_rate_limit = True
+        try:
+            result: dict[str, typing.Any] | str = response.json()
+        except requests.exceptions.JSONDecodeError:
+            result = response.text.strip() or "<empty response body>"
+        message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}"
+        warnings.warn(message=message, stacklevel=2)
+        return [], hit_rate_limit
+    try:
+        result = typing.cast("dict[str, typing.Any]", response.json())
+    except requests.exceptions.JSONDecodeError as exception:
+        response_body = response.text.strip() or "<empty response body>"
+        message = (
+            f"GitHub GraphQL API query `{query}` failed!\n"
+            f"Status code {status}: GitHub returned a non-JSON response body: {response_body}"
+        )
+        raise RuntimeError(message) from exception
 
     message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}"
     hit_rate_limit = False
-    if status == 403:
-        hit_rate_limit = True
-        warnings.warn(message=message, stacklevel=2)
-        return [], hit_rate_limit
     if "errors" in result or status != 200:
         raise RuntimeError(message)
 

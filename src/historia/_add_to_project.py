@@ -467,7 +467,12 @@ def _check_graphql_response(*, response: requests.Response, context: str) -> dic
 
     """
     status = response.status_code
-    result = response.json()
+    try:
+        result = response.json()
+    except requests.exceptions.JSONDecodeError as exception:
+        response_body = response.text.strip() or "<empty response body>"
+        message = f"{context}\nStatus code {status}: GitHub GraphQL API response was not valid JSON: {response_body}"
+        raise RuntimeError(message) from exception
     message = f"{context}\nStatus code {status}: {result}"
     if status == 403:
         warnings.warn(message=message, stacklevel=3)
