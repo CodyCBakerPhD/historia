@@ -267,7 +267,7 @@ def test_check_graphql_response_raises_on_non_json_response() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 500
     mock_response.text = ""
-    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "<empty>", 0)
 
     with pytest.raises(RuntimeError, match="not valid JSON"):
         _check_graphql_response(response=mock_response, context="test non-json")

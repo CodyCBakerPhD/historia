@@ -63,7 +63,7 @@ def test_fetch_info_graphql_raises_on_non_json_response(monkeypatch: pytest.Monk
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 502
     mock_response.text = ""
-    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "<empty>", 0)
 
     with (
         unittest.mock.patch("requests.post", return_value=mock_response),

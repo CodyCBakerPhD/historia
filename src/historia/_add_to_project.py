@@ -477,7 +477,16 @@ def _check_graphql_response(*, response: requests.Response, context: str) -> dic
     if status == 403:
         warnings.warn(message=message, stacklevel=3)
         raise RuntimeError(message)
-    if "errors" in result or status != 200:
+    if status != 200:
+        raise RuntimeError(message)
+    try:
+        errors = result.get("errors")
+    except AttributeError as exception:
+        unexpected_payload_message = (
+            f"{context}\nStatus code {status}: GitHub GraphQL API returned unexpected JSON payload: {result}"
+        )
+        raise RuntimeError(unexpected_payload_message) from exception
+    if errors is not None:
         raise RuntimeError(message)
     return result
 
