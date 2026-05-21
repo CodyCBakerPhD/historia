@@ -6,6 +6,11 @@
 
 - Updated `historia project populate` to build the `Adding items to project` iteration from only URLs that are not already in the target project, while preserving member-field merge updates for existing items. ([#147](https://github.com/CodyCBakerPhD/historia/pull/147))
 
+### 🏠 Internal
+
+- Split `Testing (PR)` into separate non-remote and remote jobs. This isolates live service failures in their own check block. ([#149](https://github.com/CodyCBakerPhD/historia/pull/149))
+
+
 
 ## v0.10.6
 
