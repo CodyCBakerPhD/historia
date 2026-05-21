@@ -4,7 +4,7 @@
 
 ### 🏠 Internal
 
-- Split `Testing (PR)` into separate non-remote and remote jobs so live service failures are isolated in their own check block. ([#149](https://github.com/CodyCBakerPhD/historia/pull/149))
+- Split `Testing (PR)` into separate non-remote and remote jobs. This isolates live service failures in their own check block. ([#149](https://github.com/CodyCBakerPhD/historia/pull/149))
 
 
 
