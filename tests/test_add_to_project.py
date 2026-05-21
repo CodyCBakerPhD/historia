@@ -1813,7 +1813,12 @@ def test_add_to_project_skips_items_already_in_project(
         )
 
     assert mock_tqdm.call_args is not None
-    assert set(mock_tqdm.call_args.kwargs["iterable"]) == {new_pr_url}
+    tqdm_kwargs = mock_tqdm.call_args.kwargs
+    tqdm_iterable = tqdm_kwargs["iterable"] if "iterable" in tqdm_kwargs else mock_tqdm.call_args.args[0]
+    assert set(tqdm_iterable) == {new_pr_url}
+    assert tqdm_kwargs["desc"] == "Adding items to project"
+    assert tqdm_kwargs["unit"] == "items"
+    assert tqdm_kwargs["dynamic_ncols"] is True
 
     # 5 calls: project_info, list_urls, item_info (for new_pr only), add_item, set_status
     assert mock_post.call_count == 5
