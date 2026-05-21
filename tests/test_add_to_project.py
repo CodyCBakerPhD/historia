@@ -1812,6 +1812,7 @@ def test_add_to_project_skips_items_already_in_project(
             project_url=project_url,
         )
 
+    assert mock_tqdm.call_args is not None
     assert set(mock_tqdm.call_args.kwargs["iterable"]) == {new_pr_url}
 
     # 5 calls: project_info, list_urls, item_info (for new_pr only), add_item, set_status
