@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.10.6"
+version = "0.10.7"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]

@@ -140,23 +140,26 @@ def add_to_project(
             )
         }
 
-    for url in tqdm.tqdm(iterable=all_urls, desc="Adding items to project", unit="items", dynamic_ncols=True):
-        if url in existing_items:
-            if assign_members:
-                existing_item_info = existing_items[url]
-                updated_members = _merge_member_values(
-                    current_value=existing_item_info["members"],
-                    usernames=url_to_members.get(url, set()),
+    if assign_members:
+        for url in all_urls:
+            if url not in existing_items:
+                continue
+            existing_item_info = existing_items[url]
+            updated_members = _merge_member_values(
+                current_value=existing_item_info["members"],
+                usernames=url_to_members.get(url, set()),
+            )
+            if updated_members is not None:
+                _set_item_text(
+                    project_id=project_id,
+                    item_id=typing.cast("str", existing_item_info["item_id"]),
+                    field_id=typing.cast("str", validated_members_field_id),
+                    text=updated_members,
+                    headers=headers,
                 )
-                if updated_members is not None:
-                    _set_item_text(
-                        project_id=project_id,
-                        item_id=typing.cast("str", existing_item_info["item_id"]),
-                        field_id=typing.cast("str", validated_members_field_id),
-                        text=updated_members,
-                        headers=headers,
-                    )
-            continue
+
+    urls_to_add = [url for url in all_urls if url not in existing_items]
+    for url in tqdm.tqdm(iterable=urls_to_add, desc="Adding items to project", unit="items", dynamic_ncols=True):
 
         # Determine the item type, state, and dates from the URL
         item_info = _get_item_info(url=url, headers=headers)
