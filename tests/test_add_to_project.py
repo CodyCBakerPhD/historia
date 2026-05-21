@@ -1713,7 +1713,19 @@ def test_list_project_items_with_member_values_returns_items() -> None:
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+@pytest.mark.parametrize(
+    ("owner_key", "project_url"),
+    [
+        ("user", "https://github.com/users/testuser/projects/1"),
+        ("organization", "https://github.com/orgs/testorg/projects/1"),
+    ],
+)
+def test_add_to_project_skips_items_already_in_project(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    owner_key: str,
+    project_url: str,
+) -> None:
     """Items whose URLs are already in the project are excluded and not re-added."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -1725,7 +1737,7 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
     project_info_response.status_code = 200
     project_info_response.json.return_value = {
         "data": {
-            "user": {
+            owner_key: {
                 "projectV2": {
                     "id": "PVT_project",
                     "fields": {
@@ -1746,7 +1758,7 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
     list_urls_response.status_code = 200
     list_urls_response.json.return_value = {
         "data": {
-            "user": {
+            owner_key: {
                 "projectV2": {
                     "items": {
                         "nodes": [
@@ -1791,11 +1803,16 @@ def test_add_to_project_skips_items_already_in_project(monkeypatch: pytest.Monke
         set_status_response,
     ]
 
-    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
+    with (
+        unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post,
+        unittest.mock.patch("tqdm.tqdm", side_effect=lambda iterable, **_: list(iterable)) as mock_tqdm,
+    ):
         historia.project.add_to_project(
             directory=tmp_path,
-            project_url="https://github.com/users/testuser/projects/1",
+            project_url=project_url,
         )
+
+    assert set(mock_tqdm.call_args.kwargs["iterable"]) == {new_pr_url}
 
     # 5 calls: project_info, list_urls, item_info (for new_pr only), add_item, set_status
     assert mock_post.call_count == 5

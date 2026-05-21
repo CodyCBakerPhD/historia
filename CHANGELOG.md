@@ -2,6 +2,9 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
+
+- Updated `historia project populate` to build the `Adding items to project` iteration from only URLs that are not already in the target project, while preserving member-field merge updates for existing items. ([#N](https://github.com/CodyCBakerPhD/historia/pull/N))
 
 
 ## v0.10.6
