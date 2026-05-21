@@ -9,3 +9,13 @@ jobs:
       contents: read
     uses: ./.github/workflows/testing.yml
     secrets: inherit
+    with:
+      marks: "not remote"
+
+  TestingRemote:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/testing.yml
+    secrets: inherit
+    with:
+      marks: remote
