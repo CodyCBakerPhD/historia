@@ -2092,6 +2092,7 @@ def test_members_mode_skips_unchanged_member_updates(
         )
 
     assert mock_post.call_count == 2
+    assert all("updateProjectV2ItemFieldValue" not in call.kwargs["json"]["query"] for call in mock_post.call_args_list)
 
 
 @pytest.mark.ai_generated
