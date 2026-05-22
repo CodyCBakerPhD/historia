@@ -151,11 +151,11 @@ def add_to_project(
                 usernames=url_to_members.get(url, set()),
             )
             if updated_members is not None:
-                baseline_current_members = _merge_member_values(
+                normalized_current_members = _merge_member_values(
                     current_value=current_members,
                     usernames=set(),
                 )
-                if updated_members == baseline_current_members:
+                if updated_members == normalized_current_members:
                     continue
                 _set_item_text(
                     project_id=project_id,

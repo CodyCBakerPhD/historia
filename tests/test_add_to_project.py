@@ -2018,7 +2018,7 @@ def test_add_to_project_members_mode_updates_existing_item(
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_members_mode_skips_existing_item_update_when_members_unchanged(
+def test_members_mode_skips_unchanged_member_updates(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
 ) -> None:
