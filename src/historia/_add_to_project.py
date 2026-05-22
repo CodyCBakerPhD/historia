@@ -145,11 +145,15 @@ def add_to_project(
             if url not in existing_items:
                 continue
             existing_item_info = existing_items[url]
+            current_members = existing_item_info["members"]
             updated_members = _merge_member_values(
-                current_value=existing_item_info["members"],
+                current_value=current_members,
                 usernames=url_to_members.get(url, set()),
             )
             if updated_members is not None:
+                normalized_current_members = _normalize_member_value(current_members)
+                if updated_members == normalized_current_members:
+                    continue
                 _set_item_text(
                     project_id=project_id,
                     item_id=typing.cast("str", existing_item_info["item_id"]),
@@ -318,6 +322,11 @@ def _merge_member_values(*, current_value: str | None, usernames: set[str]) -> s
     if not values:
         return None
     return ",".join(sorted(values))
+
+
+def _normalize_member_value(current_value: str | None, /) -> str | None:
+    """Return a normalized comma-separated member string for a current field value."""
+    return _merge_member_values(current_value=current_value, usernames=set())
 
 
 def _set_initial_project_item_fields(
