@@ -1,8 +1,8 @@
-# Historia
-
 <p align="center">
   <img alt="Historia logo" src="https://raw.githubusercontent.com/CodyCBakerPhD/historia/main/docs/assets/historia-logo.png" width="320">
 </p>
+
+# Historia
 
 <p align="center">
   <a href="https://pypi.org/project/historia/"><img alt="PyPI latest release version" src="https://img.shields.io/pypi/v/historia.svg"></a>
