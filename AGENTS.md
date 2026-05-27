@@ -19,3 +19,4 @@
 - Prefer assigning return values to named locals before `return` when this improves readability and debugger breakpoint placement
 - Never expose private names (those with a leading underscore) in any module's `__all__`
 - Do not add compatibility aliases when renaming functions. Update all call sites to the canonical name instead
+- Favor defining one-word names for CLI flags, then map those onto longer more explicit keyword arguments at the API level
