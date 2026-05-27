@@ -7,6 +7,7 @@ from . import data
 from .project import (
     add_to_project,
     create_project_page,
+    get_project_closing_workflows,
     transition_status,
     update_project_item_dates,
     update_project_item_members,
@@ -253,6 +254,17 @@ def _historia_project_update_members_cli(*, project_url: str) -> None:
 )
 def _historia_project_transition_cli(*, project_url: str, current_status: str, new_status: str) -> None:
     try:
+        closing_workflows = get_project_closing_workflows(project_url)
+        if closing_workflows:
+            workflow_list = ", ".join(f"'{w}'" for w in closing_workflows)
+            warning = (
+                f"\nWarning: This project has the following enabled workflow(s) that may close "
+                f"the underlying GitHub items when their status is modified: {workflow_list}.\n"
+                f"Proceeding with this transition may cause unintended closures.\n"
+            )
+            rich_click.echo(rich_click.style(warning, fg="yellow"))
+            if not rich_click.confirm("Do you want to proceed with the transition?"):
+                raise SystemExit(0)
         transition_status(project_url=project_url, current_status=current_status, new_status=new_status)
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))

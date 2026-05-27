@@ -281,6 +281,7 @@ def test_project_transition_command_invokes_transition_status(monkeypatch: pytes
         called_args["new_status"] = new_status
 
     monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
+    monkeypatch.setattr(historia._cli, "get_project_closing_workflows", lambda _url: [])
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
@@ -301,6 +302,80 @@ def test_project_transition_command_invokes_transition_status(monkeypatch: pytes
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
     assert called_args["current_status"] == "DONE"
     assert called_args["new_status"] == "History"
+
+
+@pytest.mark.ai_generated
+def test_project_transition_warns_and_prompts_when_closing_workflows_exist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: list[bool] = []
+
+    def _fake_transition_status(project_url: str, current_status: str, new_status: str) -> None:
+        called.append(True)
+
+    monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
+    monkeypatch.setattr(
+        historia._cli,
+        "get_project_closing_workflows",
+        lambda _url: ["Auto-close issue"],
+    )
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "transition",
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "In Progress",
+            "--new",
+            "Done",
+        ],
+        input="y\n",
+    )
+
+    assert result.exit_code == 0
+    assert called == [True]
+    assert "Auto-close issue" in result.output
+    assert "Warning" in result.output
+
+
+@pytest.mark.ai_generated
+def test_project_transition_aborts_when_closing_workflows_exist_and_user_declines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: list[bool] = []
+
+    def _fake_transition_status(project_url: str, current_status: str, new_status: str) -> None:
+        called.append(True)
+
+    monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
+    monkeypatch.setattr(
+        historia._cli,
+        "get_project_closing_workflows",
+        lambda _url: ["Auto-close issue"],
+    )
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "transition",
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "In Progress",
+            "--new",
+            "Done",
+        ],
+        input="n\n",
+    )
+
+    assert result.exit_code == 0
+    assert called == []
 
 
 @pytest.mark.ai_generated
@@ -366,6 +441,8 @@ def test_project_command_shows_error_on_exception(
         raise exception_type(error_message)
 
     monkeypatch.setattr(historia._cli, attr_name, _fake)
+    if attr_name == "transition_status":
+        monkeypatch.setattr(historia._cli, "get_project_closing_workflows", lambda _url: [])
     runner = click.testing.CliRunner()
 
     result = runner.invoke(historia.historia_cli, make_cli_args(tmp_path))

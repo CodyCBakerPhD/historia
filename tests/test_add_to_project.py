@@ -14,6 +14,7 @@ from historia._add_to_project import (
     _collect_unique_urls,
     _collect_url_member_usernames,
     _get_item_info,
+    _get_project_closing_workflows,
     _get_project_info,
     _list_project_item_content_urls,
     _list_project_items_with_dates,
@@ -26,6 +27,7 @@ from historia._add_to_project import (
     _set_item_date,
     _set_item_status,
     _set_item_text,
+    get_project_closing_workflows,
     transition_status,
     update_project_item_dates,
     update_project_item_members,
@@ -2248,3 +2250,132 @@ def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyP
         mock_post.call_args_list[3].kwargs["json"]["variables"]["itemId"],
     }
     assert moved_item_ids == {"PVTI_progress_1", "PVTI_progress_2"}
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("workflow_nodes", "expected"),
+    [
+        (
+            [{"name": "Auto-close issue", "state": "ENABLED"}],
+            ["Auto-close issue"],
+        ),
+        (
+            [{"name": "Auto-close issue", "state": "DISABLED"}],
+            [],
+        ),
+        (
+            [
+                {"name": "Auto-close issue", "state": "ENABLED"},
+                {"name": "Item closed", "state": "ENABLED"},
+            ],
+            ["Auto-close issue"],
+        ),
+        (
+            [],
+            [],
+        ),
+        (
+            [{"name": "Auto-close pull request", "state": "ENABLED"}],
+            ["Auto-close pull request"],
+        ),
+        (
+            [{"name": "Item added to project", "state": "ENABLED"}],
+            [],
+        ),
+    ],
+)
+def test_get_project_closing_workflows_filters_correctly(
+    monkeypatch: pytest.MonkeyPatch,
+    workflow_nodes: list[dict],
+    expected: list[str],
+) -> None:
+    response = unittest.mock.MagicMock()
+    response.status_code = 200
+    response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "workflows": {
+                        "nodes": workflow_nodes,
+                    },
+                },
+            },
+        },
+    }
+
+    with unittest.mock.patch("requests.post", return_value=response):
+        result = _get_project_closing_workflows(
+            project_url="https://github.com/users/testuser/projects/1",
+            headers={"Authorization": "token fake"},
+        )
+
+    assert result == expected
+
+
+@pytest.mark.ai_generated
+def test_get_project_closing_workflows_org_project(monkeypatch: pytest.MonkeyPatch) -> None:
+    response = unittest.mock.MagicMock()
+    response.status_code = 200
+    response.json.return_value = {
+        "data": {
+            "organization": {
+                "projectV2": {
+                    "workflows": {
+                        "nodes": [
+                            {"name": "Auto-close issue", "state": "ENABLED"},
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    with unittest.mock.patch("requests.post", return_value=response) as mock_post:
+        result = _get_project_closing_workflows(
+            project_url="https://github.com/orgs/myorg/projects/2",
+            headers={"Authorization": "token fake"},
+        )
+
+    assert result == ["Auto-close issue"]
+    query_sent = mock_post.call_args.kwargs["json"]["query"]
+    assert "organization" in query_sent
+
+
+@pytest.mark.ai_generated
+def test_get_project_closing_workflows_public_raises_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+    with pytest.raises(ValueError, match="GITHUB_TOKEN"):
+        get_project_closing_workflows("https://github.com/users/testuser/projects/1")
+
+
+@pytest.mark.ai_generated
+def test_get_project_closing_workflows_public_returns_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    response = unittest.mock.MagicMock()
+    response.status_code = 200
+    response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "workflows": {
+                        "nodes": [
+                            {"name": "Auto-close issue", "state": "ENABLED"},
+                            {"name": "Item closed", "state": "ENABLED"},
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    with unittest.mock.patch("requests.post", return_value=response):
+        result = get_project_closing_workflows("https://github.com/users/testuser/projects/1")
+
+    assert result == ["Auto-close issue"]

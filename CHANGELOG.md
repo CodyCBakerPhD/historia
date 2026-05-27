@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- Added a confirmation prompt to `historia project transition` when the project has enabled workflows that auto-close the underlying GitHub item (e.g., ``Auto-close issue``) on status change. ([#153](https://github.com/CodyCBakerPhD/historia/pull/153))
+
 
 
 ## v0.10.8
