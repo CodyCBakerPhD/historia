@@ -2257,17 +2257,17 @@ def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyP
     ("workflow_nodes", "expected"),
     [
         (
-            [{"name": "Auto-close issue", "state": "ENABLED"}],
+            [{"name": "Auto-close issue", "enabled": True}],
             ["Auto-close issue"],
         ),
         (
-            [{"name": "Auto-close issue", "state": "DISABLED"}],
+            [{"name": "Auto-close issue", "enabled": False}],
             [],
         ),
         (
             [
-                {"name": "Auto-close issue", "state": "ENABLED"},
-                {"name": "Item closed", "state": "ENABLED"},
+                {"name": "Auto-close issue", "enabled": True},
+                {"name": "Item closed", "enabled": True},
             ],
             ["Auto-close issue"],
         ),
@@ -2276,17 +2276,16 @@ def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyP
             [],
         ),
         (
-            [{"name": "Auto-close pull request", "state": "ENABLED"}],
+            [{"name": "Auto-close pull request", "enabled": True}],
             ["Auto-close pull request"],
         ),
         (
-            [{"name": "Item added to project", "state": "ENABLED"}],
+            [{"name": "Item added to project", "enabled": True}],
             [],
         ),
     ],
 )
 def test_get_project_closing_workflows_filters_correctly(
-    monkeypatch: pytest.MonkeyPatch,
     workflow_nodes: list[dict],
     expected: list[str],
 ) -> None:
@@ -2314,7 +2313,7 @@ def test_get_project_closing_workflows_filters_correctly(
 
 
 @pytest.mark.ai_generated
-def test_get_project_closing_workflows_org_project(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_project_closing_workflows_org_project() -> None:
     response = unittest.mock.MagicMock()
     response.status_code = 200
     response.json.return_value = {
@@ -2323,7 +2322,7 @@ def test_get_project_closing_workflows_org_project(monkeypatch: pytest.MonkeyPat
                 "projectV2": {
                     "workflows": {
                         "nodes": [
-                            {"name": "Auto-close issue", "state": "ENABLED"},
+                            {"name": "Auto-close issue", "enabled": True},
                         ],
                     },
                 },
@@ -2366,8 +2365,8 @@ def test_get_project_closing_workflows_public_returns_list(
                 "projectV2": {
                     "workflows": {
                         "nodes": [
-                            {"name": "Auto-close issue", "state": "ENABLED"},
-                            {"name": "Item closed", "state": "ENABLED"},
+                            {"name": "Auto-close issue", "enabled": True},
+                            {"name": "Item closed", "enabled": True},
                         ],
                     },
                 },

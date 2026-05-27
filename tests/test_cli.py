@@ -310,7 +310,7 @@ def test_project_transition_warns_and_prompts_when_closing_workflows_exist(
 ) -> None:
     called: list[bool] = []
 
-    def _fake_transition_status(project_url: str, current_status: str, new_status: str) -> None:
+    def _fake_transition_status(**_kwargs: object) -> None:
         called.append(True)
 
     monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
@@ -348,7 +348,7 @@ def test_project_transition_aborts_when_closing_workflows_exist_and_user_decline
 ) -> None:
     called: list[bool] = []
 
-    def _fake_transition_status(project_url: str, current_status: str, new_status: str) -> None:
+    def _fake_transition_status(**_kwargs: object) -> None:
         called.append(True)
 
     monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)

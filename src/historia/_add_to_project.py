@@ -1720,7 +1720,7 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
             workflows(first: 20) {
                 nodes {
                     name
-                    state
+                    enabled
                 }
             }
         }
@@ -1736,7 +1736,7 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
             workflows(first: 20) {
                 nodes {
                     name
-                    state
+                    enabled
                 }
             }
         }
@@ -1764,13 +1764,11 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
 
     workflow_nodes = project_data.get("workflows", {}).get("nodes", [])
 
-    closing_workflows = [
+    return [
         node["name"]
         for node in workflow_nodes
-        if node and node.get("state") == "ENABLED" and "auto-close" in node.get("name", "").lower()
+        if node and node.get("enabled") is True and "auto-close" in node.get("name", "").lower()
     ]
-
-    return closing_workflows
 
 
 @beartype.beartype
@@ -1803,9 +1801,7 @@ def get_project_closing_workflows(project_url: str, /) -> list[str]:
         raise ValueError(message)
 
     headers = {"Authorization": f"token {github_token}"}
-    closing_workflows = _get_project_closing_workflows(project_url=project_url, headers=headers)
-
-    return closing_workflows
+    return _get_project_closing_workflows(project_url=project_url, headers=headers)
 
 
 @beartype.beartype
