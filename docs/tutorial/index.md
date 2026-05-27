@@ -180,7 +180,7 @@ For example, archive completed work by transitioning items from `Done` to `Histo
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project transition --url $PROJECT_URL --status Done --new History
+historia project transition --url $PROJECT_URL --status Done --new History --yes
 ```
 
 - `--status` — the current status of items to match.

@@ -1689,6 +1689,121 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
     return all_items
 
 
+def _get_project_closing_workflows(
+    *,
+    project_url: str,
+    headers: dict[str, str],
+) -> list[str]:
+    """
+    Return the names of enabled project workflows that close the underlying GitHub items when status changes.
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2.
+    headers : dict[str, str]
+        HTTP headers including the Authorization token.
+
+    Returns
+    -------
+    list[str]
+        Names of enabled workflows whose names indicate they close underlying items.
+
+    """
+    owner_type, owner_login, project_number = _parse_project_url(project_url)
+
+    if owner_type == "users":
+        query = """
+query GetProjectWorkflows($login: String!, $number: Int!) {
+    user(login: $login) {
+        projectV2(number: $number) {
+            workflows(first: 20) {
+                nodes {
+                    name
+                    enabled
+                }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "user", "projectV2"]
+    else:
+        query = """
+query GetProjectWorkflows($login: String!, $number: Int!) {
+    organization(login: $login) {
+        projectV2(number: $number) {
+            workflows(first: 20) {
+                nodes {
+                    name
+                    enabled
+                }
+            }
+        }
+    }
+}
+"""
+        data_path = ["data", "organization", "projectV2"]
+
+    variables = {"login": owner_login, "number": project_number}
+
+    response = requests.post(
+        url="https://api.github.com/graphql",
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    result = _check_graphql_response(
+        response=response,
+        context=f"Failed to retrieve workflows for `{project_url}`.",
+    )
+
+    project_data = result
+    for key in data_path:
+        project_data = project_data[key]
+
+    workflow_nodes = project_data.get("workflows", {}).get("nodes", [])
+
+    return [
+        node["name"]
+        for node in workflow_nodes
+        if node and node.get("enabled") is True and "auto-close" in node.get("name", "").lower()
+    ]
+
+
+@beartype.beartype
+def get_project_closing_workflows(project_url: str, /) -> list[str]:
+    """
+    Return the names of enabled project workflows that close the underlying GitHub items when status changes.
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2,
+        e.g., ``https://github.com/users/username/projects/1``
+        or ``https://github.com/orgs/orgname/projects/1``.
+
+    Returns
+    -------
+    list[str]
+        Names of enabled workflows whose names indicate they close underlying items (e.g., ``Auto-close issue``).
+        Returns an empty list when no such workflows are enabled.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set.
+
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token is None:
+        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
+        raise ValueError(message)
+
+    headers = {"Authorization": f"token {github_token}"}
+    return _get_project_closing_workflows(project_url=project_url, headers=headers)
+
+
 @beartype.beartype
 def transition_status(*, project_url: str, current_status: str, new_status: str) -> None:
     """
