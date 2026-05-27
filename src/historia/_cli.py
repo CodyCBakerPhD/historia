@@ -258,7 +258,10 @@ def _historia_project_update_members_cli(*, project_url: str) -> None:
     is_flag=True,
     default=False,
     required=False,
-    help="Skip the confirmation prompt when closing workflows are detected (for headless/non-interactive use).",
+    help=(
+        "Automatically proceed with transition when closing workflows are detected, "
+        "skipping the confirmation prompt (for headless/non-interactive use)."
+    ),
 )
 def _historia_project_transition_cli(
     *,

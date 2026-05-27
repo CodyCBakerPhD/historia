@@ -418,6 +418,39 @@ def test_project_transition_auto_accepts_when_yes_flag_and_closing_workflows_exi
 
 
 @pytest.mark.ai_generated
+def test_project_transition_yes_flag_has_no_effect_when_no_closing_workflows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: list[bool] = []
+
+    def _fake_transition_status(**_kwargs: object) -> None:
+        called.append(True)
+
+    monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
+    monkeypatch.setattr(historia._cli, "get_project_closing_workflows", lambda _url: [])
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "transition",
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "In Progress",
+            "--new",
+            "Done",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called == [True]
+    assert "Warning" not in result.output
+
+
+@pytest.mark.ai_generated
 @pytest.mark.parametrize("exception_type", [ValueError, RuntimeError])
 @pytest.mark.parametrize(
     ("attr_name", "make_cli_args"),
