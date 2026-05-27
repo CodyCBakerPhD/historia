@@ -252,7 +252,21 @@ def _historia_project_update_members_cli(*, project_url: str) -> None:
     required=True,
     help="The status to assign to matching items.",
 )
-def _historia_project_transition_cli(*, project_url: str, current_status: str, new_status: str) -> None:
+@rich_click.option(
+    "--yes",
+    "auto_accept",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Skip the confirmation prompt when closing workflows are detected (for headless/non-interactive use).",
+)
+def _historia_project_transition_cli(
+    *,
+    project_url: str,
+    current_status: str,
+    new_status: str,
+    auto_accept: bool,
+) -> None:
     try:
         closing_workflows = get_project_closing_workflows(project_url)
         if closing_workflows:
@@ -263,7 +277,7 @@ def _historia_project_transition_cli(*, project_url: str, current_status: str, n
                 f"Proceeding with this transition may cause unintended closures.\n"
             )
             rich_click.echo(rich_click.style(warning, fg="yellow"))
-            if not rich_click.confirm("Do you want to proceed with the transition?"):
+            if not auto_accept and not rich_click.confirm("Do you want to proceed with the transition?"):
                 raise SystemExit(0)
         transition_status(project_url=project_url, current_status=current_status, new_status=new_status)
     except (ValueError, RuntimeError) as exception:
