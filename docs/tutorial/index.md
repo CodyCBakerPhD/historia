@@ -122,7 +122,7 @@ Once data has been collected, populate the project board with the activity items
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project populate --directory ./history --url $PROJECT_URL
+historia project populate --directory ./history --url $PROJECT_URL --yes
 ```
 
 Optional flags:
