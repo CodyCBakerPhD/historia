@@ -143,13 +143,25 @@ def _historia_project_create_cli(*, owner: str, title: str) -> None:
     required=False,
     help="Assign the custom 'Members' field based on username directories.",
 )
-def _historia_project_populate_cli(
+@rich_click.option(
+    "--yes",
+    "auto_accept",
+    is_flag=True,
+    default=False,
+    required=False,
+    help=(
+        "Automatically proceed with populate when closing workflows are detected, "
+        "skipping the confirmation prompt (for headless/non-interactive use)."
+    ),
+)
+def _historia_project_populate_cli(  # noqa: PLR0913
     *,
     directory: str,
     project_url: str,
     status: str | None,
     end_date_placeholder_days: int,
     assign_members: bool,
+    auto_accept: bool,
 ) -> None:
     try:
         closing_workflows = get_project_closing_workflows(project_url)
@@ -163,7 +175,7 @@ def _historia_project_populate_cli(
                 f"to source issues and pull requests.\n"
             )
             rich_click.echo(rich_click.style(warning, fg="yellow"))
-            if not rich_click.confirm("Do you want to proceed with populating this project?"):
+            if not auto_accept and not rich_click.confirm("Do you want to proceed with populating this project?"):
                 raise SystemExit(0)
         add_to_project(
             directory=pathlib.Path(directory),

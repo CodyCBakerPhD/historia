@@ -296,6 +296,46 @@ def test_project_populate_aborts_when_closing_workflows_exist_and_user_declines(
 
 
 @pytest.mark.ai_generated
+def test_project_populate_auto_accepts_when_yes_flag_and_closing_workflows_exist(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    called: list[bool] = []
+
+    def _fake_add_to_project(**_kwargs: object) -> None:
+        called.append(True)
+
+    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(
+        historia._cli,
+        "get_project_closing_workflows",
+        lambda _url: ["Auto-close issue"],
+    )
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "populate",
+            "--directory",
+            str(tmp_path),
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "Done",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called == [True]
+    assert "Warning" in result.output
+    assert "Auto-close issue" in result.output
+    assert "Do you want to proceed with populating this project?" not in result.output
+
+
+@pytest.mark.ai_generated
 def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, str | int] = {}
 
@@ -607,7 +647,7 @@ def test_project_command_shows_error_on_exception(
     [
         (
             "populate",
-            ["--url", "--placeholder", "--members"],
+            ["--url", "--placeholder", "--members", "--yes"],
             ["--project-url", "--projecturl", "--end-date-placeholder-days", "--enddateplaceholderdays"],
         ),
         (
