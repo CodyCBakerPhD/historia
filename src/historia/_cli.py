@@ -152,6 +152,19 @@ def _historia_project_populate_cli(
     assign_members: bool,
 ) -> None:
     try:
+        closing_workflows = get_project_closing_workflows(project_url)
+        if closing_workflows:
+            workflow_list = ", ".join(f"'{w}'" for w in closing_workflows)
+            status_description = f"the specified status '{status}'" if status is not None else "derived status values"
+            warning = (
+                f"\nWarning: This project has the following enabled workflow(s) that may close "
+                f"the underlying GitHub items when their status is modified: {workflow_list}.\n"
+                f"Populating this project with {status_description} may cause unintended changes "
+                f"to source issues and pull requests.\n"
+            )
+            rich_click.echo(rich_click.style(warning, fg="yellow"))
+            if not rich_click.confirm("Do you want to proceed with populating this project?"):
+                raise SystemExit(0)
         add_to_project(
             directory=pathlib.Path(directory),
             project_url=project_url,
