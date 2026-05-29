@@ -190,6 +190,7 @@ def test_project_populate_command_invokes_add_to_project(
         called_args["assign_members"] = assign_members
 
     monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(historia._cli, "get_project_closing_workflows", lambda _url: [])
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
@@ -215,6 +216,123 @@ def test_project_populate_command_invokes_add_to_project(
     assert called_args["status"] == "In Progress"
     assert called_args["end_date_placeholder_days"] == 90
     assert called_args["assign_members"] is True
+
+
+@pytest.mark.ai_generated
+def test_project_populate_warns_and_prompts_when_closing_workflows_exist(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    called: list[bool] = []
+
+    def _fake_add_to_project(**_kwargs: object) -> None:
+        called.append(True)
+
+    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(
+        historia._cli,
+        "get_project_closing_workflows",
+        lambda _url: ["Auto-close issue"],
+    )
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "populate",
+            "--directory",
+            str(tmp_path),
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "Done",
+        ],
+        input="y\n",
+    )
+
+    assert result.exit_code == 0
+    assert called == [True]
+    assert "Auto-close issue" in result.output
+    assert "Warning" in result.output
+    assert "specified status 'Done'" in result.output
+
+
+@pytest.mark.ai_generated
+def test_project_populate_aborts_when_closing_workflows_exist_and_user_declines(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    called: list[bool] = []
+
+    def _fake_add_to_project(**_kwargs: object) -> None:
+        called.append(True)
+
+    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(
+        historia._cli,
+        "get_project_closing_workflows",
+        lambda _url: ["Auto-close issue"],
+    )
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "populate",
+            "--directory",
+            str(tmp_path),
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "Done",
+        ],
+        input="n\n",
+    )
+
+    assert result.exit_code == 0
+    assert called == []
+
+
+@pytest.mark.ai_generated
+def test_project_populate_auto_accepts_when_yes_flag_and_closing_workflows_exist(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    called: list[bool] = []
+
+    def _fake_add_to_project(**_kwargs: object) -> None:
+        called.append(True)
+
+    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(
+        historia._cli,
+        "get_project_closing_workflows",
+        lambda _url: ["Auto-close issue"],
+    )
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "populate",
+            "--directory",
+            str(tmp_path),
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--status",
+            "Done",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called == [True]
+    assert "Warning" in result.output
+    assert "Auto-close issue" in result.output
+    assert "Do you want to proceed with populating this project?" not in result.output
 
 
 @pytest.mark.ai_generated
@@ -513,7 +631,7 @@ def test_project_command_shows_error_on_exception(
         raise exception_type(error_message)
 
     monkeypatch.setattr(historia._cli, attr_name, _fake)
-    if attr_name == "transition_status":
+    if attr_name in {"add_to_project", "transition_status"}:
         monkeypatch.setattr(historia._cli, "get_project_closing_workflows", lambda _url: [])
     runner = click.testing.CliRunner()
 
@@ -529,7 +647,7 @@ def test_project_command_shows_error_on_exception(
     [
         (
             "populate",
-            ["--url", "--placeholder", "--members"],
+            ["--url", "--placeholder", "--members", "--yes"],
             ["--project-url", "--projecturl", "--end-date-placeholder-days", "--enddateplaceholderdays"],
         ),
         (
