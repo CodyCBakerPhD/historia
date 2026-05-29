@@ -175,7 +175,7 @@ def _historia_project_populate_cli(  # noqa: PLR0913
                 f"to source issues and pull requests.\n"
             )
             rich_click.echo(rich_click.style(warning, fg="yellow"))
-            if not auto_accept and not rich_click.confirm("Do you want to proceed with populating this project?"):
+            if not (auto_accept or rich_click.confirm("Do you want to proceed with populating this project?")):
                 raise SystemExit(0)
         add_to_project(
             directory=pathlib.Path(directory),
