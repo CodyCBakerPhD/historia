@@ -48,5 +48,5 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: "CI Failure: Historia Daily Link Checker"
           to: cody.c.baker.phd@gmail.com
-          from: Historia
+          from: Historia <historia@users.noreply.github.com>
           body: "The daily link checker workflow failed, please check status at https://github.com/CodyCBakerPhD/historia/actions/workflows/daily_link_checker.yml"
