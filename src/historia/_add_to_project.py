@@ -1181,7 +1181,7 @@ query GetItemUrls($login: String!, $number: Int!, $after: String) {
         )
         result = _check_graphql_response(
             response=response,
-            context=f"Failed to list project item URLs for project {project_number}.",
+            context=f"Failed to list project item URLs for project {project_number} (owner_type={owner_type!r}, owner_login={owner_login!r}).",
         )
         items_data = result
         for key in data_path:
