@@ -32,7 +32,7 @@ jobs:
           echo "tag=${release_tag}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout release tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.release.outputs.tag }}
 
@@ -84,7 +84,7 @@ jobs:
     needs: [release-image]
     if: ${{ always() && needs.release-image.result == 'failure' }}
     steps:
-      - uses: dawidd6/action-send-mail@v17
+      - uses: dawidd6/action-send-mail@v18
         with:
           server_address: smtp.gmail.com
           server_port: 465
