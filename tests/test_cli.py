@@ -642,6 +642,124 @@ def test_project_command_shows_error_on_exception(
 
 
 @pytest.mark.ai_generated
+def test_setup_automation_happy_path_creates_project_and_writes_workflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: dict[str, object] = {}
+
+    def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
+        return "octocat"
+
+    monkeypatch.setattr(historia._cli, "get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(
+        historia._cli,
+        "create_data_repository",
+        lambda **_kwargs: {
+            "full_name": "octocat/work-history-data",
+            "html_url": "https://github.com/octocat/work-history-data",
+            "default_branch": "main",
+            "created": "true",
+        },
+    )
+    monkeypatch.setattr(
+        historia._cli,
+        "create_project_page",
+        lambda *, owner, title: {"id": "PVT_1", "url": "https://github.com/users/octocat/projects/1"},  # noqa: ARG005
+    )
+
+    def _fake_upsert_workflow_file(**kwargs: object) -> None:
+        calls["workflow_content"] = kwargs["content"]
+        calls["workflow_branch"] = kwargs["branch"]
+
+    def _fake_upsert_repository_secret(**kwargs: object) -> None:
+        calls["secret_name"] = kwargs["secret_name"]
+        calls["secret_value"] = kwargs["secret_value"]
+
+    monkeypatch.setattr(historia._cli, "upsert_workflow_file", _fake_upsert_workflow_file)
+    monkeypatch.setattr(historia._cli, "upsert_repository_secret", _fake_upsert_repository_secret)
+
+    runner = click.testing.CliRunner()
+    result = runner.invoke(
+        historia.historia_cli,
+        ["setup", "automation"],
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\n",
+    )
+
+    assert result.exit_code == 0
+    assert "https://github.com/octocat/work-history-data" in result.output
+    assert "https://github.com/users/octocat/projects/1" in result.output
+    assert calls["workflow_branch"] == "main"
+    assert calls["secret_name"] == "GH_PAT"
+    assert calls["secret_value"] == "fake-token"
+    assert "PROJECT_NUMBER: 1" in calls["workflow_content"]
+    assert "USERNAME: octocat" in calls["workflow_content"]
+
+
+@pytest.mark.ai_generated
+def test_setup_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, object] = {}
+
+    def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
+        return "octocat"
+
+    monkeypatch.setattr(historia._cli, "get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(
+        historia._cli,
+        "create_data_repository",
+        lambda **_kwargs: {
+            "full_name": "octocat/work-history-data",
+            "html_url": "https://github.com/octocat/work-history-data",
+            "default_branch": "main",
+            "created": "false",
+        },
+    )
+
+    def _fail_if_called(**_kwargs: object) -> None:
+        error_message = "create_project_page should not be called when reusing an existing project"
+        raise AssertionError(error_message)
+
+    monkeypatch.setattr(historia._cli, "create_project_page", _fail_if_called)
+    monkeypatch.setattr(historia._cli, "upsert_workflow_file", lambda **kwargs: calls.update(kwargs))
+    monkeypatch.setattr(historia._cli, "upsert_repository_secret", lambda **_kwargs: None)
+
+    runner = click.testing.CliRunner()
+    result = runner.invoke(
+        historia.historia_cli,
+        ["setup", "automation"],
+        input="fake-token\n\n\n\nn\nn\nhttps://github.com/users/octocat/projects/5\n\n\n\n\n\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Reusing existing repository" in result.output
+    assert "PROJECT_NUMBER: 5" in calls["content"]
+
+
+@pytest.mark.ai_generated
+def test_setup_automation_shows_error_and_exits_on_bad_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise_runtime_error(*, token: str) -> str:  # noqa: ARG001
+        error_message = "Could not authenticate with the provided GitHub token."
+        raise RuntimeError(error_message)
+
+    monkeypatch.setattr(historia._cli, "get_authenticated_username", _raise_runtime_error)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(historia.historia_cli, ["setup", "automation"], input="bad-token\n")
+
+    assert result.exit_code == 1
+    assert "Could not authenticate" in result.output
+
+
+@pytest.mark.ai_generated
+def test_setup_automation_help_lists_command() -> None:
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(historia.historia_cli, ["setup", "--help"])
+
+    assert result.exit_code == 0
+    assert "automation" in result.output
+
+
+@pytest.mark.ai_generated
 @pytest.mark.parametrize(
     ("command", "expected_flags", "removed_flags"),
     [

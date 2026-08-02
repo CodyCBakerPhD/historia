@@ -28,6 +28,7 @@ dependencies = [
     "requests",
     "tqdm",
     "rich-click",
+    "pynacl",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -55,6 +56,7 @@ dev = [
     "pre-commit",
     "ipython",
     "sybil",
+    "pyyaml",
 ]
 docs = [
     "sphinx>=8.0",
@@ -129,6 +131,8 @@ fixable = ["ALL"]
 # predictable temp paths in fixtures (S108)
 "tests/**/*.py" = [
     "S101",
+    "S105",
+    "S106",
     "S108",
     "SLF001",
     "D100",

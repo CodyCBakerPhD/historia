@@ -205,6 +205,19 @@ historia.project.transition_status(
 
 The steps above can be wired together into a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs on a CRON schedule (and on demand via `workflow_dispatch`), keeping a data repository and its associated project board up to date without manual intervention.
 
+:::{tip}
+**Set this up interactively**
+
+Wiring this up by hand means creating a repository, creating (or reusing) a project board, encrypting and uploading a repository secret, and hand-editing the YAML below with the right values — easy to get wrong.
+
+<!-- skip: next -->
+```bash
+historia setup automation
+```
+
+This wizard prompts for everything it needs (including your GitHub personal access token, which is never echoed back) and then does all of the above for you: it creates or reuses the data repository, optionally creates the project board from Step 2, uploads your token as an encrypted repository secret, and commits a fully filled-in `.github/workflows/update.yml` like the one below. It's the same result as `work-history-data`, without the manual setup.
+:::
+
 The example below assumes:
 
 - A dedicated repository (e.g. `work-history-data`) hosts the collected JSON files on its `main` branch.
