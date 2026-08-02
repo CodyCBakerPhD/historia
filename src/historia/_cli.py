@@ -328,14 +328,6 @@ def _historia_setup_cli() -> None:
     pass
 
 
-def _create_project_or_raise(*, owner: str, title: str) -> dict[str, str]:
-    project = create_project_page(owner=owner, title=title)
-    if not project:
-        message = "Project creation failed due to rate limiting. Please try again later."
-        raise RuntimeError(message)
-    return project
-
-
 # historia setup automation
 @_historia_setup_cli.command(name="automation")
 def _historia_setup_automation_cli() -> None:
@@ -377,7 +369,10 @@ def _historia_setup_automation_cli() -> None:
 
         if rich_click.confirm("Create a new GitHub Project board?", default=True):
             title = rich_click.prompt("Project title", default="Work History")
-            project = _create_project_or_raise(owner=owner, title=title)
+            project = create_project_page(owner=owner, title=title)
+            if not project:
+                message = "Project creation failed due to rate limiting. Please try again later."
+                raise RuntimeError(message)  # noqa: TRY301
             project_url = project["url"]
             rich_click.echo(rich_click.style(f"Created project: {project_url}", fg="green"))
         else:

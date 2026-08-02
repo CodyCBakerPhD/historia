@@ -175,7 +175,7 @@ def _tutorial_teardown(namespace: dict[str, Any]) -> None:
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
-        if item.path.as_posix().endswith("docs/tutorial/index.md"):
+        if item.path.suffix == ".md" and item.path.parent.name == "tutorial":
             item.add_marker(pytest.mark.remote)
 
 
