@@ -28,6 +28,7 @@ _RENDER_KWARGS = {
 }
 
 _REPOSITORY_PAYLOAD = {
+    "name": "work-history-data",
     "full_name": "octocat/work-history-data",
     "html_url": "https://github.com/octocat/work-history-data",
     "default_branch": "main",
@@ -338,6 +339,44 @@ def test_create_data_repository_reuses_existing_repository() -> None:
     assert repository["default_branch"] == "main"
     mock_get.assert_called_once()
     mock_post.assert_not_called()
+
+
+@pytest.mark.ai_generated
+def test_create_data_repository_creates_fresh_when_name_was_redirected() -> None:
+    """
+    Regression test for a renamed-repo redirect being mistaken for a name match.
+
+    GitHub redirects lookups of a renamed repo's old name to its current one (still HTTP 200), so a
+    naive "200 means it exists" check would silently reuse the wrong (renamed) repository -- as happened
+    when `work-history-data` had been renamed to `work-history-data-prev` and a lookup for
+    `work-history-data` came back 200 with the `-prev` repo's info instead of 404.
+    """
+    redirected = _mock_response(
+        200,
+        {
+            "name": "work-history-data-prev",
+            "full_name": "octocat/work-history-data-prev",
+            "html_url": "https://github.com/octocat/work-history-data-prev",
+            "default_branch": "main",
+        },
+    )
+    created = _mock_response(201, _REPOSITORY_PAYLOAD)
+
+    with (
+        unittest.mock.patch("requests.get", return_value=redirected),
+        unittest.mock.patch("requests.post", return_value=created) as mock_post,
+    ):
+        repository = _create_data_repository(
+            owner="octocat",
+            repository_name="work-history-data",
+            token="fake-token",
+            private=False,
+            authenticated_username="octocat",
+        )
+
+    assert repository["created"] == "true"
+    assert repository["full_name"] == "octocat/work-history-data"
+    mock_post.assert_called_once()
 
 
 @pytest.mark.ai_generated

@@ -317,12 +317,16 @@ def _create_data_repository(
     existing = requests.get(url=f"{_GITHUB_API_URL}/repos/{owner}/{repository_name}", headers=headers, timeout=30)
     if existing.status_code == 200:
         info = existing.json()
-        return {
-            "full_name": info["full_name"],
-            "html_url": info["html_url"],
-            "default_branch": info["default_branch"],
-            "created": "false",
-        }
+        # GitHub silently redirects lookups of a renamed repository's old name to its current
+        # one, so a 200 here doesn't guarantee `repository_name` still exists; only treat this
+        # as a match (and thus safe to reuse) if the returned repo's name is exactly what we asked for.
+        if info["name"].lower() == repository_name.lower():
+            return {
+                "full_name": info["full_name"],
+                "html_url": info["html_url"],
+                "default_branch": info["default_branch"],
+                "created": "false",
+            }
 
     payload = {"name": repository_name, "private": private, "auto_init": True}
     creation_url = (
