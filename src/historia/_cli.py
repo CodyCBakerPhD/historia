@@ -366,7 +366,7 @@ def _historia_setup_automation_cli() -> None:
         project_title = rich_click.prompt("Project title", default="Work History")
         project_public = rich_click.confirm("Should the project board be public?", default=False)
     else:
-        project_url = rich_click.prompt("URL of the existing GitHub Project (e.g. from Step 2)")
+        project_url = rich_click.prompt("URL of the existing GitHub Project (e.g., from Step 2 of the tutorial)")
 
     secret_name = rich_click.prompt("Name for the repository secret that will hold the token", default="GH_PAT")
     recency_days = rich_click.prompt(
