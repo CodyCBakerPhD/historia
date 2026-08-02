@@ -1,3 +1,5 @@
+# ruff: noqa: S106 -- fixtures pass literal placeholder tokens/secrets as `token`/`secret_*`
+# keyword args to match the signatures under test; none of these are real credentials.
 import base64
 import unittest.mock
 
@@ -5,7 +7,7 @@ import nacl.public
 import pytest
 import yaml
 
-from historia._setup_automation import (
+from historia.setup import (
     create_data_repository,
     get_authenticated_username,
     render_workflow_yaml,

@@ -7,3 +7,4 @@ API reference
 
    historia.github
    historia.project
+   historia.setup

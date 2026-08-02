@@ -131,8 +131,6 @@ fixable = ["ALL"]
 # predictable temp paths in fixtures (S108)
 "tests/**/*.py" = [
     "S101",
-    "S105",
-    "S106",
     "S108",
     "SLF001",
     "D100",

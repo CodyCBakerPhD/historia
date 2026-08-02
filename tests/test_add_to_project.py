@@ -8,7 +8,7 @@ import pytest
 import requests
 
 import historia
-from historia._add_to_project import (
+from historia.project._add_to_project import (
     _add_item_to_project,
     _check_graphql_response,
     _collect_unique_urls,
@@ -190,18 +190,18 @@ def test_add_to_project_processes_latest_version_when_multiple_exist(
         return set()
 
     monkeypatch.setattr(
-        "historia._add_to_project._get_project_info",
+        "historia.project._add_to_project._get_project_info",
         _mock_get_project_info,
     )
     monkeypatch.setattr(
-        "historia._add_to_project._list_project_item_content_urls",
+        "historia.project._add_to_project._list_project_item_content_urls",
         _mock_list_project_item_content_urls,
     )
 
     def _mock_get_item_info(*, url: str, headers: dict[str, str]) -> None:  # noqa: ARG001
         seen_urls.append(url)
 
-    monkeypatch.setattr("historia._add_to_project._get_item_info", _mock_get_item_info)
+    monkeypatch.setattr("historia.project._add_to_project._get_item_info", _mock_get_item_info)
 
     with pytest.warns(
         UserWarning,

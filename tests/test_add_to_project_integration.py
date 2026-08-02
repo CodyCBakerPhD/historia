@@ -8,7 +8,7 @@ import pytest
 import requests
 
 import historia
-from historia._add_to_project import _get_project_info
+from historia.project._add_to_project import _get_project_info
 
 _TEST_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/5"
 _KNOWN_CLOSED_PR_URL = "https://github.com/CodyCBakerPhD/work-history-data/pull/1"

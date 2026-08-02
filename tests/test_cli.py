@@ -1,3 +1,4 @@
+# ruff: noqa: S105 -- assertions compare against literal placeholder secrets, not real credentials
 import importlib.metadata
 import pathlib
 from collections.abc import Callable

@@ -5,14 +5,6 @@ import pathlib
 import rich_click
 
 from . import data
-from ._add_to_project import _parse_project_url
-from ._setup_automation import (
-    create_data_repository,
-    get_authenticated_username,
-    render_workflow_yaml,
-    upsert_repository_secret,
-    upsert_workflow_file,
-)
 from .project import (
     add_to_project,
     create_project_page,
@@ -20,6 +12,14 @@ from .project import (
     transition_status,
     update_project_item_dates,
     update_project_item_members,
+)
+from .project._add_to_project import _parse_project_url
+from .setup import (
+    create_data_repository,
+    get_authenticated_username,
+    render_workflow_yaml,
+    upsert_repository_secret,
+    upsert_workflow_file,
 )
 
 
