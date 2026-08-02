@@ -82,8 +82,15 @@ def _historia_project_cli() -> None:
 @_historia_project_cli.command(name="create")
 @rich_click.option("--owner", type=str, required=True, help="GitHub user or organization login to own the project.")
 @rich_click.option("--title", type=str, required=True, help="Title of the new GitHub Project.")
-def _historia_project_create_cli(*, owner: str, title: str) -> None:
-    project = create_project_page(owner=owner, title=title)
+@rich_click.option(
+    "--public",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Make the project publicly visible. Projects are created private by default.",
+)
+def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> None:
+    project = create_project_page(owner=owner, title=title, public=public)
     if project:
         message = f"Project created successfully!\nID: {project['id']}\nURL: {project['url']}"
         rich_click.echo(rich_click.style(message, fg="green"))
@@ -354,8 +361,10 @@ def _historia_setup_automation_cli() -> None:
 
     project_title: str | None = None
     project_url: str | None = None
+    project_public = False
     if rich_click.confirm("Create a new GitHub Project board?", default=True):
         project_title = rich_click.prompt("Project title", default="Work History")
+        project_public = rich_click.confirm("Should the project board be public?", default=False)
     else:
         project_url = rich_click.prompt("URL of the existing GitHub Project (e.g. from Step 2)")
 
@@ -382,6 +391,7 @@ def _historia_setup_automation_cli() -> None:
             private=private,
             project_title=project_title,
             project_url=project_url,
+            project_public=project_public,
             secret_name=secret_name,
             recency_days=recency_days,
             python_version=python_version,

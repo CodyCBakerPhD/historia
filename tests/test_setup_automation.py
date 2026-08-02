@@ -91,6 +91,8 @@ def test_provision_automation_rejects_neither_project_title_nor_url() -> None:
 
 @pytest.mark.ai_generated
 def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatch) -> None:
+    create_project_calls: dict[str, object] = {}
+
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -99,10 +101,12 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
         "historia.setup._automation._create_data_repository",
         lambda **_kwargs: {**_REPOSITORY_PAYLOAD, "created": "true"},
     )
-    monkeypatch.setattr(
-        "historia.setup._automation.create_project_page",
-        lambda *, owner, title: {"id": "PVT_1", "url": "https://github.com/users/octocat/projects/1"},  # noqa: ARG005
-    )
+
+    def _fake_create_project_page(*, owner: str, title: str, public: bool) -> dict[str, str]:  # noqa: ARG001
+        create_project_calls["public"] = public
+        return {"id": "PVT_1", "url": "https://github.com/users/octocat/projects/1"}
+
+    monkeypatch.setattr("historia.setup._automation.create_project_page", _fake_create_project_page)
     upserted_workflow: dict[str, object] = {}
     monkeypatch.setattr(
         "historia.setup._automation._upsert_workflow_file",
@@ -133,6 +137,46 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
     workflow_content = upserted_workflow["content"]
     assert isinstance(workflow_content, str)
     assert "PROJECT_NUMBER: 1" in workflow_content
+    assert create_project_calls["public"] is False
+
+
+@pytest.mark.ai_generated
+def test_provision_automation_passes_project_public_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    create_project_calls: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        "historia.setup._automation._get_authenticated_username",
+        lambda *, token: "octocat",  # noqa: ARG005
+    )
+    monkeypatch.setattr(
+        "historia.setup._automation._create_data_repository",
+        lambda **_kwargs: {**_REPOSITORY_PAYLOAD, "created": "true"},
+    )
+    monkeypatch.setattr("historia.setup._automation._upsert_workflow_file", lambda **_kwargs: None)
+    monkeypatch.setattr("historia.setup._automation._upsert_repository_secret", lambda **_kwargs: None)
+
+    def _fake_create_project_page(*, owner: str, title: str, public: bool) -> dict[str, str]:  # noqa: ARG001
+        create_project_calls["public"] = public
+        return {"id": "PVT_1", "url": "https://github.com/users/octocat/projects/1"}
+
+    monkeypatch.setattr("historia.setup._automation.create_project_page", _fake_create_project_page)
+
+    provision_automation(
+        token="fake-token",
+        username="octocat",
+        owner="octocat",
+        repository_name="work-history-data",
+        private=False,
+        secret_name="GH_PAT",
+        recency_days=2,
+        python_version="3.13",
+        historia_spec="historia==1.2.3",
+        cron_schedule="0 0 * * *",
+        project_title="Work History",
+        project_public=True,
+    )
+
+    assert create_project_calls["public"] is True
 
 
 @pytest.mark.ai_generated
@@ -146,7 +190,7 @@ def test_provision_automation_reuses_existing_project(monkeypatch: pytest.Monkey
         lambda **_kwargs: {**_REPOSITORY_PAYLOAD, "created": "false"},
     )
 
-    def _fail_if_called(*, owner: str, title: str) -> None:  # noqa: ARG001
+    def _fail_if_called(*, owner: str, title: str, public: bool) -> None:  # noqa: ARG001
         error_message = "create_project_page should not be called when reusing an existing project"
         raise AssertionError(error_message)
 
@@ -191,7 +235,7 @@ def test_provision_automation_raises_when_project_creation_rate_limited(monkeypa
     )
     monkeypatch.setattr(
         "historia.setup._automation.create_project_page",
-        lambda *, owner, title: {},  # noqa: ARG005
+        lambda *, owner, title, public: {},  # noqa: ARG005
     )
 
     with pytest.raises(RuntimeError, match="rate limiting"):

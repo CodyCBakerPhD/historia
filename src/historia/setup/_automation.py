@@ -137,6 +137,7 @@ def provision_automation(  # noqa: PLR0913
     cron_schedule: str,
     project_title: str | None = None,
     project_url: str | None = None,
+    project_public: bool = False,
 ) -> dict[str, str]:
     """
     Provision the CRON-based GitHub Action described in Step 6 of the tutorial end to end.
@@ -171,6 +172,9 @@ def provision_automation(  # noqa: PLR0913
     project_url : str, optional
         URL of an existing GitHub Project board to reuse. Exactly one of `project_title` or `project_url`
         must be given.
+    project_public : bool, default: False
+        Whether a newly created project board (via `project_title`) should be publicly visible.
+        Ignored when reusing an existing project via `project_url`.
 
     Returns
     -------
@@ -195,7 +199,7 @@ def provision_automation(  # noqa: PLR0913
     )
 
     if project_title is not None:
-        project = create_project_page(owner=owner, title=project_title)
+        project = create_project_page(owner=owner, title=project_title, public=project_public)
         if not project:
             message = "Project creation failed due to rate limiting. Please try again later."
             raise RuntimeError(message)

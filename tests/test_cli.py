@@ -132,11 +132,12 @@ def test_data_update_help_commands(command: str, expected_present: bool) -> None
 
 @pytest.mark.ai_generated
 def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) -> None:
-    called_args: dict[str, str] = {}
+    called_args: dict[str, str | bool] = {}
 
-    def _fake_create(owner: str, title: str) -> dict[str, str]:
+    def _fake_create(owner: str, title: str, public: bool) -> dict[str, str]:
         called_args["owner"] = owner
         called_args["title"] = title
+        called_args["public"] = public
         return {"id": "PVT_123", "url": "https://github.com/users/octocat/projects/1"}
 
     monkeypatch.setattr(historia._cli, "create_project_page", _fake_create)
@@ -150,12 +151,33 @@ def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) 
     assert result.exit_code == 0
     assert called_args["owner"] == "octocat"
     assert called_args["title"] == "Work Board"
+    assert called_args["public"] is False
     assert "Project created successfully!" in result.output
 
 
 @pytest.mark.ai_generated
+def test_project_create_command_passes_public_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    called_args: dict[str, object] = {}
+
+    def _fake_create(owner: str, title: str, public: bool) -> dict[str, str]:  # noqa: ARG001
+        called_args["public"] = public
+        return {"id": "PVT_123", "url": "https://github.com/users/octocat/projects/1"}
+
+    monkeypatch.setattr(historia._cli, "create_project_page", _fake_create)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        ["project", "create", "--owner", "octocat", "--title", "Work Board", "--public"],
+    )
+
+    assert result.exit_code == 0
+    assert called_args["public"] is True
+
+
+@pytest.mark.ai_generated
 def test_project_create_command_shows_failure_message_when_none_returned(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _fake_create(owner: str, title: str) -> None:
+    def _fake_create(owner: str, title: str, public: bool) -> None:
         pass
 
     monkeypatch.setattr(historia._cli, "create_project_page", _fake_create)
@@ -667,7 +689,7 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
     result = runner.invoke(
         historia.historia_cli,
         ["setup", "automation"],
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\n",
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\n\n",
     )
 
     assert result.exit_code == 0
@@ -680,8 +702,39 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
     assert calls["private"] is False
     assert calls["project_title"] == "Work History"
     assert calls["project_url"] is None
+    assert calls["project_public"] is False
     assert calls["secret_name"] == "GH_PAT"
     assert calls["recency_days"] == 2
+
+
+@pytest.mark.ai_generated
+def test_setup_automation_new_project_can_be_made_public(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, object] = {}
+
+    def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
+        return "octocat"
+
+    def _fake_provision_automation(**kwargs: object) -> dict[str, str]:
+        calls.update(kwargs)
+        return {
+            "repository_url": "https://github.com/octocat/work-history-data",
+            "repository_created": "true",
+            "project_url": "https://github.com/users/octocat/projects/1",
+            "workflow_url": "https://github.com/octocat/work-history-data/actions/workflows/update.yml",
+        }
+
+    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
+
+    runner = click.testing.CliRunner()
+    result = runner.invoke(
+        historia.historia_cli,
+        ["setup", "automation"],
+        input="fake-token\n\n\n\nn\ny\n\ny\n\n\n\n\n\n",
+    )
+
+    assert result.exit_code == 0
+    assert calls["project_public"] is True
 
 
 @pytest.mark.ai_generated
@@ -747,7 +800,7 @@ def test_setup_automation_shows_error_when_provision_automation_fails(monkeypatc
     result = runner.invoke(
         historia.historia_cli,
         ["setup", "automation"],
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\n",
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\n\n",
     )
 
     assert result.exit_code == 1

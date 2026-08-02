@@ -99,6 +99,8 @@ URL: https://github.com/users/[user]/projects/[project number]
 ```
 
 Keep the URL as you will need it in the following steps.
+
+- `--public` makes the project publicly visible. Projects are created private by default, since GitHub's project-creation API does not support setting visibility at creation time; passing this flag applies a follow-up mutation immediately after creation.
 :::
 :::{tab} Python API
 ```python
@@ -107,6 +109,7 @@ import historia
 project = historia.project.create_project_page(
     owner=project_owner,
     title="Work History",
+    public=False,
 )
 print(project["url"])
 ```
