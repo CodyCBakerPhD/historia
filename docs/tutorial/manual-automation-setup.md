@@ -156,3 +156,31 @@ with urllib.request.urlopen(url=url) as response:
         tar.extractall(filter="data")
 ```
 :::::
+
+:::{tip}
+**Get notified on failure**
+
+This workflow runs unattended, so a broken run can silently stop refreshing your data for weeks before anyone notices. Add a job that only runs when `Update` fails and sends you a notification, for example via [dawidd6/action-send-mail](https://github.com/dawidd6/action-send-mail):
+
+```yaml
+  NotifyOnFailure:
+    runs-on: ubuntu-latest
+    needs: [ Update ]
+    if: ${{ always() && failure() }}
+    steps:
+      - uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Work history data update failed"
+          to: [your email]
+          from: [repo name] <${{ secrets.MAIL_USERNAME }}>
+          body: "Please check the latest run: https://github.com/[org or user name]/[repo name]/actions/workflows/update.yml"
+```
+
+This requires `MAIL_USERNAME` and `MAIL_PASSWORD` repository secrets (for Gmail, an [app password](https://support.google.com/accounts/answer/185833) works well) — swap in whatever SMTP provider or notification action you prefer.
+
+If a failure looks like a bug in **Historia** itself rather than a one-off network hiccup, please [open an issue](https://github.com/CodyCBakerPhD/historia/issues) with the failed run's log output attached; that's usually enough to reproduce and fix it.
+:::
