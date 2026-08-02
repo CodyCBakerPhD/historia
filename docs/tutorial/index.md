@@ -203,14 +203,16 @@ historia.project.transition_status(
 
 ## Step 6  (Optional): Automate with a CRON-based GitHub Action
 
-The steps above can be wired together into a scheduled [GitHub Action](https://docs.github.com/en/actions) workflow that runs on a CRON schedule (and on demand via `workflow_dispatch`), keeping a data repository and its associated project board up to date without manual intervention.
+The steps above can be wired together into a data repository with a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs regularly, keeping content on its associated project board up to date without manual effort.
 
 <!-- skip: next -->
 ```bash
 historia setup automation
 ```
 
-This interactive wizard prompts for everything it needs (including your GitHub personal access token, which is never echoed back) and does the rest for you: it creates or reuses a dedicated data repository, optionally creates the project board from Step 2, uploads your token as an encrypted repository secret, and commits a fully filled-in `.github/workflows/update.yml`. It's the same result as [`work-history-data`](https://github.com/CodyCBakerPhD/work-history-data), without the manual setup.
+This interactive wizard prompts for everything it needs and does the rest for you: it creates or reuses a dedicated GitHub repository, optionally creates the project board from Step 2, uploads your token as an encrypted repository secret, and commits a fully filled-in `.github/workflows/update.yml`.
+
+The final output should appear similar to [`work-history-data`](https://github.com/CodyCBakerPhD/work-history-data).
 
 :::{tip}
 Prefer to configure each piece by hand, or want to see exactly what the wizard does? See the [manual setup instructions](manual-automation-setup.md).
