@@ -1,15 +1,5 @@
-from ._automation import (
-    create_data_repository,
-    get_authenticated_username,
-    render_workflow_yaml,
-    upsert_repository_secret,
-    upsert_workflow_file,
-)
+from ._automation import provision_automation
 
 __all__ = [
-    "create_data_repository",
-    "get_authenticated_username",
-    "render_workflow_yaml",
-    "upsert_repository_secret",
-    "upsert_workflow_file",
+    "provision_automation",
 ]

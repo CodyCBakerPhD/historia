@@ -651,33 +651,17 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
     def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
         return "octocat"
 
-    monkeypatch.setattr(historia._cli, "get_authenticated_username", _fake_get_authenticated_username)
-    monkeypatch.setattr(
-        historia._cli,
-        "create_data_repository",
-        lambda **_kwargs: {
-            "full_name": "octocat/work-history-data",
-            "html_url": "https://github.com/octocat/work-history-data",
-            "default_branch": "main",
-            "created": "true",
-        },
-    )
-    monkeypatch.setattr(
-        historia._cli,
-        "create_project_page",
-        lambda *, owner, title: {"id": "PVT_1", "url": "https://github.com/users/octocat/projects/1"},  # noqa: ARG005
-    )
+    def _fake_provision_automation(**kwargs: object) -> dict[str, str]:
+        calls.update(kwargs)
+        return {
+            "repository_url": "https://github.com/octocat/work-history-data",
+            "repository_created": "true",
+            "project_url": "https://github.com/users/octocat/projects/1",
+            "workflow_url": "https://github.com/octocat/work-history-data/actions/workflows/update.yml",
+        }
 
-    def _fake_upsert_workflow_file(**kwargs: object) -> None:
-        calls["workflow_content"] = kwargs["content"]
-        calls["workflow_branch"] = kwargs["branch"]
-
-    def _fake_upsert_repository_secret(**kwargs: object) -> None:
-        calls["secret_name"] = kwargs["secret_name"]
-        calls["secret_value"] = kwargs["secret_value"]
-
-    monkeypatch.setattr(historia._cli, "upsert_workflow_file", _fake_upsert_workflow_file)
-    monkeypatch.setattr(historia._cli, "upsert_repository_secret", _fake_upsert_repository_secret)
+    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
     result = runner.invoke(
@@ -689,13 +673,15 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
     assert result.exit_code == 0
     assert "https://github.com/octocat/work-history-data" in result.output
     assert "https://github.com/users/octocat/projects/1" in result.output
-    assert calls["workflow_branch"] == "main"
+    assert calls["token"] == "fake-token"
+    assert calls["username"] == "octocat"
+    assert calls["owner"] == "octocat"
+    assert calls["repository_name"] == "work-history-data"
+    assert calls["private"] is False
+    assert calls["project_title"] == "Work History"
+    assert calls["project_url"] is None
     assert calls["secret_name"] == "GH_PAT"
-    assert calls["secret_value"] == "fake-token"
-    workflow_content = calls["workflow_content"]
-    assert isinstance(workflow_content, str)
-    assert "PROJECT_NUMBER: 1" in workflow_content
-    assert "USERNAME: octocat" in workflow_content
+    assert calls["recency_days"] == 2
 
 
 @pytest.mark.ai_generated
@@ -705,25 +691,17 @@ def test_setup_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatc
     def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
         return "octocat"
 
-    monkeypatch.setattr(historia._cli, "get_authenticated_username", _fake_get_authenticated_username)
-    monkeypatch.setattr(
-        historia._cli,
-        "create_data_repository",
-        lambda **_kwargs: {
-            "full_name": "octocat/work-history-data",
-            "html_url": "https://github.com/octocat/work-history-data",
-            "default_branch": "main",
-            "created": "false",
-        },
-    )
+    def _fake_provision_automation(**kwargs: object) -> dict[str, str]:
+        calls.update(kwargs)
+        return {
+            "repository_url": "https://github.com/octocat/work-history-data",
+            "repository_created": "false",
+            "project_url": "https://github.com/users/octocat/projects/5",
+            "workflow_url": "https://github.com/octocat/work-history-data/actions/workflows/update.yml",
+        }
 
-    def _fail_if_called(**_kwargs: object) -> None:
-        error_message = "create_project_page should not be called when reusing an existing project"
-        raise AssertionError(error_message)
-
-    monkeypatch.setattr(historia._cli, "create_project_page", _fail_if_called)
-    monkeypatch.setattr(historia._cli, "upsert_workflow_file", lambda **kwargs: calls.update(kwargs))
-    monkeypatch.setattr(historia._cli, "upsert_repository_secret", lambda **_kwargs: None)
+    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
     result = runner.invoke(
@@ -733,10 +711,9 @@ def test_setup_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatc
     )
 
     assert result.exit_code == 0
-    assert "Reusing existing repository" in result.output
-    content = calls["content"]
-    assert isinstance(content, str)
-    assert "PROJECT_NUMBER: 5" in content
+    assert "https://github.com/users/octocat/projects/5" in result.output
+    assert calls["project_title"] is None
+    assert calls["project_url"] == "https://github.com/users/octocat/projects/5"
 
 
 @pytest.mark.ai_generated
@@ -745,13 +722,36 @@ def test_setup_automation_shows_error_and_exits_on_bad_token(monkeypatch: pytest
         error_message = "Could not authenticate with the provided GitHub token."
         raise RuntimeError(error_message)
 
-    monkeypatch.setattr(historia._cli, "get_authenticated_username", _raise_runtime_error)
+    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _raise_runtime_error)
     runner = click.testing.CliRunner()
 
     result = runner.invoke(historia.historia_cli, ["setup", "automation"], input="bad-token\n")
 
     assert result.exit_code == 1
     assert "Could not authenticate" in result.output
+
+
+@pytest.mark.ai_generated
+def test_setup_automation_shows_error_when_provision_automation_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
+        return "octocat"
+
+    def _raise_runtime_error(**_kwargs: object) -> dict[str, str]:
+        error_message = "Failed to create repository."
+        raise RuntimeError(error_message)
+
+    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "provision_automation", _raise_runtime_error)
+
+    runner = click.testing.CliRunner()
+    result = runner.invoke(
+        historia.historia_cli,
+        ["setup", "automation"],
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\n",
+    )
+
+    assert result.exit_code == 1
+    assert "Failed to create repository" in result.output
 
 
 @pytest.mark.ai_generated

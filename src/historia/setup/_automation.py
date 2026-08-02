@@ -1,9 +1,14 @@
 import base64
+import os
+import typing
 
 import beartype
 import nacl.encoding
 import nacl.public
 import requests
+
+from ..project import create_project_page
+from ..project._add_to_project import _parse_project_url
 
 _GITHUB_API_URL = "https://api.github.com"
 
@@ -118,7 +123,123 @@ jobs:
 
 
 @beartype.beartype
-def render_workflow_yaml(  # noqa: PLR0913
+def provision_automation(  # noqa: PLR0913
+    *,
+    token: str,
+    username: str,
+    owner: str,
+    repository_name: str,
+    private: bool,
+    secret_name: str,
+    recency_days: int,
+    python_version: str,
+    historia_spec: str,
+    cron_schedule: str,
+    project_title: str | None = None,
+    project_url: str | None = None,
+) -> dict[str, str]:
+    """
+    Provision the CRON-based GitHub Action described in Step 6 of the tutorial end to end.
+
+    Creates (or reuses) the data repository, creates or reuses the GitHub Project board, commits
+    the rendered `.github/workflows/update.yml`, and stores `token` as an encrypted repository secret.
+
+    Parameters
+    ----------
+    token : str
+        A GitHub personal access token with `repo`, `project`, `read:project`, and `workflow` scopes.
+    username : str
+        The GitHub username whose activity should be tracked.
+    owner : str
+        The GitHub user or organization login that will host the data repository and project board.
+    repository_name : str
+        The name of the data repository to create or reuse.
+    private : bool
+        Whether the data repository should be created as private (ignored if it already exists).
+    secret_name : str
+        Name of the repository secret that will hold `token`.
+    recency_days : int
+        Number of most recent days the scheduled workflow refreshes on each run.
+    python_version : str
+        Python version to use in the workflow.
+    historia_spec : str
+        Version specifier for the `historia` package to install in the workflow.
+    cron_schedule : str
+        CRON schedule for the scheduled run.
+    project_title : str, optional
+        Title for a new GitHub Project board. Exactly one of `project_title` or `project_url` must be given.
+    project_url : str, optional
+        URL of an existing GitHub Project board to reuse. Exactly one of `project_title` or `project_url`
+        must be given.
+
+    Returns
+    -------
+    dict[str, str]
+        A dictionary with the `repository_url`, `repository_created` ("true"/"false"), `project_url`,
+        and `workflow_url`.
+
+    """
+    if (project_title is None) == (project_url is None):
+        message = "Exactly one of `project_title` or `project_url` must be provided."
+        raise ValueError(message)
+
+    authenticated_username = _get_authenticated_username(token=token)
+    os.environ["GITHUB_TOKEN"] = token
+
+    repository = _create_data_repository(
+        owner=owner,
+        repository_name=repository_name,
+        token=token,
+        private=private,
+        authenticated_username=authenticated_username,
+    )
+
+    if project_title is not None:
+        project = create_project_page(owner=owner, title=project_title)
+        if not project:
+            message = "Project creation failed due to rate limiting. Please try again later."
+            raise RuntimeError(message)
+        resolved_project_url = project["url"]
+    else:
+        resolved_project_url = typing.cast("str", project_url)
+
+    _, _, project_number = _parse_project_url(resolved_project_url)
+
+    workflow_yaml = _render_workflow_yaml(
+        username=username,
+        project_number=project_number,
+        python_version=python_version,
+        historia_spec=historia_spec,
+        secret_name=secret_name,
+        cron_schedule=cron_schedule,
+        recency_days=recency_days,
+        default_branch=repository["default_branch"],
+    )
+    _upsert_workflow_file(
+        owner=owner,
+        repository_name=repository_name,
+        branch=repository["default_branch"],
+        token=token,
+        content=workflow_yaml,
+    )
+    _upsert_repository_secret(
+        owner=owner,
+        repository_name=repository_name,
+        secret_name=secret_name,
+        secret_value=token,
+        token=token,
+    )
+
+    return {
+        "repository_url": repository["html_url"],
+        "repository_created": repository["created"],
+        "project_url": resolved_project_url,
+        "workflow_url": f"{repository['html_url']}/actions/workflows/update.yml",
+    }
+
+
+@beartype.beartype
+def _render_workflow_yaml(  # noqa: PLR0913
     *,
     username: str,
     project_number: int,
@@ -147,7 +268,7 @@ def render_workflow_yaml(  # noqa: PLR0913
 
 
 @beartype.beartype
-def get_authenticated_username(*, token: str) -> str:
+def _get_authenticated_username(*, token: str) -> str:
     """Resolve the login of the user that owns the provided GitHub personal access token."""
     response = requests.get(url=f"{_GITHUB_API_URL}/user", headers=_auth_headers(token=token), timeout=30)
     if response.status_code != 200:
@@ -160,7 +281,7 @@ def get_authenticated_username(*, token: str) -> str:
 
 
 @beartype.beartype
-def create_data_repository(
+def _create_data_repository(
     *,
     owner: str,
     repository_name: str,
@@ -225,7 +346,7 @@ def create_data_repository(
 
 
 @beartype.beartype
-def upsert_workflow_file(
+def _upsert_workflow_file(
     *,
     owner: str,
     repository_name: str,
@@ -257,7 +378,7 @@ def upsert_workflow_file(
 
 
 @beartype.beartype
-def upsert_repository_secret(
+def _upsert_repository_secret(
     *,
     owner: str,
     repository_name: str,

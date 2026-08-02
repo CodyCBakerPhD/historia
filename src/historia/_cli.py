@@ -1,5 +1,4 @@
 import importlib.metadata
-import os
 import pathlib
 
 import rich_click
@@ -13,14 +12,8 @@ from .project import (
     update_project_item_dates,
     update_project_item_members,
 )
-from .project._add_to_project import _parse_project_url
-from .setup import (
-    create_data_repository,
-    get_authenticated_username,
-    render_workflow_yaml,
-    upsert_repository_secret,
-    upsert_workflow_file,
-)
+from .setup import provision_automation
+from .setup._automation import _get_authenticated_username
 
 
 # historia
@@ -338,98 +331,72 @@ def _historia_setup_automation_cli() -> None:
         "secret, and commits the workflow file.\n",
     )
 
+    token = rich_click.prompt(
+        "GitHub personal access token (needs `repo`, `project`, `read:project`, and `workflow` scopes)",
+        hide_input=True,
+    )
     try:
-        token = rich_click.prompt(
-            "GitHub personal access token (needs `repo`, `project`, `read:project`, and `workflow` scopes)",
-            hide_input=True,
-        )
-        authenticated_username = get_authenticated_username(token=token)
-        os.environ["GITHUB_TOKEN"] = token
+        authenticated_username = _get_authenticated_username(token=token)
+    except RuntimeError as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
 
-        username = rich_click.prompt(
-            "GitHub username whose activity should be tracked",
-            default=authenticated_username,
-        )
-        owner = rich_click.prompt(
-            "Owner (user or organization) that will host the data repository and project board",
-            default=authenticated_username,
-        )
-        repository_name = rich_click.prompt("Name for the data repository", default="work-history-data")
-        private = rich_click.confirm("Should the data repository be private?", default=False)
+    username = rich_click.prompt(
+        "GitHub username whose activity should be tracked",
+        default=authenticated_username,
+    )
+    owner = rich_click.prompt(
+        "Owner (user or organization) that will host the data repository and project board",
+        default=authenticated_username,
+    )
+    repository_name = rich_click.prompt("Name for the data repository", default="work-history-data")
+    private = rich_click.confirm("Should the data repository be private?", default=False)
 
-        repository = create_data_repository(
+    project_title: str | None = None
+    project_url: str | None = None
+    if rich_click.confirm("Create a new GitHub Project board?", default=True):
+        project_title = rich_click.prompt("Project title", default="Work History")
+    else:
+        project_url = rich_click.prompt("URL of the existing GitHub Project (e.g. from Step 2)")
+
+    secret_name = rich_click.prompt("Name for the repository secret that will hold the token", default="GH_PAT")
+    recency_days = rich_click.prompt(
+        "Number of most recent days to refresh on each scheduled run",
+        default=2,
+        type=int,
+    )
+    python_version = rich_click.prompt("Python version to use in the workflow", default="3.13")
+    installed_version = importlib.metadata.distribution("historia").version
+    historia_spec = rich_click.prompt(
+        "Version specifier for the `historia` package to install in the workflow",
+        default=f"historia=={installed_version}",
+    )
+    cron_schedule = rich_click.prompt("CRON schedule for the scheduled run", default="0 0 * * *")
+
+    try:
+        result = provision_automation(
+            token=token,
+            username=username,
             owner=owner,
             repository_name=repository_name,
-            token=token,
             private=private,
-            authenticated_username=authenticated_username,
-        )
-        verb = "Created" if repository["created"] == "true" else "Reusing existing"
-        rich_click.echo(rich_click.style(f"{verb} repository: {repository['html_url']}", fg="green"))
-
-        if rich_click.confirm("Create a new GitHub Project board?", default=True):
-            title = rich_click.prompt("Project title", default="Work History")
-            project = create_project_page(owner=owner, title=title)
-            if not project:
-                message = "Project creation failed due to rate limiting. Please try again later."
-                raise RuntimeError(message)  # noqa: TRY301
-            project_url = project["url"]
-            rich_click.echo(rich_click.style(f"Created project: {project_url}", fg="green"))
-        else:
-            project_url = rich_click.prompt("URL of the existing GitHub Project (e.g. from Step 2)")
-
-        _, _, project_number = _parse_project_url(project_url)
-
-        secret_name = rich_click.prompt("Name for the repository secret that will hold the token", default="GH_PAT")
-        recency_days = rich_click.prompt(
-            "Number of most recent days to refresh on each scheduled run",
-            default=2,
-            type=int,
-        )
-        python_version = rich_click.prompt("Python version to use in the workflow", default="3.13")
-        installed_version = importlib.metadata.distribution("historia").version
-        historia_spec = rich_click.prompt(
-            "Version specifier for the `historia` package to install in the workflow",
-            default=f"historia=={installed_version}",
-        )
-        cron_schedule = rich_click.prompt("CRON schedule for the scheduled run", default="0 0 * * *")
-
-        workflow_yaml = render_workflow_yaml(
-            username=username,
-            project_number=project_number,
+            project_title=project_title,
+            project_url=project_url,
+            secret_name=secret_name,
+            recency_days=recency_days,
             python_version=python_version,
             historia_spec=historia_spec,
-            secret_name=secret_name,
             cron_schedule=cron_schedule,
-            recency_days=recency_days,
-            default_branch=repository["default_branch"],
         )
-        upsert_workflow_file(
-            owner=owner,
-            repository_name=repository_name,
-            branch=repository["default_branch"],
-            token=token,
-            content=workflow_yaml,
-        )
-        rich_click.echo(rich_click.style("Committed `.github/workflows/update.yml`.", fg="green"))
-
-        upsert_repository_secret(
-            owner=owner,
-            repository_name=repository_name,
-            secret_name=secret_name,
-            secret_value=token,
-            token=token,
-        )
-        rich_click.echo(rich_click.style(f"Set repository secret `{secret_name}`.", fg="green"))
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))
         raise SystemExit(1) from exception
 
     message = (
         f"\nAutomation set up successfully!\n"
-        f"Repository: {repository['html_url']}\n"
-        f"Project: {project_url}\n"
-        f"Workflow: {repository['html_url']}/actions/workflows/update.yml\n\n"
+        f"Repository: {result['repository_url']}\n"
+        f"Project: {result['project_url']}\n"
+        f"Workflow: {result['workflow_url']}\n\n"
         "The scheduled run only refreshes the most recent days, so if you want to backfill older history, "
         "run `historia update github` locally with a larger `--recency` and push the results once, or trigger "
         "the workflow manually (`workflow_dispatch`) as many times as needed.\n"
