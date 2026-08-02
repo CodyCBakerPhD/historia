@@ -11,9 +11,11 @@ from historia.setup import provision_automation
 from historia.setup._automation import (
     _create_data_repository,
     _get_authenticated_username,
+    _get_latest_pypi_version,
     _render_workflow_yaml,
     _upsert_repository_secret,
     _upsert_workflow_file,
+    _validate_historia_spec,
 )
 
 _RENDER_KWARGS = {
@@ -93,6 +95,7 @@ def test_provision_automation_rejects_neither_project_title_nor_url() -> None:
 def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatch) -> None:
     create_project_calls: dict[str, object] = {}
 
+    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -144,6 +147,7 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
 def test_provision_automation_passes_project_public_through(monkeypatch: pytest.MonkeyPatch) -> None:
     create_project_calls: dict[str, object] = {}
 
+    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -181,6 +185,7 @@ def test_provision_automation_passes_project_public_through(monkeypatch: pytest.
 
 @pytest.mark.ai_generated
 def test_provision_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -225,6 +230,7 @@ def test_provision_automation_reuses_existing_project(monkeypatch: pytest.Monkey
 
 @pytest.mark.ai_generated
 def test_provision_automation_raises_when_project_creation_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -260,6 +266,7 @@ def test_provision_automation_propagates_authentication_failure(monkeypatch: pyt
         error_message = "Could not authenticate with the provided GitHub token."
         raise RuntimeError(error_message)
 
+    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
     monkeypatch.setattr("historia.setup._automation._get_authenticated_username", _raise_runtime_error)
 
     with pytest.raises(RuntimeError, match="authenticate"):
@@ -330,6 +337,86 @@ def test_render_workflow_yaml_respects_custom_default_branch() -> None:
     assert "git fetch origin trunk" in rendered
     assert "git clone -b trunk" in rendered
     assert "HEAD:trunk" in rendered
+
+
+# ---------------------------------------------------------------------------
+# _get_latest_pypi_version / _validate_historia_spec
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai_generated
+def test_get_latest_pypi_version_returns_latest() -> None:
+    response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {}})
+
+    with unittest.mock.patch("requests.get", return_value=response) as mock_get:
+        version = _get_latest_pypi_version(package_name="historia")
+
+    assert version == "0.10.11"
+    _, kwargs = mock_get.call_args
+    assert kwargs["url"] == "https://pypi.org/pypi/historia/json"
+
+
+@pytest.mark.ai_generated
+def test_get_latest_pypi_version_raises_on_lookup_failure() -> None:
+    response = _mock_response(404, {"message": "Not Found"})
+    response.text = "Not Found"
+
+    with unittest.mock.patch("requests.get", return_value=response), pytest.raises(RuntimeError, match="PyPI"):
+        _get_latest_pypi_version(package_name="not-a-real-package")
+
+
+@pytest.mark.ai_generated
+def test_validate_historia_spec_accepts_published_version() -> None:
+    response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": [], "0.10.8": []}})
+
+    with unittest.mock.patch("requests.get", return_value=response):
+        _validate_historia_spec(historia_spec="historia==0.10.8")
+
+
+@pytest.mark.ai_generated
+def test_validate_historia_spec_rejects_unpublished_version() -> None:
+    response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": []}})
+
+    with (
+        unittest.mock.patch("requests.get", return_value=response),
+        pytest.raises(ValueError, match="not a published release"),
+    ):
+        _validate_historia_spec(historia_spec="historia==0.10.12")
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "historia_spec",
+    ["historia", "historia>=0.10.0", "historia[extra]==0.10.11", "some-other-package==1.0.0"],
+)
+def test_validate_historia_spec_skips_specs_it_cannot_confidently_check(historia_spec: str) -> None:
+    with unittest.mock.patch("requests.get") as mock_get:
+        _validate_historia_spec(historia_spec=historia_spec)
+
+    mock_get.assert_not_called()
+
+
+@pytest.mark.ai_generated
+def test_provision_automation_raises_on_unpublished_historia_spec() -> None:
+    response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": []}})
+
+    with (
+        unittest.mock.patch("requests.get", return_value=response),
+        pytest.raises(ValueError, match="not a published release"),
+    ):
+        provision_automation(
+            token="fake-token",
+            username="octocat",
+            owner="octocat",
+            repository_name="work-history-data",
+            private=False,
+            secret_name="GH_PAT",
+            recency_days=2,
+            python_version="3.13",
+            historia_spec="historia==0.10.12",
+            cron_schedule="0 0 * * *",
+            project_title="Work History",
+        )
 
 
 # ---------------------------------------------------------------------------

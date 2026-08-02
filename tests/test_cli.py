@@ -683,6 +683,7 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
         }
 
     monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", lambda *, package_name: "0.10.11")  # noqa: ARG005
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -705,6 +706,7 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
     assert calls["project_public"] is False
     assert calls["secret_name"] == "GH_PAT"
     assert calls["recency_days"] == 2
+    assert calls["historia_spec"] == "historia==0.10.11"
 
 
 @pytest.mark.ai_generated
@@ -724,6 +726,7 @@ def test_setup_automation_new_project_can_be_made_public(monkeypatch: pytest.Mon
         }
 
     monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", lambda *, package_name: "0.10.11")  # noqa: ARG005
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -754,6 +757,7 @@ def test_setup_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatc
         }
 
     monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", lambda *, package_name: "0.10.11")  # noqa: ARG005
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -794,6 +798,7 @@ def test_setup_automation_shows_error_when_provision_automation_fails(monkeypatc
         raise RuntimeError(error_message)
 
     monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", lambda *, package_name: "0.10.11")  # noqa: ARG005
     monkeypatch.setattr(historia._cli, "provision_automation", _raise_runtime_error)
 
     runner = click.testing.CliRunner()
@@ -805,6 +810,43 @@ def test_setup_automation_shows_error_when_provision_automation_fails(monkeypatc
 
     assert result.exit_code == 1
     assert "Failed to create repository" in result.output
+
+
+@pytest.mark.ai_generated
+def test_setup_automation_falls_back_to_no_default_when_pypi_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, object] = {}
+
+    def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
+        return "octocat"
+
+    def _fake_provision_automation(**kwargs: object) -> dict[str, str]:
+        calls.update(kwargs)
+        return {
+            "repository_url": "https://github.com/octocat/work-history-data",
+            "repository_created": "true",
+            "project_url": "https://github.com/users/octocat/projects/1",
+            "workflow_url": "https://github.com/octocat/work-history-data/actions/workflows/update.yml",
+        }
+
+    def _raise_runtime_error(*, package_name: str) -> str:  # noqa: ARG001
+        error_message = "Could not look up `historia` on PyPI."
+        raise RuntimeError(error_message)
+
+    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
+    monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", _raise_runtime_error)
+    monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
+
+    runner = click.testing.CliRunner()
+    result = runner.invoke(
+        historia.historia_cli,
+        ["setup", "automation"],
+        # token, username, owner, repo name, private=n, new project=y, title, public,
+        # secret name, recency, python version, historia_spec (explicit, no default to accept), cron
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\nhistoria==9.9.9\n\n",
+    )
+
+    assert result.exit_code == 0
+    assert calls["historia_spec"] == "historia==9.9.9"
 
 
 @pytest.mark.ai_generated

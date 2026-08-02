@@ -1,5 +1,6 @@
 import base64
 import os
+import re
 import typing
 
 import beartype
@@ -11,6 +12,7 @@ from ..project import create_project_page
 from ..project._add_to_project import _parse_project_url
 
 _GITHUB_API_URL = "https://api.github.com"
+_PYPI_PROJECT_URL = "https://pypi.org/pypi/{package_name}/json"
 
 # Commits made via the Contents API are attributed to the token owner by default; pin them to a
 # bot identity instead so the wizard doesn't leave commits authored as the person who ran it.
@@ -191,6 +193,8 @@ def provision_automation(  # noqa: PLR0913
         message = "Exactly one of `project_title` or `project_url` must be provided."
         raise ValueError(message)
 
+    _validate_historia_spec(historia_spec=historia_spec)
+
     authenticated_username = _get_authenticated_username(token=token)
     os.environ["GITHUB_TOKEN"] = token
 
@@ -244,6 +248,45 @@ def provision_automation(  # noqa: PLR0913
         "project_url": resolved_project_url,
         "workflow_url": f"{repository['html_url']}/actions/workflows/update.yml",
     }
+
+
+@beartype.beartype
+def _get_latest_pypi_version(*, package_name: str = "historia") -> str:
+    """Return the latest version of `package_name` published on PyPI."""
+    return _fetch_pypi_project_info(package_name=package_name)["info"]["version"]
+
+
+def _fetch_pypi_project_info(*, package_name: str) -> dict:
+    response = requests.get(url=_PYPI_PROJECT_URL.format(package_name=package_name), timeout=30)
+    if response.status_code != 200:
+        message = (
+            f"\nCould not look up `{package_name}` on PyPI.\nStatus code {response.status_code}: {response.text}\n\n"
+        )
+        raise RuntimeError(message)
+    return response.json()
+
+
+def _validate_historia_spec(*, historia_spec: str) -> None:
+    """
+    Validate an exact-pinned `historia==X.Y.Z` specifier against PyPI's published releases.
+
+    Specifiers that don't match that exact `historia==<version>` shape (a range, extras, no pin,
+    a different package name, ...) are left alone; validating those in general would require a
+    real dependency resolver, which is out of scope here.
+    """
+    match = re.fullmatch(r"historia==(\S+)", historia_spec.strip())
+    if match is None:
+        return
+    pinned_version = match.group(1)
+
+    project_info = _fetch_pypi_project_info(package_name="historia")
+    if pinned_version not in project_info["releases"]:
+        message = (
+            f"\n`{historia_spec}` is not a published release of `historia` on PyPI.\n"
+            "This often happens when defaulting to a local development install that hasn't been "
+            f"released yet. The latest published version is `{project_info['info']['version']}`.\n\n"
+        )
+        raise ValueError(message)
 
 
 @beartype.beartype

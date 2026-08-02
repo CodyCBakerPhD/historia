@@ -13,7 +13,7 @@ from .project import (
     update_project_item_members,
 )
 from .setup import provision_automation
-from .setup._automation import _get_authenticated_username
+from .setup._automation import _get_authenticated_username, _get_latest_pypi_version
 
 
 # historia
@@ -375,10 +375,16 @@ def _historia_setup_automation_cli() -> None:
         type=int,
     )
     python_version = rich_click.prompt("Python version to use in the workflow", default="3.13")
-    installed_version = importlib.metadata.distribution("historia").version
+    try:
+        latest_pypi_version = _get_latest_pypi_version(package_name="historia")
+        default_historia_spec = f"historia=={latest_pypi_version}"
+    except RuntimeError:
+        # Fall back to no default rather than risk pinning to a locally installed version that
+        # may not be published yet (e.g. a development install) if PyPI can't be reached.
+        default_historia_spec = None
     historia_spec = rich_click.prompt(
         "Version specifier for the `historia` package to install in the workflow",
-        default=f"historia=={installed_version}",
+        default=default_historia_spec,
     )
     cron_schedule = rich_click.prompt("CRON schedule for the scheduled run", default="0 0 * * *")
 
