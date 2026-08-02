@@ -692,8 +692,10 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
     assert calls["workflow_branch"] == "main"
     assert calls["secret_name"] == "GH_PAT"
     assert calls["secret_value"] == "fake-token"
-    assert "PROJECT_NUMBER: 1" in calls["workflow_content"]
-    assert "USERNAME: octocat" in calls["workflow_content"]
+    workflow_content = calls["workflow_content"]
+    assert isinstance(workflow_content, str)
+    assert "PROJECT_NUMBER: 1" in workflow_content
+    assert "USERNAME: octocat" in workflow_content
 
 
 @pytest.mark.ai_generated
@@ -732,7 +734,9 @@ def test_setup_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatc
 
     assert result.exit_code == 0
     assert "Reusing existing repository" in result.output
-    assert "PROJECT_NUMBER: 5" in calls["content"]
+    content = calls["content"]
+    assert isinstance(content, str)
+    assert "PROJECT_NUMBER: 5" in content
 
 
 @pytest.mark.ai_generated
