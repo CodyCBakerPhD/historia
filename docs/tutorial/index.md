@@ -203,7 +203,7 @@ historia.project.transition_status(
 
 ## Step 6  (Optional): Automate with a CRON-based GitHub Action
 
-The steps above can be wired together into a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs on a CRON schedule (and on demand via `workflow_dispatch`), keeping a data repository and its associated project board up to date without manual intervention.
+The steps above can be wired together into a scheduled [GitHub Action](https://docs.github.com/en/actions) workflow that runs on a CRON schedule (and on demand via `workflow_dispatch`), keeping a data repository and its associated project board up to date without manual intervention.
 
 <!-- skip: next -->
 ```bash
