@@ -4,15 +4,15 @@ orphan: true
 
 # Manual setup: CRON-based GitHub Action
 
-This page is the manual, by-hand version of [Step 6 of the tutorial](index.md): configuring a scheduled GitHub Actions workflow that keeps a data repository and its associated project board up to date.
+This page is the manual version of [Step 6 of the tutorial](index.md): configuring a scheduled GitHub Actions workflow that keeps a data repository and its associated project board up to date.
 
 :::{tip}
-Most people should just run `historia setup automation` instead — see the tip in [Step 6 of the tutorial](index.md). It creates the repository, the project board, the encrypted secret, and this exact workflow file for you. Use this page only if you want to do each part by hand, or want to understand what the wizard is doing under the hood.
+Most people should just run `historia setup automation` instead. It creates the repository, the project board, the encrypted secret, and this exact workflow file for you. Use this page only if you want to do each part by hand, or want to understand what the wizard is doing under the hood.
 :::
 
 The example below assumes:
 
-- A dedicated repository (e.g. `work-history-data`) hosts the collected JSON files on its `main` branch.
+- A dedicated repository (e.g., `work-history-data`) hosts the collected JSON files on its `main` branch.
 - A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`,  and `read:project` scopes.
   - These permissions are required to fetch activity, push commits, and update the project board.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
