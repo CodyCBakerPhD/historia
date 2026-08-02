@@ -16,6 +16,7 @@ from historia.setup._automation import (
     _upsert_repository_secret,
     _upsert_workflow_file,
     _validate_historia_spec,
+    _validate_python_version,
 )
 
 _RENDER_KWARGS = {
@@ -95,7 +96,10 @@ def test_provision_automation_rejects_neither_project_title_nor_url() -> None:
 def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatch) -> None:
     create_project_calls: dict[str, object] = {}
 
-    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "historia.setup._automation._validate_historia_spec",
+        lambda **kwargs: (kwargs["historia_spec"], None),
+    )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -147,7 +151,10 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
 def test_provision_automation_passes_project_public_through(monkeypatch: pytest.MonkeyPatch) -> None:
     create_project_calls: dict[str, object] = {}
 
-    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "historia.setup._automation._validate_historia_spec",
+        lambda **kwargs: (kwargs["historia_spec"], None),
+    )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -185,7 +192,10 @@ def test_provision_automation_passes_project_public_through(monkeypatch: pytest.
 
 @pytest.mark.ai_generated
 def test_provision_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "historia.setup._automation._validate_historia_spec",
+        lambda **kwargs: (kwargs["historia_spec"], None),
+    )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -230,7 +240,10 @@ def test_provision_automation_reuses_existing_project(monkeypatch: pytest.Monkey
 
 @pytest.mark.ai_generated
 def test_provision_automation_raises_when_project_creation_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "historia.setup._automation._validate_historia_spec",
+        lambda **kwargs: (kwargs["historia_spec"], None),
+    )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
         lambda *, token: "octocat",  # noqa: ARG005
@@ -266,7 +279,10 @@ def test_provision_automation_propagates_authentication_failure(monkeypatch: pyt
         error_message = "Could not authenticate with the provided GitHub token."
         raise RuntimeError(error_message)
 
-    monkeypatch.setattr("historia.setup._automation._validate_historia_spec", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "historia.setup._automation._validate_historia_spec",
+        lambda **kwargs: (kwargs["historia_spec"], None),
+    )
     monkeypatch.setattr("historia.setup._automation._get_authenticated_username", _raise_runtime_error)
 
     with pytest.raises(RuntimeError, match="authenticate"):
@@ -370,7 +386,10 @@ def test_validate_historia_spec_accepts_published_version() -> None:
     response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": [], "0.10.8": []}})
 
     with unittest.mock.patch("requests.get", return_value=response):
-        _validate_historia_spec(historia_spec="historia==0.10.8")
+        spec, requires_python = _validate_historia_spec(historia_spec="historia==0.10.8")
+
+    assert spec == "historia==0.10.8"
+    assert requires_python is None
 
 
 @pytest.mark.ai_generated
@@ -385,15 +404,114 @@ def test_validate_historia_spec_rejects_unpublished_version() -> None:
 
 
 @pytest.mark.ai_generated
+def test_validate_historia_spec_normalizes_bare_version() -> None:
+    """A bare `X.Y.Z` (missing the `historia==` prefix) is a common slip and should be caught, not ignored."""
+    response = _mock_response(
+        200,
+        {"info": {"version": "0.10.11", "requires_python": ">=3.10"}, "releases": {"0.10.11": []}},
+    )
+
+    with unittest.mock.patch("requests.get", return_value=response):
+        spec, requires_python = _validate_historia_spec(historia_spec="0.10.11")
+
+    assert spec == "historia==0.10.11"
+    assert requires_python == ">=3.10"
+
+
+@pytest.mark.ai_generated
+def test_validate_historia_spec_rejects_unpublished_bare_version() -> None:
+    response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": []}})
+
+    with (
+        unittest.mock.patch("requests.get", return_value=response),
+        pytest.raises(ValueError, match="not a published release"),
+    ):
+        _validate_historia_spec(historia_spec="0.10.12")
+
+
+@pytest.mark.ai_generated
+def test_validate_historia_spec_looks_up_requires_python_for_a_non_latest_pin() -> None:
+    project_response = _mock_response(
+        200,
+        {"info": {"version": "0.10.11", "requires_python": ">=3.10"}, "releases": {"0.10.11": [], "0.10.8": []}},
+    )
+    release_response = _mock_response(200, {"info": {"requires_python": ">=3.9"}})
+
+    def _fake_get(*, url: str, timeout: int) -> unittest.mock.MagicMock:  # noqa: ARG001
+        return release_response if url == "https://pypi.org/pypi/historia/0.10.8/json" else project_response
+
+    with unittest.mock.patch("requests.get", side_effect=_fake_get):
+        spec, requires_python = _validate_historia_spec(historia_spec="historia==0.10.8")
+
+    assert spec == "historia==0.10.8"
+    assert requires_python == ">=3.9"
+
+
+@pytest.mark.ai_generated
 @pytest.mark.parametrize(
     "historia_spec",
     ["historia", "historia>=0.10.0", "historia[extra]==0.10.11", "some-other-package==1.0.0"],
 )
 def test_validate_historia_spec_skips_specs_it_cannot_confidently_check(historia_spec: str) -> None:
     with unittest.mock.patch("requests.get") as mock_get:
-        _validate_historia_spec(historia_spec=historia_spec)
+        spec, requires_python = _validate_historia_spec(historia_spec=historia_spec)
 
     mock_get.assert_not_called()
+    assert spec == historia_spec
+    assert requires_python is None
+
+
+# ---------------------------------------------------------------------------
+# _validate_python_version
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai_generated
+def test_validate_python_version_accepts_compatible_version() -> None:
+    _validate_python_version(python_version="3.13", requires_python=">=3.10")
+
+
+@pytest.mark.ai_generated
+def test_validate_python_version_skips_compatibility_check_when_requires_python_unknown() -> None:
+    _validate_python_version(python_version="3.7", requires_python=None)
+
+
+@pytest.mark.ai_generated
+def test_validate_python_version_rejects_incompatible_version() -> None:
+    with pytest.raises(ValueError, match="does not satisfy"):
+        _validate_python_version(python_version="3.7", requires_python=">=3.10")
+
+
+@pytest.mark.ai_generated
+def test_validate_python_version_rejects_malformed_version() -> None:
+    with pytest.raises(ValueError, match="not a valid Python version"):
+        _validate_python_version(python_version="not-a-version", requires_python=None)
+
+
+@pytest.mark.ai_generated
+def test_provision_automation_raises_on_incompatible_python_version() -> None:
+    response = _mock_response(
+        200,
+        {"info": {"version": "0.10.11", "requires_python": ">=3.10"}, "releases": {"0.10.11": []}},
+    )
+
+    with (
+        unittest.mock.patch("requests.get", return_value=response),
+        pytest.raises(ValueError, match="does not satisfy"),
+    ):
+        provision_automation(
+            token="fake-token",
+            username="octocat",
+            owner="octocat",
+            repository_name="work-history-data",
+            private=False,
+            secret_name="GH_PAT",
+            recency_days=2,
+            python_version="3.7",
+            historia_spec="historia==0.10.11",
+            cron_schedule="0 0 * * *",
+            project_title="Work History",
+        )
 
 
 @pytest.mark.ai_generated

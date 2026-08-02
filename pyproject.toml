@@ -29,6 +29,7 @@ dependencies = [
     "tqdm",
     "rich-click",
     "pynacl",
+    "packaging",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

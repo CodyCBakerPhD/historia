@@ -6,6 +6,8 @@ import typing
 import beartype
 import nacl.encoding
 import nacl.public
+import packaging.specifiers
+import packaging.version
 import requests
 
 from ..project import create_project_page
@@ -13,6 +15,7 @@ from ..project._add_to_project import _parse_project_url
 
 _GITHUB_API_URL = "https://api.github.com"
 _PYPI_PROJECT_URL = "https://pypi.org/pypi/{package_name}/json"
+_PYPI_RELEASE_URL = "https://pypi.org/pypi/{package_name}/{version}/json"
 
 # Commits made via the Contents API are attributed to the token owner by default; pin them to a
 # bot identity instead so the wizard doesn't leave commits authored as the person who ran it.
@@ -193,7 +196,8 @@ def provision_automation(  # noqa: PLR0913
         message = "Exactly one of `project_title` or `project_url` must be provided."
         raise ValueError(message)
 
-    _validate_historia_spec(historia_spec=historia_spec)
+    historia_spec, requires_python = _validate_historia_spec(historia_spec=historia_spec)
+    _validate_python_version(python_version=python_version, requires_python=requires_python)
 
     authenticated_username = _get_authenticated_username(token=token)
     os.environ["GITHUB_TOKEN"] = token
@@ -266,17 +270,37 @@ def _fetch_pypi_project_info(*, package_name: str) -> dict:
     return response.json()
 
 
-def _validate_historia_spec(*, historia_spec: str) -> None:
-    """
-    Validate an exact-pinned `historia==X.Y.Z` specifier against PyPI's published releases.
+def _fetch_pypi_release_info(*, package_name: str, version: str) -> dict:
+    response = requests.get(url=_PYPI_RELEASE_URL.format(package_name=package_name, version=version), timeout=30)
+    if response.status_code != 200:
+        message = (
+            f"\nCould not look up `{package_name}=={version}` on PyPI.\n"
+            f"Status code {response.status_code}: {response.text}\n\n"
+        )
+        raise RuntimeError(message)
+    return response.json()
 
-    Specifiers that don't match that exact `historia==<version>` shape (a range, extras, no pin,
-    a different package name, ...) are left alone; validating those in general would require a
-    real dependency resolver, which is out of scope here.
+
+def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None]:
     """
-    match = re.fullmatch(r"historia==(\S+)", historia_spec.strip())
+    Validate a `historia` version specifier against PyPI's published releases.
+
+    Accepts either the full `historia==X.Y.Z` form or a bare `X.Y.Z` version (a common slip,
+    since the prompt asks for "the version"), normalizing the latter to the full form. Specifiers
+    that match neither shape (a range, extras, no pin, a different package name, ...) are left
+    alone; validating those in general would require a real dependency resolver, which is out of
+    scope here.
+
+    Returns
+    -------
+    tuple[str, str | None]
+        The (possibly normalized) specifier, and the resolved release's `Requires-Python`
+        constraint, or `None` if the specifier couldn't be resolved to a single published version.
+
+    """
+    match = re.fullmatch(r"(?:historia==)?(\d[\w.\-+]*)", historia_spec.strip())
     if match is None:
-        return
+        return historia_spec, None
     pinned_version = match.group(1)
 
     project_info = _fetch_pypi_project_info(package_name="historia")
@@ -285,6 +309,32 @@ def _validate_historia_spec(*, historia_spec: str) -> None:
             f"\n`{historia_spec}` is not a published release of `historia` on PyPI.\n"
             "This often happens when defaulting to a local development install that hasn't been "
             f"released yet. The latest published version is `{project_info['info']['version']}`.\n\n"
+        )
+        raise ValueError(message)
+
+    if pinned_version == project_info["info"]["version"]:
+        release_info = project_info
+    else:
+        release_info = _fetch_pypi_release_info(package_name="historia", version=pinned_version)
+
+    return f"historia=={pinned_version}", release_info["info"].get("requires_python")
+
+
+def _validate_python_version(*, python_version: str, requires_python: str | None) -> None:
+    """Validate `python_version` and, if known, check it against a `Requires-Python` constraint."""
+    try:
+        version = packaging.version.Version(python_version)
+    except packaging.version.InvalidVersion as exception:
+        message = f"\n`{python_version}` is not a valid Python version (expected e.g. `3.13`).\n\n"
+        raise ValueError(message) from exception
+
+    if requires_python is None:
+        return
+
+    if not packaging.specifiers.SpecifierSet(requires_python).contains(version):
+        message = (
+            f"\nPython {python_version} does not satisfy the pinned `historia` release's required "
+            f"Python version (`{requires_python}`). Choose a Python version that satisfies this constraint.\n\n"
         )
         raise ValueError(message)
 
