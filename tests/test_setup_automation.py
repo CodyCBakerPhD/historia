@@ -518,6 +518,8 @@ def test_upsert_workflow_file_creates_when_absent() -> None:
     _, kwargs = mock_put.call_args
     assert "sha" not in kwargs["json"]
     assert kwargs["json"]["branch"] == "main"
+    assert kwargs["json"]["author"]["name"] == "historia bot"
+    assert kwargs["json"]["committer"]["name"] == "historia bot"
 
 
 @pytest.mark.ai_generated

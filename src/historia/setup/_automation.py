@@ -12,6 +12,10 @@ from ..project._add_to_project import _parse_project_url
 
 _GITHUB_API_URL = "https://api.github.com"
 
+# Commits made via the Contents API are attributed to the token owner by default; pin them to a
+# bot identity instead so the wizard doesn't leave commits authored as the person who ran it.
+_BOT_COMMITTER = {"name": "historia bot", "email": "historia-bot@users.noreply.github.com"}
+
 _WORKFLOW_TEMPLATE = """\
 name: Update work history data
 
@@ -372,6 +376,8 @@ def _upsert_workflow_file(
         "message": "Add automated update workflow (via `historia setup automation`)",
         "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
         "branch": branch,
+        "author": _BOT_COMMITTER,
+        "committer": _BOT_COMMITTER,
     }
     if existing.status_code == 200:
         payload["sha"] = existing.json()["sha"]
