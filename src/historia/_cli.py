@@ -12,6 +12,14 @@ from .project import (
     update_project_item_dates,
     update_project_item_members,
 )
+from .setup import provision_automation
+from .setup._automation import (
+    _get_authenticated_username,
+    _get_latest_pypi_version,
+    _resolve_cron_schedule,
+    _validate_historia_spec,
+    _validate_python_version,
+)
 
 
 # historia
@@ -80,8 +88,15 @@ def _historia_project_cli() -> None:
 @_historia_project_cli.command(name="create")
 @rich_click.option("--owner", type=str, required=True, help="GitHub user or organization login to own the project.")
 @rich_click.option("--title", type=str, required=True, help="Title of the new GitHub Project.")
-def _historia_project_create_cli(*, owner: str, title: str) -> None:
-    project = create_project_page(owner=owner, title=title)
+@rich_click.option(
+    "--public",
+    is_flag=True,
+    default=False,
+    required=False,
+    help="Make the project publicly visible. Projects are created private by default.",
+)
+def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> None:
+    project = create_project_page(owner=owner, title=title, public=public)
     if project:
         message = f"Project created successfully!\nID: {project['id']}\nURL: {project['url']}"
         rich_click.echo(rich_click.style(message, fg="green"))
@@ -311,3 +326,144 @@ def _historia_project_transition_cli(
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))
         raise SystemExit(1) from exception
+
+
+# historia setup
+@historia_cli.group(name="setup")
+def _historia_setup_cli() -> None:
+    pass
+
+
+# historia setup automation
+@_historia_setup_cli.command(name="automation")
+def _historia_setup_automation_cli() -> None:
+    """Interactively provision the CRON-based GitHub Action described in Step 6 of the tutorial."""
+    rich_click.echo(
+        "\nThis wizard sets up the scheduled GitHub Action from Step 6 of the tutorial: it creates (or reuses) a "
+        "dedicated data repository, optionally creates a GitHub Project board, stores your token as a repository "
+        "secret, and commits the workflow file.\n",
+    )
+
+    token = rich_click.prompt(
+        "GitHub personal access token (needs `repo`, `project`, `read:project`, and `workflow` scopes)",
+        hide_input=True,
+    )
+    try:
+        authenticated_username = _get_authenticated_username(token=token)
+    except RuntimeError as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
+
+    username = rich_click.prompt(
+        "GitHub username whose activity should be tracked",
+        default=authenticated_username,
+    )
+    owner = rich_click.prompt(
+        "Owner (user or organization) that will host the data repository and project board",
+        default=authenticated_username,
+    )
+    repository_name = rich_click.prompt("Name for the data repository", default="work-history-data")
+    private = rich_click.confirm("Should the data repository be private?", default=False)
+
+    project_title: str | None = None
+    project_url: str | None = None
+    project_public = False
+    if rich_click.confirm("Create a new GitHub Project board?", default=True):
+        project_title = rich_click.prompt("Project title", default="Work History")
+        project_public = rich_click.confirm("Should the project board be public?", default=False)
+    else:
+        project_url = rich_click.prompt("URL of the existing GitHub Project (e.g., from Step 2 of the tutorial)")
+
+    secret_name = rich_click.prompt("Name for the repository secret that will hold the token", default="GH_PAT")
+    recency_days = rich_click.prompt(
+        "Number of most recent days to refresh on each scheduled run",
+        default=2,
+        type=int,
+    )
+    try:
+        latest_pypi_version = _get_latest_pypi_version(package_name="historia")
+        default_historia_spec = f"historia=={latest_pypi_version}"
+    except RuntimeError:
+        # Fall back to no default rather than risk pinning to a locally installed version that
+        # may not be published yet (e.g. a development install) if PyPI can't be reached.
+        default_historia_spec = None
+    requires_python: str | None = None
+    supported_python_versions: list[str] = []
+    while True:
+        historia_spec = rich_click.prompt(
+            "Version specifier for the `historia` package to install in the workflow",
+            default=default_historia_spec,
+        )
+        try:
+            historia_spec, requires_python, supported_python_versions = _validate_historia_spec(
+                historia_spec=historia_spec,
+            )
+        except ValueError as exception:
+            rich_click.echo(rich_click.style(str(exception), fg="red"))
+            continue
+        except RuntimeError as exception:
+            rich_click.echo(rich_click.style(str(exception), fg="red"))
+            raise SystemExit(1) from exception
+        break
+
+    default_python_version = "3.13"
+    if supported_python_versions and default_python_version not in supported_python_versions:
+        default_python_version = supported_python_versions[-1]
+    while True:
+        if supported_python_versions:
+            python_version = rich_click.prompt(
+                "Python version to use in the workflow",
+                default=default_python_version,
+                type=rich_click.Choice(supported_python_versions),
+            )
+        else:
+            python_version = rich_click.prompt("Python version to use in the workflow", default=default_python_version)
+        try:
+            _validate_python_version(python_version=python_version, requires_python=requires_python)
+        except ValueError as exception:
+            rich_click.echo(rich_click.style(str(exception), fg="red"))
+            continue
+        break
+
+    while True:
+        cron_schedule = rich_click.prompt(
+            "CRON schedule for the scheduled run (`daily`, `weekly`, `monthly`, or a custom CRON)",
+            default="daily",
+        )
+        try:
+            cron_schedule = _resolve_cron_schedule(cron_schedule=cron_schedule)
+        except ValueError as exception:
+            rich_click.echo(rich_click.style(str(exception), fg="red"))
+            continue
+        break
+
+    try:
+        result = provision_automation(
+            token=token,
+            username=username,
+            owner=owner,
+            repository_name=repository_name,
+            private=private,
+            project_title=project_title,
+            project_url=project_url,
+            project_public=project_public,
+            secret_name=secret_name,
+            recency_days=recency_days,
+            python_version=python_version,
+            historia_spec=historia_spec,
+            cron_schedule=cron_schedule,
+        )
+    except (ValueError, RuntimeError) as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
+
+    message = (
+        f"\nAutomation set up successfully!\n"
+        f"Repository: {result['repository_url']}\n"
+        f"Project: {result['project_url']}\n"
+        f"Workflow: {result['workflow_url']}\n\n"
+        "The scheduled run only refreshes the most recent days, so if you want to backfill older history, "
+        "run `historia update github` locally with a larger `--recency` and push the results once, or trigger "
+        "the workflow manually (`workflow_dispatch`) as many times as needed.\n"
+    )
+    rich_click.echo(rich_click.style(message, fg="green"))

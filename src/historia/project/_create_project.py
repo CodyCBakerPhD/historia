@@ -6,7 +6,7 @@ import requests
 
 
 @beartype.beartype
-def create_project_page(*, owner: str, title: str) -> dict[str, str]:
+def create_project_page(*, owner: str, title: str, public: bool = False) -> dict[str, str]:
     """
     Create a GitHub Project (v2) page for the specified owner.
 
@@ -16,6 +16,10 @@ def create_project_page(*, owner: str, title: str) -> dict[str, str]:
         The GitHub user or organization login under which to create the project.
     title : str
         The title of the new GitHub Project.
+    public : bool, default: False
+        Whether the project should be publicly visible. GitHub's project-creation API always
+        creates projects as private; when `public` is True, a follow-up mutation flips visibility
+        immediately after creation.
 
     Returns
     -------
@@ -70,6 +74,9 @@ mutation CreateProject($ownerId: ID!, $title: String!) {
     _create_date_field(project_id=project_id, field_name="Start date", headers=headers)
     _create_date_field(project_id=project_id, field_name="End date", headers=headers)
 
+    if public:
+        _set_project_visibility(project_id=project_id, public=True, headers=headers)
+
     return {"id": project_id, "url": project["url"]}
 
 
@@ -111,6 +118,44 @@ mutation CreateField($projectId: ID!, $name: String!) {
 
     if "errors" in result or status != 200:
         message = f"GitHub GraphQL API mutation to create field `{field_name}` failed!\nStatus code {status}: {result}"
+        raise RuntimeError(message)
+
+
+def _set_project_visibility(*, project_id: str, public: bool, headers: dict[str, str]) -> None:
+    """
+    Set the visibility of a GitHub Project (v2).
+
+    Parameters
+    ----------
+    project_id : str
+        The global node ID of the project.
+    public : bool
+        Whether the project should be publicly visible.
+    headers : dict[str, str]
+        HTTP headers including the Authorization token.
+
+    """
+    mutation = """
+mutation UpdateProjectVisibility($projectId: ID!, $public: Boolean!) {
+    updateProjectV2(input: {projectId: $projectId, public: $public}) {
+        projectV2 {
+            id
+        }
+    }
+}
+"""
+    variables = {"projectId": project_id, "public": public}
+    response = requests.post(
+        url="https://api.github.com/graphql",
+        json={"query": mutation, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    status = response.status_code
+    result = response.json()
+
+    if "errors" in result or status != 200:
+        message = f"GitHub GraphQL API mutation to set project visibility failed!\nStatus code {status}: {result}"
         raise RuntimeError(message)
 
 

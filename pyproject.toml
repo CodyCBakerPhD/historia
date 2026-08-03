@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.10.11"
+version = "0.10.12"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -28,6 +28,8 @@ dependencies = [
     "requests",
     "tqdm",
     "rich-click",
+    "pynacl",
+    "packaging",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -55,6 +57,7 @@ dev = [
     "pre-commit",
     "ipython",
     "sybil",
+    "pyyaml",
 ]
 docs = [
     "sphinx>=8.0",
@@ -107,6 +110,9 @@ ignore = [
     # GraphQL uses exceeds the branch / complexity thresholds; unavoidable
     "C901",
     "PLR0912",
+    # The interactive setup wizard is a long sequence of prompts; splitting it into
+    # smaller local functions was explicitly rejected in review
+    "PLR0915",
     # Long, descriptive messages constructed at the raise site are preferred
     # over per-call-site exception subclasses for one-off internal errors
     "TRY003",

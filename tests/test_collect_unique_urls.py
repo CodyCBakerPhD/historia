@@ -3,7 +3,7 @@ import pathlib
 
 import pytest
 
-from historia._add_to_project import _collect_unique_urls
+from historia.project._add_to_project import _collect_unique_urls
 
 
 @pytest.mark.ai_generated
