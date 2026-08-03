@@ -196,8 +196,9 @@ def provision_automation(  # noqa: PLR0913
         message = "Exactly one of `project_title` or `project_url` must be provided."
         raise ValueError(message)
 
-    historia_spec, requires_python = _validate_historia_spec(historia_spec=historia_spec)
+    historia_spec, requires_python, _ = _validate_historia_spec(historia_spec=historia_spec)
     _validate_python_version(python_version=python_version, requires_python=requires_python)
+    cron_schedule = _resolve_cron_schedule(cron_schedule=cron_schedule)
 
     authenticated_username = _get_authenticated_username(token=token)
     os.environ["GITHUB_TOKEN"] = token
@@ -281,7 +282,17 @@ def _fetch_pypi_release_info(*, package_name: str, version: str) -> dict:
     return response.json()
 
 
-def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None]:
+_PYTHON_CLASSIFIER_PATTERN = re.compile(r"Programming Language :: Python :: (\d+\.\d+)$")
+
+
+def _extract_supported_python_versions(*, classifiers: list[str]) -> list[str]:
+    """Extract and sort the `X.Y` versions out of a release's `Programming Language :: Python :: X.Y` classifiers."""
+    matches = (_PYTHON_CLASSIFIER_PATTERN.fullmatch(classifier) for classifier in classifiers)
+    versions = {match.group(1) for match in matches if match is not None}
+    return sorted(versions, key=lambda version: tuple(int(part) for part in version.split(".")))
+
+
+def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, list[str]]:
     """
     Validate a `historia` version specifier against PyPI's published releases.
 
@@ -293,14 +304,16 @@ def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None]:
 
     Returns
     -------
-    tuple[str, str | None]
-        The (possibly normalized) specifier, and the resolved release's `Requires-Python`
-        constraint, or `None` if the specifier couldn't be resolved to a single published version.
+    tuple[str, str | None, list[str]]
+        The (possibly normalized) specifier, the resolved release's `Requires-Python` constraint
+        (or `None` if the specifier couldn't be resolved to a single published version), and the
+        list of Python versions the resolved release declares support for via its classifiers
+        (empty if unresolved).
 
     """
     match = re.fullmatch(r"(?:historia==)?(\d[\w.\-+]*)", historia_spec.strip())
     if match is None:
-        return historia_spec, None
+        return historia_spec, None, []
     pinned_version = match.group(1)
 
     project_info = _fetch_pypi_project_info(package_name="historia")
@@ -317,7 +330,10 @@ def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None]:
     else:
         release_info = _fetch_pypi_release_info(package_name="historia", version=pinned_version)
 
-    return f"historia=={pinned_version}", release_info["info"].get("requires_python")
+    supported_python_versions = _extract_supported_python_versions(
+        classifiers=release_info["info"].get("classifiers") or [],
+    )
+    return f"historia=={pinned_version}", release_info["info"].get("requires_python"), supported_python_versions
 
 
 def _validate_python_version(*, python_version: str, requires_python: str | None) -> None:
@@ -337,6 +353,67 @@ def _validate_python_version(*, python_version: str, requires_python: str | None
             f"Python version (`{requires_python}`). Choose a Python version that satisfies this constraint.\n\n"
         )
         raise ValueError(message)
+
+
+_CRON_SHORTHANDS = {
+    "daily": "0 0 * * *",
+    "weekly": "0 0 * * 0",
+    "monthly": "0 0 1 * *",
+}
+_CRON_FIELD_BOUNDS = ((0, 59), (0, 23), (1, 31), (1, 12), (0, 6))
+_CRON_FIELD_NAMES = ("minute", "hour", "day-of-month", "month", "day-of-week")
+
+
+def _is_valid_cron_field(*, field: str, minimum: int, maximum: int) -> bool:
+    for part in field.split(","):
+        base, sep, step = part.partition("/")
+        if sep and not (step.isdigit() and int(step) >= 1):
+            return False
+        if base == "*":
+            continue
+        start_str, has_range, end_str = base.partition("-")
+        if not start_str.isdigit() or (has_range and not end_str.isdigit()):
+            return False
+        start = int(start_str)
+        end = int(end_str) if has_range else start
+        if not (minimum <= start <= end <= maximum):
+            return False
+    return True
+
+
+def _validate_cron_expression(*, cron_expression: str) -> None:
+    """Validate a 5-field CRON expression (minute hour day-of-month month day-of-week)."""
+    fields = cron_expression.split()
+    if len(fields) != len(_CRON_FIELD_BOUNDS):
+        message = (
+            f"\n`{cron_expression}` is not a valid CRON expression: expected 5 space-separated fields "
+            f"(minute hour day-of-month month day-of-week), got {len(fields)}.\n\n"
+        )
+        raise ValueError(message)
+
+    for field, (minimum, maximum), name in zip(fields, _CRON_FIELD_BOUNDS, _CRON_FIELD_NAMES, strict=True):
+        if not _is_valid_cron_field(field=field, minimum=minimum, maximum=maximum):
+            message = (
+                f"\n`{field}` is not a valid {name} field in `{cron_expression}` "
+                f"(expected `*`, a number, a range, a step, or a comma-separated list within {minimum}-{maximum}).\n\n"
+            )
+            raise ValueError(message)
+
+
+def _resolve_cron_schedule(*, cron_schedule: str) -> str:
+    """
+    Resolve `cron_schedule` to a validated 5-field CRON expression.
+
+    Accepts the shorthands `daily`, `weekly`, and `monthly` (case-insensitive), or a raw CRON
+    expression, which is validated for well-formedness (not for how often GitHub will actually run it).
+    """
+    stripped = cron_schedule.strip()
+    shorthand = _CRON_SHORTHANDS.get(stripped.lower())
+    if shorthand is not None:
+        return shorthand
+
+    _validate_cron_expression(cron_expression=stripped)
+    return stripped
 
 
 @beartype.beartype

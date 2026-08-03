@@ -10,9 +10,11 @@ import yaml
 from historia.setup import provision_automation
 from historia.setup._automation import (
     _create_data_repository,
+    _extract_supported_python_versions,
     _get_authenticated_username,
     _get_latest_pypi_version,
     _render_workflow_yaml,
+    _resolve_cron_schedule,
     _upsert_repository_secret,
     _upsert_workflow_file,
     _validate_historia_spec,
@@ -98,7 +100,7 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None),
+        lambda **kwargs: (kwargs["historia_spec"], None, []),
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -153,7 +155,7 @@ def test_provision_automation_passes_project_public_through(monkeypatch: pytest.
 
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None),
+        lambda **kwargs: (kwargs["historia_spec"], None, []),
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -194,7 +196,7 @@ def test_provision_automation_passes_project_public_through(monkeypatch: pytest.
 def test_provision_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None),
+        lambda **kwargs: (kwargs["historia_spec"], None, []),
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -242,7 +244,7 @@ def test_provision_automation_reuses_existing_project(monkeypatch: pytest.Monkey
 def test_provision_automation_raises_when_project_creation_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None),
+        lambda **kwargs: (kwargs["historia_spec"], None, []),
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -281,7 +283,7 @@ def test_provision_automation_propagates_authentication_failure(monkeypatch: pyt
 
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None),
+        lambda **kwargs: (kwargs["historia_spec"], None, []),
     )
     monkeypatch.setattr("historia.setup._automation._get_authenticated_username", _raise_runtime_error)
 
@@ -386,10 +388,11 @@ def test_validate_historia_spec_accepts_published_version() -> None:
     response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": [], "0.10.8": []}})
 
     with unittest.mock.patch("requests.get", return_value=response):
-        spec, requires_python = _validate_historia_spec(historia_spec="historia==0.10.8")
+        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec="historia==0.10.8")
 
     assert spec == "historia==0.10.8"
     assert requires_python is None
+    assert supported_python_versions == []
 
 
 @pytest.mark.ai_generated
@@ -408,14 +411,26 @@ def test_validate_historia_spec_normalizes_bare_version() -> None:
     """A bare `X.Y.Z` (missing the `historia==` prefix) is a common slip and should be caught, not ignored."""
     response = _mock_response(
         200,
-        {"info": {"version": "0.10.11", "requires_python": ">=3.10"}, "releases": {"0.10.11": []}},
+        {
+            "info": {
+                "version": "0.10.11",
+                "requires_python": ">=3.10",
+                "classifiers": [
+                    "Programming Language :: Python :: 3.10",
+                    "Programming Language :: Python :: 3.13",
+                    "Programming Language :: Python :: 3.11",
+                ],
+            },
+            "releases": {"0.10.11": []},
+        },
     )
 
     with unittest.mock.patch("requests.get", return_value=response):
-        spec, requires_python = _validate_historia_spec(historia_spec="0.10.11")
+        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec="0.10.11")
 
     assert spec == "historia==0.10.11"
     assert requires_python == ">=3.10"
+    assert supported_python_versions == ["3.10", "3.11", "3.13"]
 
 
 @pytest.mark.ai_generated
@@ -441,10 +456,11 @@ def test_validate_historia_spec_looks_up_requires_python_for_a_non_latest_pin() 
         return release_response if url == "https://pypi.org/pypi/historia/0.10.8/json" else project_response
 
     with unittest.mock.patch("requests.get", side_effect=_fake_get):
-        spec, requires_python = _validate_historia_spec(historia_spec="historia==0.10.8")
+        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec="historia==0.10.8")
 
     assert spec == "historia==0.10.8"
     assert requires_python == ">=3.9"
+    assert supported_python_versions == []
 
 
 @pytest.mark.ai_generated
@@ -454,11 +470,30 @@ def test_validate_historia_spec_looks_up_requires_python_for_a_non_latest_pin() 
 )
 def test_validate_historia_spec_skips_specs_it_cannot_confidently_check(historia_spec: str) -> None:
     with unittest.mock.patch("requests.get") as mock_get:
-        spec, requires_python = _validate_historia_spec(historia_spec=historia_spec)
+        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec=historia_spec)
 
     mock_get.assert_not_called()
     assert spec == historia_spec
     assert requires_python is None
+    assert supported_python_versions == []
+
+
+@pytest.mark.ai_generated
+def test_extract_supported_python_versions_sorts_and_filters_classifiers() -> None:
+    classifiers = [
+        "Development Status :: 4 - Beta",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.12",
+    ]
+
+    assert _extract_supported_python_versions(classifiers=classifiers) == ["3.10", "3.12", "3.13"]
+
+
+@pytest.mark.ai_generated
+def test_extract_supported_python_versions_handles_no_classifiers() -> None:
+    assert _extract_supported_python_versions(classifiers=[]) == []
 
 
 # ---------------------------------------------------------------------------
@@ -535,6 +570,91 @@ def test_provision_automation_raises_on_unpublished_historia_spec() -> None:
             cron_schedule="0 0 * * *",
             project_title="Work History",
         )
+
+
+# ---------------------------------------------------------------------------
+# _resolve_cron_schedule
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("shorthand", "expected"),
+    [
+        ("daily", "0 0 * * *"),
+        ("Weekly", "0 0 * * 0"),
+        ("  MONTHLY  ", "0 0 1 * *"),
+    ],
+)
+def test_resolve_cron_schedule_expands_shorthands(shorthand: str, expected: str) -> None:
+    assert _resolve_cron_schedule(cron_schedule=shorthand) == expected
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "cron_expression",
+    ["0 0 * * *", "*/15 * * * *", "0 9-17 * * 1-5", "0,30 * * * *", "0 0 1 1 *"],
+)
+def test_resolve_cron_schedule_accepts_valid_custom_expressions(cron_expression: str) -> None:
+    assert _resolve_cron_schedule(cron_schedule=cron_expression) == cron_expression
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "cron_expression",
+    [
+        "0 0 * *",  # too few fields
+        "60 0 * * *",  # minute out of range
+        "0 0 * * 8",  # day-of-week out of range
+        "0 0 32 * *",  # day-of-month out of range
+        "not a cron",
+    ],
+)
+def test_resolve_cron_schedule_rejects_invalid_custom_expressions(cron_expression: str) -> None:
+    with pytest.raises(ValueError, match="valid"):
+        _resolve_cron_schedule(cron_schedule=cron_expression)
+
+
+@pytest.mark.ai_generated
+def test_provision_automation_expands_cron_shorthand(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "historia.setup._automation._validate_historia_spec",
+        lambda **kwargs: (kwargs["historia_spec"], None, []),
+    )
+    monkeypatch.setattr(
+        "historia.setup._automation._get_authenticated_username",
+        lambda *, token: "octocat",  # noqa: ARG005
+    )
+    monkeypatch.setattr(
+        "historia.setup._automation._create_data_repository",
+        lambda **_kwargs: {**_REPOSITORY_PAYLOAD, "created": "true"},
+    )
+    monkeypatch.setattr(
+        "historia.setup._automation.create_project_page",
+        lambda **_kwargs: {"url": "https://github.com/users/octocat/projects/1", "id": "PVT_1"},
+    )
+    upserted_workflow: dict[str, object] = {}
+    monkeypatch.setattr(
+        "historia.setup._automation._upsert_workflow_file",
+        lambda **kwargs: upserted_workflow.update(kwargs),
+    )
+    monkeypatch.setattr("historia.setup._automation._upsert_repository_secret", lambda **_kwargs: None)
+
+    provision_automation(
+        token="fake-token",
+        username="octocat",
+        owner="octocat",
+        repository_name="work-history-data",
+        private=False,
+        secret_name="GH_PAT",
+        recency_days=2,
+        python_version="3.13",
+        historia_spec="historia==1.2.3",
+        cron_schedule="daily",
+        project_title="Work History",
+    )
+
+    assert 'cron: "0 0 * * *"' in upserted_workflow["content"]
 
 
 # ---------------------------------------------------------------------------

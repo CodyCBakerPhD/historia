@@ -16,6 +16,7 @@ from .setup import provision_automation
 from .setup._automation import (
     _get_authenticated_username,
     _get_latest_pypi_version,
+    _resolve_cron_schedule,
     _validate_historia_spec,
     _validate_python_version,
 )
@@ -387,13 +388,16 @@ def _historia_setup_automation_cli() -> None:
         # may not be published yet (e.g. a development install) if PyPI can't be reached.
         default_historia_spec = None
     requires_python: str | None = None
+    supported_python_versions: list[str] = []
     while True:
         historia_spec = rich_click.prompt(
             "Version specifier for the `historia` package to install in the workflow",
             default=default_historia_spec,
         )
         try:
-            historia_spec, requires_python = _validate_historia_spec(historia_spec=historia_spec)
+            historia_spec, requires_python, supported_python_versions = _validate_historia_spec(
+                historia_spec=historia_spec,
+            )
         except ValueError as exception:
             rich_click.echo(rich_click.style(str(exception), fg="red"))
             continue
@@ -402,8 +406,18 @@ def _historia_setup_automation_cli() -> None:
             raise SystemExit(1) from exception
         break
 
+    default_python_version = "3.13"
+    if supported_python_versions and default_python_version not in supported_python_versions:
+        default_python_version = supported_python_versions[-1]
     while True:
-        python_version = rich_click.prompt("Python version to use in the workflow", default="3.13")
+        if supported_python_versions:
+            python_version = rich_click.prompt(
+                "Python version to use in the workflow",
+                default=default_python_version,
+                type=rich_click.Choice(supported_python_versions),
+            )
+        else:
+            python_version = rich_click.prompt("Python version to use in the workflow", default=default_python_version)
         try:
             _validate_python_version(python_version=python_version, requires_python=requires_python)
         except ValueError as exception:
@@ -411,7 +425,17 @@ def _historia_setup_automation_cli() -> None:
             continue
         break
 
-    cron_schedule = rich_click.prompt("CRON schedule for the scheduled run", default="0 0 * * *")
+    while True:
+        cron_schedule = rich_click.prompt(
+            "CRON schedule for the scheduled run (`daily`, `weekly`, `monthly`, or a custom 5-field CRON expression)",
+            default="daily",
+        )
+        try:
+            cron_schedule = _resolve_cron_schedule(cron_schedule=cron_schedule)
+        except ValueError as exception:
+            rich_click.echo(rich_click.style(str(exception), fg="red"))
+            continue
+        break
 
     try:
         result = provision_automation(
