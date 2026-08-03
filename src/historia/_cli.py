@@ -427,7 +427,7 @@ def _historia_setup_automation_cli() -> None:
 
     while True:
         cron_schedule = rich_click.prompt(
-            "CRON schedule for the scheduled run (`daily`, `weekly`, `monthly`, or a custom 5-field CRON expression)",
+            "CRON schedule for the scheduled run (`daily`, `weekly`, `monthly`, or a custom CRON)",
             default="daily",
         )
         try:
