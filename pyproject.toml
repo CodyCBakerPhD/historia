@@ -110,6 +110,9 @@ ignore = [
     # GraphQL uses exceeds the branch / complexity thresholds; unavoidable
     "C901",
     "PLR0912",
+    # The interactive setup wizard is a long sequence of prompts; splitting it into
+    # smaller local functions was explicitly rejected in review
+    "PLR0915",
     # Long, descriptive messages constructed at the raise site are preferred
     # over per-call-site exception subclasses for one-off internal errors
     "TRY003",
