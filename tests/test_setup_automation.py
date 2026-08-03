@@ -654,7 +654,9 @@ def test_provision_automation_expands_cron_shorthand(monkeypatch: pytest.MonkeyP
         project_title="Work History",
     )
 
-    assert 'cron: "0 0 * * *"' in upserted_workflow["content"]
+    workflow_content = upserted_workflow["content"]
+    assert isinstance(workflow_content, str)
+    assert 'cron: "0 0 * * *"' in workflow_content
 
 
 # ---------------------------------------------------------------------------
