@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## v0.10.12
+
 ### 🚀 Enhancement
 
 - Added `historia setup automation`, an interactive wizard that provisions the Step 6 CRON-based GitHub Action end to end: it creates or reuses the data repository, optionally creates the project board, uploads the GitHub token as an encrypted repository secret, and commits a fully rendered `.github/workflows/update.yml`. ([#167](https://github.com/CodyCBakerPhD/historia/pull/167))
