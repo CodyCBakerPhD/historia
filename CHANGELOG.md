@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🏠 Internal
+
+- Fixed the `Daily link checker` workflow failing every run: excluded the `https://api.github.com/user/repos` literal asserted against in `tests/test_setup_automation.py` (a real, auth-only endpoint that always 401s for the unauthenticated link checker), and added `--timeout`/retry flags to reduce transient timeout failures on slow-to-redirect links (e.g. the README's Zenodo DOI).
+
 ## v0.10.12
 
 ### 🚀 Enhancement
