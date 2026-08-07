@@ -2,7 +2,7 @@
   <img alt="Historia logo" src="https://raw.githubusercontent.com/CodyCBakerPhD/historia/main/docs/assets/historia-logo.png" width="320">
 </p>
 
-# Historia
+<h1 align="center">Historia</h1>
 
 <p align="center">
   <a href="https://pypi.org/project/historia/"><img alt="PyPI latest release version" src="https://img.shields.io/pypi/v/historia.svg"></a>
