@@ -14,9 +14,12 @@ repos:
     - id: check-yaml
     - id: end-of-file-fixer
     - id: trailing-whitespace
+    - id: check-json
     - id: check-toml
     - id: check-added-large-files
     - id: check-case-conflict
+    - id: check-readthedocs
+      files: docs/.readthedocs.yml
 
 - repo: https://github.com/python-jsonschema/check-jsonschema
   rev: 0.37.4
