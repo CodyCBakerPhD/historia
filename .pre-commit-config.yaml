@@ -8,17 +8,30 @@ default_language_version:
   python: python3.11
 
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-    -   id: check-yaml
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+    - id: check-yaml
+    - id: end-of-file-fixer
+    - id: trailing-whitespace
+    - id: check-json
+    - id: check-toml
+    - id: check-added-large-files
+    - id: check-case-conflict
 
--   repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.5.1
-    hooks:
-    -   id: black
+- repo: https://github.com/python-jsonschema/check-jsonschema
+  rev: 0.37.4
+  hooks:
+    - id: check-dependabot
+    - id: check-github-workflows
+      args: ["--verbose"]
+    - id: check-readthedocs
+      files: docs/.readthedocs.yml
+
+- repo: https://github.com/psf/black-pre-commit-mirror
+  rev: 26.5.1
+  hooks:
+  - id: black
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.15.20
@@ -39,3 +52,8 @@ repos:
   - id: mypy
     additional_dependencies:
     - types-requests
+
+- repo: https://github.com/koalaman/shellcheck-precommit
+  rev: v0.11.0
+  hooks:
+    - id: shellcheck
