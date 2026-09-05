@@ -23,6 +23,9 @@ repos:
   rev: 0.37.4
   hooks:
     - id: check-dependabot
+    - id: check-github-actions
+      args: ["--verbose"]
+      files: ^action/.+/action\.yml$
     - id: check-github-workflows
       args: ["--verbose"]
     - id: check-readthedocs

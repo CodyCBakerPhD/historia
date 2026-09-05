@@ -17,6 +17,11 @@ _GITHUB_API_URL = "https://api.github.com"
 _PYPI_PROJECT_URL = "https://pypi.org/pypi/{package_name}/json"
 _PYPI_RELEASE_URL = "https://pypi.org/pypi/{package_name}/{version}/json"
 
+# The generated workflow calls Historia through the container actions under `action/`, which are
+# tagged alongside the package and pin the image built for that same release.
+_ACTION_REPOSITORY = "CodyCBakerPhD/historia"
+_MINIMUM_ACTION_VERSION = "0.10.14"
+
 # Commits made via the Contents API are attributed to the token owner by default; pin them to a
 # bot identity instead so the wizard doesn't leave commits authored as the person who ran it.
 _BOT_COMMITTER = {"name": "historia bot", "email": "historia-bot@users.noreply.github.com"}
@@ -32,13 +37,9 @@ on:
 env:
   # Set these
   USERNAME: {{USERNAME}}
-  PROJECT_NUMBER: {{PROJECT_NUMBER}}
-  PYTHON_VERSION: "{{PYTHON_VERSION}}"
-  HISTORIA_SPEC: {{HISTORIA_SPEC}}
+  PROJECT_URL: {{PROJECT_URL}}
   # Let these set themselves
   GITHUB_TOKEN: ${{ secrets.{{SECRET_NAME}} }}
-  REPO_OWNER: ${{ github.repository_owner }}
-  REPO_OWNER_TYPE: ${{ fromJSON('{"Organization":"orgs","User":"users"}')[github.event.repository.owner.type] }}
   REPO_DIR: ${{ github.event.repository.name }}
   REPO_FULL_NAME: ${{ github.repository }}
 
@@ -72,33 +73,18 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      # Only the wheel cache is persisted, never the installed tree (`~/.local`).
-      # Console script shebangs embed the exact interpreter path, which the runner image
-      # invalidates whenever it bumps the Python patch release.
-      - name: Restore pip cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ env.HISTORIA_SPEC }}
-          restore-keys: pip-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-
-
-      - name: Install historia
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install --user "$HISTORIA_SPEC"
-
-      - name: Add user-local bin to PATH
-        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
       - name: Run update
-        working-directory: ${{ env.REPO_DIR }}
-        run: historia update github --directory ./history --username "$USERNAME" --recency {{RECENCY_DAYS}}
+        uses: {{ACTION_REPOSITORY}}/action/update-github@v{{HISTORIA_VERSION}}
+        with:
+          directory: ${{ env.REPO_DIR }}/history
+          username: ${{ env.USERNAME }}
+          recency: "{{RECENCY_DAYS}}"
+          token: ${{ env.GITHUB_TOKEN }}
+
+      # Container actions run as root, so anything they write into the workspace is root-owned.
+      # The git steps below run as the unprivileged runner user and need to modify those files.
+      - name: Restore workspace ownership
+        run: sudo chown -R "$(id -u):$(id -g)" "$REPO_DIR"
 
       - name: Upload new content
         working-directory: ${{ env.REPO_DIR }}
@@ -122,11 +108,17 @@ jobs:
           git push --force https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/$REPO_FULL_NAME.git HEAD:dist
 
       - name: Push to GitHub project
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          OWNER_PROJECT_URL="https://github.com/$REPO_OWNER_TYPE/$REPO_OWNER/projects/$PROJECT_NUMBER"
-          historia project populate --directory ./history --url "$OWNER_PROJECT_URL" --yes
-          historia project update dates --url "$OWNER_PROJECT_URL"
+        uses: {{ACTION_REPOSITORY}}/action/project-populate@v{{HISTORIA_VERSION}}
+        with:
+          directory: ${{ env.REPO_DIR }}/history
+          url: ${{ env.PROJECT_URL }}
+          token: ${{ env.GITHUB_TOKEN }}
+
+      - name: Update GitHub project dates
+        uses: {{ACTION_REPOSITORY}}/action/project-update-dates@v{{HISTORIA_VERSION}}
+        with:
+          url: ${{ env.PROJECT_URL }}
+          token: ${{ env.GITHUB_TOKEN }}
 """
 
 
@@ -219,12 +211,12 @@ def provision_automation(  # noqa: PLR0913
     else:
         resolved_project_url = typing.cast("str", project_url)
 
-    _, _, project_number = _parse_project_url(resolved_project_url)
+    # Reject a malformed board URL here rather than letting the generated workflow fail on its first run.
+    _parse_project_url(resolved_project_url)
 
     workflow_yaml = _render_workflow_yaml(
         username=username,
-        project_number=project_number,
-        python_version=python_version,
+        project_url=resolved_project_url,
         historia_spec=historia_spec,
         secret_name=secret_name,
         cron_schedule=cron_schedule,
@@ -416,11 +408,36 @@ def _resolve_cron_schedule(*, cron_schedule: str) -> str:
 
 
 @beartype.beartype
+def _resolve_action_version(historia_spec: str, /) -> str:
+    """
+    Resolve the version tag of the vendored container actions the generated workflow should use.
+
+    The actions live in this repository and are tagged alongside the package, so the workflow can only
+    reference a version that both exists as a release tag and actually contains the `action/` directory.
+    """
+    match = re.fullmatch(r"historia==(\d[\w.\-+]*)", historia_spec.strip())
+    if match is None:
+        message = (
+            f"\nThe generated workflow needs an exact version to pin its actions to, but `{historia_spec}` "
+            "is not a pinned specifier.\nUse the `historia==X.Y.Z` form instead.\n\n"
+        )
+        raise ValueError(message)
+
+    version = match.group(1)
+    if packaging.version.Version(version) < packaging.version.Version(_MINIMUM_ACTION_VERSION):
+        message = (
+            f"\n`historia=={version}` predates the vendored workflow actions, which were introduced in "
+            f"`historia=={_MINIMUM_ACTION_VERSION}`.\nPin `{_MINIMUM_ACTION_VERSION}` or newer.\n\n"
+        )
+        raise ValueError(message)
+    return version
+
+
+@beartype.beartype
 def _render_workflow_yaml(  # noqa: PLR0913
     *,
     username: str,
-    project_number: int,
-    python_version: str,
+    project_url: str,
     historia_spec: str,
     secret_name: str,
     cron_schedule: str,
@@ -430,9 +447,9 @@ def _render_workflow_yaml(  # noqa: PLR0913
     """Render the `.github/workflows/update.yml` contents for the CRON-based automation described in Step 6."""
     replacements = {
         "{{USERNAME}}": username,
-        "{{PROJECT_NUMBER}}": str(project_number),
-        "{{PYTHON_VERSION}}": python_version,
-        "{{HISTORIA_SPEC}}": historia_spec,
+        "{{PROJECT_URL}}": project_url,
+        "{{ACTION_REPOSITORY}}": _ACTION_REPOSITORY,
+        "{{HISTORIA_VERSION}}": _resolve_action_version(historia_spec),
         "{{SECRET_NAME}}": secret_name,
         "{{CRON_SCHEDULE}}": cron_schedule,
         "{{RECENCY_DAYS}}": str(recency_days),

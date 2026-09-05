@@ -23,8 +23,7 @@ from historia.setup._automation import (
 
 _RENDER_KWARGS = {
     "username": "octocat",
-    "project_number": 7,
-    "python_version": "3.13",
+    "project_url": "https://github.com/users/octocat/projects/7",
     "historia_spec": "historia==1.2.3",
     "secret_name": "GH_PAT",
     "cron_schedule": "0 0 * * *",
@@ -145,7 +144,7 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
     }
     workflow_content = upserted_workflow["content"]
     assert isinstance(workflow_content, str)
-    assert "PROJECT_NUMBER: 1" in workflow_content
+    assert "PROJECT_URL: https://github.com/users/octocat/projects/1" in workflow_content
     assert create_project_calls["public"] is False
 
 
@@ -237,7 +236,7 @@ def test_provision_automation_reuses_existing_project(monkeypatch: pytest.Monkey
     assert result["project_url"] == "https://github.com/users/octocat/projects/5"
     workflow_content = upserted_workflow["content"]
     assert isinstance(workflow_content, str)
-    assert "PROJECT_NUMBER: 5" in workflow_content
+    assert "PROJECT_URL: https://github.com/users/octocat/projects/5" in workflow_content
 
 
 @pytest.mark.ai_generated
@@ -314,9 +313,9 @@ def test_render_workflow_yaml_substitutes_all_placeholders() -> None:
 
     for placeholder in (
         "USERNAME",
-        "PROJECT_NUMBER",
-        "PYTHON_VERSION",
-        "HISTORIA_SPEC",
+        "PROJECT_URL",
+        "ACTION_REPOSITORY",
+        "HISTORIA_VERSION",
         "SECRET_NAME",
         "CRON_SCHEDULE",
         "RECENCY_DAYS",
@@ -324,12 +323,11 @@ def test_render_workflow_yaml_substitutes_all_placeholders() -> None:
     ):
         assert "{{" + placeholder + "}}" not in rendered
     assert "USERNAME: octocat" in rendered
-    assert "PROJECT_NUMBER: 7" in rendered
-    assert 'PYTHON_VERSION: "3.13"' in rendered
-    assert "HISTORIA_SPEC: historia==1.2.3" in rendered
+    assert "PROJECT_URL: https://github.com/users/octocat/projects/7" in rendered
+    assert "CodyCBakerPhD/historia/action/update-github@v1.2.3" in rendered
     assert "secrets.GH_PAT" in rendered
     assert 'cron: "0 0 * * *"' in rendered
-    assert "--recency 2" in rendered
+    assert 'recency: "2"' in rendered
     assert "HEAD:main" in rendered
 
 
@@ -358,17 +356,49 @@ def test_render_workflow_yaml_respects_custom_default_branch() -> None:
 
 
 @pytest.mark.ai_generated
-def test_render_workflow_yaml_always_installs_historia() -> None:
+def test_render_workflow_yaml_runs_historia_only_through_container_actions() -> None:
     rendered = _render_workflow_yaml(**_RENDER_KWARGS)
 
     document = yaml.safe_load(rendered)
     steps = document["jobs"]["Update"]["steps"]
-    install_step = next(step for step in steps if step["name"] == "Install historia")
-    cache_step = next(step for step in steps if step["name"] == "Restore pip cache")
+    action_refs = [step["uses"] for step in steps if "uses" in step]
 
-    assert "if" not in install_step
-    assert "~/.local" not in cache_step["with"]["path"]
+    # No pip, no interpreter, and therefore none of the console script shebang fragility that
+    # broke the previous workflow whenever the runner image bumped its Python patch release.
+    assert "pip" not in rendered
+    assert "setup-python" not in rendered
     assert "hashFiles" not in rendered
+    for command in ("historia update", "historia project"):
+        assert command not in rendered
+    for action in ("update-github", "project-populate", "project-update-dates"):
+        assert f"CodyCBakerPhD/historia/action/{action}@v1.2.3" in action_refs
+
+
+@pytest.mark.ai_generated
+def test_render_workflow_yaml_restores_workspace_ownership_before_git_steps() -> None:
+    rendered = _render_workflow_yaml(**_RENDER_KWARGS)
+
+    document = yaml.safe_load(rendered)
+    step_names = [step["name"] for step in document["jobs"]["Update"]["steps"]]
+
+    assert step_names.index("Restore workspace ownership") == step_names.index("Run update") + 1
+    assert step_names.index("Restore workspace ownership") < step_names.index("Upload new content")
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("historia_spec", "match"),
+    [
+        ("historia>=1.2.3", "not a pinned specifier"),
+        ("historia", "not a pinned specifier"),
+        ("historia==0.10.13", "predates the vendored workflow actions"),
+    ],
+)
+def test_render_workflow_yaml_rejects_specs_without_usable_actions(historia_spec: str, match: str) -> None:
+    kwargs = {**_RENDER_KWARGS, "historia_spec": historia_spec}
+
+    with pytest.raises(ValueError, match=match):
+        _render_workflow_yaml(**kwargs)
 
 
 # ---------------------------------------------------------------------------
