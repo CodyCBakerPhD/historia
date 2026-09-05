@@ -357,6 +357,20 @@ def test_render_workflow_yaml_respects_custom_default_branch() -> None:
     assert "HEAD:trunk" in rendered
 
 
+@pytest.mark.ai_generated
+def test_render_workflow_yaml_always_installs_historia() -> None:
+    rendered = _render_workflow_yaml(**_RENDER_KWARGS)
+
+    document = yaml.safe_load(rendered)
+    steps = document["jobs"]["Update"]["steps"]
+    install_step = next(step for step in steps if step["name"] == "Install historia")
+    cache_step = next(step for step in steps if step["name"] == "Restore pip cache")
+
+    assert "if" not in install_step
+    assert "~/.local" not in cache_step["with"]["path"]
+    assert "hashFiles" not in rendered
+
+
 # ---------------------------------------------------------------------------
 # _get_latest_pypi_version / _validate_historia_spec
 # ---------------------------------------------------------------------------

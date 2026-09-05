@@ -52,8 +52,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.REPO_DIR }}
-          key: repo-${{ runner.os }}-${{ github.repository }}-${{ hashFiles('.github/workflows/update.yml') }}
-          restore-keys: repo-${{ runner.os }}-${{ github.repository }}-
+          key: repo-${{ runner.os }}-${{ github.repository }}
 
       - name: Prepare repository from cache
         if: steps.repo-cache.outputs.cache-hit == 'true'
@@ -74,22 +73,22 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Setup Python
+        id: setup-python
         uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # Only the wheel cache is persisted, never the installed tree (`~/.local`).
+      # Console script shebangs embed the exact interpreter path, which the runner image
+      # invalidates whenever it bumps the Python patch release.
       - name: Restore pip cache
-        id: pip-cache
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.cache/pip
-            ~/.local
-          key: pip-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('.github/workflows/update.yml') }}
-          restore-keys: pip-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ env.HISTORIA_SPEC }}
+          restore-keys: pip-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-
 
       - name: Install historia
-        if: steps.pip-cache.outputs.cache-hit != 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install --user "$HISTORIA_SPEC"
