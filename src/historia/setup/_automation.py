@@ -6,7 +6,6 @@ import typing
 import beartype
 import nacl.encoding
 import nacl.public
-import packaging.specifiers
 import packaging.version
 import requests
 
@@ -15,7 +14,6 @@ from ..project._add_to_project import _parse_project_url
 
 _GITHUB_API_URL = "https://api.github.com"
 _PYPI_PROJECT_URL = "https://pypi.org/pypi/{package_name}/json"
-_PYPI_RELEASE_URL = "https://pypi.org/pypi/{package_name}/{version}/json"
 
 # The generated workflow calls Historia through the container actions under `action/`, which are
 # tagged alongside the package and pin the image built for that same release.
@@ -132,7 +130,6 @@ def provision_automation(  # noqa: PLR0913
     private: bool,
     secret_name: str,
     recency_days: int,
-    python_version: str,
     historia_spec: str,
     cron_schedule: str,
     project_title: str | None = None,
@@ -161,10 +158,8 @@ def provision_automation(  # noqa: PLR0913
         Name of the repository secret that will hold `token`.
     recency_days : int
         Number of most recent days the scheduled workflow refreshes on each run.
-    python_version : str
-        Python version to use in the workflow.
     historia_spec : str
-        Version specifier for the `historia` package to install in the workflow.
+        Version specifier for the `historia` package the workflow's actions run.
     cron_schedule : str
         CRON schedule for the scheduled run.
     project_title : str, optional
@@ -187,8 +182,7 @@ def provision_automation(  # noqa: PLR0913
         message = "Exactly one of `project_title` or `project_url` must be provided."
         raise ValueError(message)
 
-    historia_spec, requires_python, _ = _validate_historia_spec(historia_spec=historia_spec)
-    _validate_python_version(python_version=python_version, requires_python=requires_python)
+    historia_spec = _validate_historia_spec(historia_spec=historia_spec)
     cron_schedule = _resolve_cron_schedule(cron_schedule=cron_schedule)
 
     authenticated_username = _get_authenticated_username(token=token)
@@ -262,28 +256,7 @@ def _fetch_pypi_project_info(*, package_name: str) -> dict:
     return response.json()
 
 
-def _fetch_pypi_release_info(*, package_name: str, version: str) -> dict:
-    response = requests.get(url=_PYPI_RELEASE_URL.format(package_name=package_name, version=version), timeout=30)
-    if response.status_code != 200:
-        message = (
-            f"\nCould not look up `{package_name}=={version}` on PyPI.\n"
-            f"Status code {response.status_code}: {response.text}\n\n"
-        )
-        raise RuntimeError(message)
-    return response.json()
-
-
-_PYTHON_CLASSIFIER_PATTERN = re.compile(r"Programming Language :: Python :: (\d+\.\d+)$")
-
-
-def _extract_supported_python_versions(*, classifiers: list[str]) -> list[str]:
-    """Extract and sort the `X.Y` versions out of a release's `Programming Language :: Python :: X.Y` classifiers."""
-    matches = (_PYTHON_CLASSIFIER_PATTERN.fullmatch(classifier) for classifier in classifiers)
-    versions = {match.group(1) for match in matches if match is not None}
-    return sorted(versions, key=lambda version: tuple(int(part) for part in version.split(".")))
-
-
-def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, list[str]]:
+def _validate_historia_spec(*, historia_spec: str) -> str:
     """
     Validate a `historia` version specifier against PyPI's published releases.
 
@@ -295,16 +268,13 @@ def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, lis
 
     Returns
     -------
-    tuple[str, str | None, list[str]]
-        The (possibly normalized) specifier, the resolved release's `Requires-Python` constraint
-        (or `None` if the specifier couldn't be resolved to a single published version), and the
-        list of Python versions the resolved release declares support for via its classifiers
-        (empty if unresolved).
+    str
+        The (possibly normalized) specifier.
 
     """
     match = re.fullmatch(r"(?:historia==)?(\d[\w.\-+]*)", historia_spec.strip())
     if match is None:
-        return historia_spec, None, []
+        return historia_spec
     pinned_version = match.group(1)
 
     project_info = _fetch_pypi_project_info(package_name="historia")
@@ -316,34 +286,7 @@ def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, lis
         )
         raise ValueError(message)
 
-    if pinned_version == project_info["info"]["version"]:
-        release_info = project_info
-    else:
-        release_info = _fetch_pypi_release_info(package_name="historia", version=pinned_version)
-
-    supported_python_versions = _extract_supported_python_versions(
-        classifiers=release_info["info"].get("classifiers") or [],
-    )
-    return f"historia=={pinned_version}", release_info["info"].get("requires_python"), supported_python_versions
-
-
-def _validate_python_version(*, python_version: str, requires_python: str | None) -> None:
-    """Validate `python_version` and, if known, check it against a `Requires-Python` constraint."""
-    try:
-        version = packaging.version.Version(python_version)
-    except packaging.version.InvalidVersion as exception:
-        message = f"\n`{python_version}` is not a valid Python version (expected e.g. `3.13`).\n\n"
-        raise ValueError(message) from exception
-
-    if requires_python is None:
-        return
-
-    if not packaging.specifiers.SpecifierSet(requires_python).contains(version):
-        message = (
-            f"\nPython {python_version} does not satisfy the pinned `historia` release's required "
-            f"Python version (`{requires_python}`). Choose a Python version that satisfies this constraint.\n\n"
-        )
-        raise ValueError(message)
+    return f"historia=={pinned_version}"
 
 
 _CRON_SHORTHANDS = {

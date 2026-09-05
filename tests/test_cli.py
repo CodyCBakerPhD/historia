@@ -687,9 +687,8 @@ def test_setup_automation_happy_path_creates_project_and_writes_workflow(
     monkeypatch.setattr(
         historia._cli,
         "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, None, []),
+        lambda *, historia_spec: historia_spec,
     )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -736,9 +735,8 @@ def test_setup_automation_new_project_can_be_made_public(monkeypatch: pytest.Mon
     monkeypatch.setattr(
         historia._cli,
         "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, None, []),
+        lambda *, historia_spec: historia_spec,
     )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -773,9 +771,8 @@ def test_setup_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(
         historia._cli,
         "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, None, []),
+        lambda *, historia_spec: historia_spec,
     )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -820,9 +817,8 @@ def test_setup_automation_shows_error_when_provision_automation_fails(monkeypatc
     monkeypatch.setattr(
         historia._cli,
         "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, None, []),
+        lambda *, historia_spec: historia_spec,
     )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _raise_runtime_error)
 
     runner = click.testing.CliRunner()
@@ -861,9 +857,8 @@ def test_setup_automation_falls_back_to_no_default_when_pypi_unreachable(monkeyp
     monkeypatch.setattr(
         historia._cli,
         "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, None, []),
+        lambda *, historia_spec: historia_spec,
     )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -871,8 +866,8 @@ def test_setup_automation_falls_back_to_no_default_when_pypi_unreachable(monkeyp
         historia.historia_cli,
         ["setup", "automation"],
         # token, username, owner, repo name, private=n, new project=y, title, public, secret name,
-        # recency, historia_spec (explicit, no default to accept), python version, cron
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\nhistoria==9.9.9\n\n\n",
+        # recency, historia_spec (explicit, no default to accept), cron
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\nhistoria==9.9.9\n\n",
     )
 
     assert result.exit_code == 0
@@ -896,17 +891,16 @@ def test_setup_automation_reprompts_on_invalid_historia_spec(monkeypatch: pytest
             "workflow_url": "https://github.com/octocat/work-history-data/actions/workflows/update.yml",
         }
 
-    def _fake_validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, list[str]]:
+    def _fake_validate_historia_spec(*, historia_spec: str) -> str:
         attempts.append(historia_spec)
         if historia_spec == "1.0.0":
             error_message = "`1.0.0` is not a published release of `historia` on PyPI."
             raise ValueError(error_message)
-        return historia_spec, None, []
+        return historia_spec
 
     monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
     monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", lambda *, package_name: "0.10.11")  # noqa: ARG005
     monkeypatch.setattr(historia._cli, "_validate_historia_spec", _fake_validate_historia_spec)
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -914,103 +908,14 @@ def test_setup_automation_reprompts_on_invalid_historia_spec(monkeypatch: pytest
         historia.historia_cli,
         ["setup", "automation"],
         # token, username, owner, repo name, private=n, new project=y, title, public, secret name,
-        # recency, historia_spec=1.0.0 (rejected, reprompted), historia_spec=historia==0.10.8 (accepted),
-        # python version, cron
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\n1.0.0\nhistoria==0.10.8\n\n\n",
+        # recency, historia_spec=1.0.0 (rejected, reprompted), historia_spec=historia==0.10.8 (accepted), cron
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n1.0.0\nhistoria==0.10.8\n\n",
     )
 
     assert result.exit_code == 0, result.output
     assert attempts == ["1.0.0", "historia==0.10.8"]
     assert "not a published release" in result.output
     assert calls["historia_spec"] == "historia==0.10.8"
-
-
-@pytest.mark.ai_generated
-def test_setup_automation_reprompts_on_invalid_python_version(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: dict[str, object] = {}
-    attempts: list[str] = []
-
-    def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
-        return "octocat"
-
-    def _fake_provision_automation(**kwargs: object) -> dict[str, str]:
-        calls.update(kwargs)
-        return {
-            "repository_url": "https://github.com/octocat/work-history-data",
-            "repository_created": "true",
-            "project_url": "https://github.com/users/octocat/projects/1",
-            "workflow_url": "https://github.com/octocat/work-history-data/actions/workflows/update.yml",
-        }
-
-    def _fake_validate_python_version(*, python_version: str, requires_python: str | None) -> None:  # noqa: ARG001
-        attempts.append(python_version)
-        if python_version == "3.6":
-            error_message = "Python 3.6 does not satisfy the pinned `historia` release's required Python version."
-            raise ValueError(error_message)
-
-    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
-    monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", lambda *, package_name: "0.10.11")  # noqa: ARG005
-    monkeypatch.setattr(
-        historia._cli,
-        "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, ">=3.10", []),
-    )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", _fake_validate_python_version)
-    monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
-
-    runner = click.testing.CliRunner()
-    result = runner.invoke(
-        historia.historia_cli,
-        ["setup", "automation"],
-        # token, username, owner, repo name, private=n, new project=y, title, public, secret name,
-        # recency, historia_spec, python_version=3.6 (rejected, reprompted), python_version=3.13, cron
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n3.6\n3.13\n\n",
-    )
-
-    assert result.exit_code == 0, result.output
-    assert attempts == ["3.6", "3.13"]
-    assert "does not satisfy" in result.output
-    assert calls["python_version"] == "3.13"
-
-
-@pytest.mark.ai_generated
-def test_setup_automation_python_version_prompt_lists_supported_choices(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: dict[str, object] = {}
-
-    def _fake_get_authenticated_username(*, token: str) -> str:  # noqa: ARG001
-        return "octocat"
-
-    def _fake_provision_automation(**kwargs: object) -> dict[str, str]:
-        calls.update(kwargs)
-        return {
-            "repository_url": "https://github.com/octocat/work-history-data",
-            "repository_created": "true",
-            "project_url": "https://github.com/users/octocat/projects/1",
-            "workflow_url": "https://github.com/octocat/work-history-data/actions/workflows/update.yml",
-        }
-
-    monkeypatch.setattr(historia._cli, "_get_authenticated_username", _fake_get_authenticated_username)
-    monkeypatch.setattr(historia._cli, "_get_latest_pypi_version", lambda *, package_name: "0.10.11")  # noqa: ARG005
-    monkeypatch.setattr(
-        historia._cli,
-        "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, ">=3.10", ["3.10", "3.11", "3.12", "3.13", "3.14"]),
-    )
-    monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
-
-    runner = click.testing.CliRunner()
-    result = runner.invoke(
-        historia.historia_cli,
-        ["setup", "automation"],
-        # token, username, owner, repo name, private=n, new project=y, title, public, secret name,
-        # recency, historia_spec, python_version=3.6 (not a listed choice, reprompted), python_version=3.12, cron
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n3.6\n3.12\n\n",
-    )
-
-    assert result.exit_code == 0, result.output
-    assert "Python version to use in the workflow (3.10, 3.11, 3.12, 3.13, 3.14) [3.13]" in result.output
-    assert "is not one of" in result.output
-    assert calls["python_version"] == "3.12"
 
 
 @pytest.mark.ai_generated
@@ -1034,9 +939,8 @@ def test_setup_automation_cron_prompt_accepts_shorthand(monkeypatch: pytest.Monk
     monkeypatch.setattr(
         historia._cli,
         "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, None, []),
+        lambda *, historia_spec: historia_spec,
     )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -1044,8 +948,8 @@ def test_setup_automation_cron_prompt_accepts_shorthand(monkeypatch: pytest.Monk
         historia.historia_cli,
         ["setup", "automation"],
         # token, username, owner, repo name, private=n, new project=y, title, public, secret name,
-        # recency, historia_spec, python version, cron=weekly
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\nweekly\n",
+        # recency, historia_spec, then "weekly" for the cron
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\nweekly\n",
     )
 
     assert result.exit_code == 0, result.output
@@ -1073,9 +977,8 @@ def test_setup_automation_reprompts_on_invalid_cron(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(
         historia._cli,
         "_validate_historia_spec",
-        lambda *, historia_spec: (historia_spec, None, []),
+        lambda *, historia_spec: historia_spec,
     )
-    monkeypatch.setattr(historia._cli, "_validate_python_version", lambda **_kwargs: None)
     monkeypatch.setattr(historia._cli, "provision_automation", _fake_provision_automation)
 
     runner = click.testing.CliRunner()
@@ -1083,8 +986,8 @@ def test_setup_automation_reprompts_on_invalid_cron(monkeypatch: pytest.MonkeyPa
         historia.historia_cli,
         ["setup", "automation"],
         # token, username, owner, repo name, private=n, new project=y, title, public, secret name,
-        # recency, historia_spec, python version, cron="99 * * * *" (invalid, reprompted), cron=daily
-        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n\n99 * * * *\ndaily\n",
+        # recency, historia_spec, cron="99 * * * *" (invalid, reprompted), cron=daily
+        input="fake-token\n\n\n\nn\ny\n\n\n\n\n\n99 * * * *\ndaily\n",
     )
 
     assert result.exit_code == 0, result.output
