@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- Split the single `token` of `CodyCBakerPhD/historia/action` into three so that each step holds only the access its job needs. `token` now fetches the activity and needs nothing beyond read-only `Issues` and `Pull requests` permissions, the new `project-token` updates the project board, and the new `repository-token` checks out and pushes the data repository. The recommended workflow passes two fine-grained tokens plus the run's own `GITHUB_TOKEN` under `permissions: contents: write`, so no personal token can push to any repository. Both new inputs fall back to `token` when left empty, so a workflow passing one classic `repo` and `project` token keeps working unchanged. The action README documents the split, the permissions each token needs, and why the `workflow` scope is only ever needed by the deprecated `historia setup automation` wizard. ([#180](https://github.com/CodyCBakerPhD/historia/pull/180))
+
 ### 🐛 Bug Fix
 
 - Fixed `tests/test_vendored_actions.py` breaking downstream builds of the `0.10.14` sdist. It imported `tomllib`, which is standard library only from Python 3.11 while this package supports 3.10, and it asserted on `action/` files that a source distribution consumer does not necessarily unpack. The version now comes from `importlib.metadata`, and the module skips itself when `action/` is absent, since it checks repository files rather than anything the installed package carries. ([#178](https://github.com/CodyCBakerPhD/historia/pull/178))
