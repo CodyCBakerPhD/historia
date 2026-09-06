@@ -6,10 +6,6 @@ orphan: true
 
 [Step 6 of the tutorial](index.md) sets a data repository up with a single `uses:` step. This page expands that one step into the individual actions it runs, for anyone who wants to see exactly what happens, run only part of the process, or slot extra steps in between.
 
-:::{tip}
-If you just want the automation working, use the one-step workflow in [Step 6](index.md). Nothing on this page is required.
-:::
-
 The example below assumes:
 
 - A dedicated repository (e.g., `work-history-data`) hosts the collected JSON files.
