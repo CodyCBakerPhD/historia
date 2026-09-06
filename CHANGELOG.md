@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## v0.10.14
+
 ### 🚀 Enhancement
 
 - Added `CodyCBakerPhD/historia/action`, a composite GitHub Action that runs the entire scheduled update for a work history data repository in a single `uses:` step. It checks out the repository, fetches recent activity, commits and pushes the new content, populates the project board, refreshes its dates, and force-pushes the compressed archive. A data repository now needs a seventeen-line workflow instead of a ninety-line pipeline. ([#177](https://github.com/CodyCBakerPhD/historia/pull/177))
