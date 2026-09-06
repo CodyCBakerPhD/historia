@@ -10,8 +10,10 @@ inputs:
     required: true
   token:
     description: >-
-      GitHub personal access token with `repo`, `project`, and `read:project` scopes. Used to fetch
-      activity, push commits back to this repository, and update the project board.
+      Personal access token that fetches the activity and updates the project board: a fine-grained
+      token for a board owned by an organization, or a classic `project`-scoped token for a board
+      owned by a user account. See the README. It never pushes: the checkout and pushes use the
+      workflow's own `GITHUB_TOKEN`, so the job needs `contents: write`.
     required: true
   recency:
     description: Number of most recent days to fetch. Smart updating still applies.
@@ -39,10 +41,11 @@ inputs:
 runs:
   using: composite
   steps:
+    # The checkout persists this token in the git config, so every `git push` below uses it too.
     - name: Check out the data repository
       uses: actions/checkout@v7
       with:
-        token: ${{ inputs.token }}
+        token: ${{ github.token }}
 
     - name: Configure git identity
       shell: bash
@@ -51,7 +54,7 @@ runs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Update work history data
-      uses: CodyCBakerPhD/historia/action/update-github@v0.10.15
+      uses: CodyCBakerPhD/historia/action/update-github@v0.10.16
       with:
         directory: ${{ inputs.directory }}
         username: ${{ inputs.username }}
@@ -74,7 +77,7 @@ runs:
         git push
 
     - name: Populate the GitHub project
-      uses: CodyCBakerPhD/historia/action/project-populate@v0.10.15
+      uses: CodyCBakerPhD/historia/action/project-populate@v0.10.16
       with:
         directory: ${{ inputs.directory }}
         url: ${{ inputs.project-url }}
@@ -82,7 +85,7 @@ runs:
         token: ${{ inputs.token }}
 
     - name: Update GitHub project dates
-      uses: CodyCBakerPhD/historia/action/project-update-dates@v0.10.15
+      uses: CodyCBakerPhD/historia/action/project-update-dates@v0.10.16
       with:
         url: ${{ inputs.project-url }}
         placeholder: ${{ inputs.placeholder }}

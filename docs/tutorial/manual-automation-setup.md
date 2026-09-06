@@ -11,8 +11,7 @@ This page expands that one step into the individual actions it runs, for anyone 
 The example below assumes:
 
 - A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
-- A secret has been set on that repository named `GH_PAT` that holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`,  and `read:project` scopes.
-  - These permissions are required to fetch activity, push commits, and update the project board.
+- A secret named `GH_PAT` has been set on that repository as described under [Setup](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
@@ -28,17 +27,17 @@ on:
 env:
   USERNAME: [user]
   PROJECT_URL: [project url]
-  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
 jobs:
   Update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
+      # Without an explicit token, the checkout uses the workflow's own `GITHUB_TOKEN`.
       - name: Check out the data repository
         uses: actions/checkout@v7
-        with:
-          token: ${{ env.GITHUB_TOKEN }}
 
       - name: Configure git identity
         run: |
@@ -51,7 +50,7 @@ jobs:
           directory: history
           username: ${{ env.USERNAME }}
           recency: "2"
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       # Container actions run as root, so the files the update wrote are root-owned.
       # The git steps below run as the unprivileged runner user and need to modify them.
@@ -69,13 +68,13 @@ jobs:
         with:
           directory: history
           url: ${{ env.PROJECT_URL }}
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       - name: Update GitHub project dates
         uses: CodyCBakerPhD/historia/action/project-update-dates@vx.y.z
         with:
           url: ${{ env.PROJECT_URL }}
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       # Last, because it leaves the checkout on the orphan archive branch.
       - name: Push the compressed archive

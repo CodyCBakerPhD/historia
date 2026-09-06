@@ -326,6 +326,8 @@ def test_render_workflow_yaml_produces_valid_yaml() -> None:
 
     assert document["name"] == "Update work history data"
     assert document["jobs"]["Update"]["runs-on"] == "ubuntu-latest"
+    # The composite action pushes with the workflow's own token, which is read-only by default.
+    assert document["jobs"]["Update"]["permissions"] == {"contents": "write"}
 
 
 @pytest.mark.ai_generated

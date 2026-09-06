@@ -121,3 +121,22 @@ def test_composite_action_keeps_the_token_out_of_command_lines() -> None:
     """Interpolating the token into a `run:` body would place it in the command GitHub echoes."""
     for step in _composite_action()["runs"]["steps"]:
         assert "inputs.token" not in step.get("run", "")
+
+
+@pytest.mark.ai_generated
+def test_composite_action_pushes_with_the_workflow_token_only() -> None:
+    """
+    The personal token never pushes.
+
+    The checkout persists its credential for every later `git push`, so handing it the workflow's own
+    token is what keeps the personal token unable to write to any repository. The Historia steps are
+    the only ones that receive the personal token.
+    """
+    action = _composite_action()
+    steps = {step["name"]: step for step in action["runs"]["steps"]}
+
+    assert [name for name in action["inputs"] if "token" in name] == ["token"]
+    assert steps["Check out the data repository"]["with"]["token"] == "${{ github.token }}"  # noqa: S105
+    for step in action["runs"]["steps"]:
+        if step.get("uses", "").startswith("CodyCBakerPhD/"):
+            assert step["with"]["token"] == "${{ inputs.token }}", step["name"]  # noqa: S105

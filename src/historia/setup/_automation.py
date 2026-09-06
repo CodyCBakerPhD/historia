@@ -35,6 +35,8 @@ on:
 jobs:
   Update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: {{ACTION_REPOSITORY}}/action@v{{HISTORIA_VERSION}}
