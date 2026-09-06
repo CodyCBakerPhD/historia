@@ -208,15 +208,41 @@ historia.project.transition_status(
 
 The steps above can be wired together into a data repository with a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs regularly, keeping content on its associated project board up to date without manual effort.
 
-<!-- skip: next -->
-```bash
-historia setup automation
+Steps 1, 3, and 4 all run from one action: it collects the activity data, populates the project board, and refreshes the board's date fields. Save this as `.github/workflows/update.yml` in the data repository:
+
+```yaml
+name: Update work history data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  Update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: CodyCBakerPhD/historia/action@v0.10.14
+        with:
+          username: [user]
+          project-url: [project url]
+          recency: "2"
+          token: ${{ secrets.GH_PAT }}
 ```
 
-This interactive wizard prompts for everything it needs and does the rest for you: it creates or reuses a dedicated GitHub repository, optionally creates the project board from Step 2, uploads your token as an encrypted repository secret, and commits a fully filled-in `.github/workflows/update.yml`.
+The action updates what it is pointed at and creates nothing, so three things have to exist first:
+
+- A dedicated repository you have created (e.g., `work-history-data`) to host the collected JSON files. The workflow file lives in it, and the action commits back to it.
+- The project board from Step 2, whose URL becomes `project-url`.
+- A repository secret named `GH_PAT` holding a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`, and `read:project` scopes. The action uses it to fetch activity, push commits, and update the project board.
+
+The action checks out the data repository, fetches recent activity, commits and pushes the new content, updates the project board, and force-pushes a compressed archive to a `dist` branch. Pin the version to a published release, and see the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action) for the optional inputs.
+
+Step 5 is deliberately not included. Transitioning statuses is an occasional editorial decision rather than something to run on a schedule, so keep using `historia project transition` by hand when you want it.
 
 The final output should appear similar to [`work-history-data`](https://github.com/CodyCBakerPhD/work-history-data).
 
 :::{tip}
-Prefer to configure each piece by hand, or want to see exactly what the wizard does? See the [manual setup instructions](manual-automation-setup.md).
+Want to see each underlying step spelled out, or run only part of the process? See the [manual setup instructions](manual-automation-setup.md).
 :::

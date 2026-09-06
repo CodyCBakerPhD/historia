@@ -18,7 +18,6 @@ from .setup._automation import (
     _get_latest_pypi_version,
     _resolve_cron_schedule,
     _validate_historia_spec,
-    _validate_python_version,
 )
 
 
@@ -339,6 +338,14 @@ def _historia_setup_cli() -> None:
 def _historia_setup_automation_cli() -> None:
     """Interactively provision the CRON-based GitHub Action described in Step 6 of the tutorial."""
     rich_click.echo(
+        rich_click.style(
+            "\nDeprecated: the workflow this wizard writes is now a single `uses:` step, short enough to add by "
+            "hand. See Step 6 of the tutorial for the file to copy. This command still works and will be removed "
+            "in a future release.",
+            fg="yellow",
+        ),
+    )
+    rich_click.echo(
         "\nThis wizard sets up the scheduled GitHub Action from Step 6 of the tutorial: it creates (or reuses) a "
         "dedicated data repository, optionally creates a GitHub Project board, stores your token as a repository "
         "secret, and commits the workflow file.\n",
@@ -387,42 +394,19 @@ def _historia_setup_automation_cli() -> None:
         # Fall back to no default rather than risk pinning to a locally installed version that
         # may not be published yet (e.g. a development install) if PyPI can't be reached.
         default_historia_spec = None
-    requires_python: str | None = None
-    supported_python_versions: list[str] = []
     while True:
         historia_spec = rich_click.prompt(
-            "Version specifier for the `historia` package to install in the workflow",
+            "Version specifier for the `historia` package the workflow will run",
             default=default_historia_spec,
         )
         try:
-            historia_spec, requires_python, supported_python_versions = _validate_historia_spec(
-                historia_spec=historia_spec,
-            )
+            historia_spec = _validate_historia_spec(historia_spec=historia_spec)
         except ValueError as exception:
             rich_click.echo(rich_click.style(str(exception), fg="red"))
             continue
         except RuntimeError as exception:
             rich_click.echo(rich_click.style(str(exception), fg="red"))
             raise SystemExit(1) from exception
-        break
-
-    default_python_version = "3.13"
-    if supported_python_versions and default_python_version not in supported_python_versions:
-        default_python_version = supported_python_versions[-1]
-    while True:
-        if supported_python_versions:
-            python_version = rich_click.prompt(
-                "Python version to use in the workflow",
-                default=default_python_version,
-                type=rich_click.Choice(supported_python_versions),
-            )
-        else:
-            python_version = rich_click.prompt("Python version to use in the workflow", default=default_python_version)
-        try:
-            _validate_python_version(python_version=python_version, requires_python=requires_python)
-        except ValueError as exception:
-            rich_click.echo(rich_click.style(str(exception), fg="red"))
-            continue
         break
 
     while True:
@@ -449,7 +433,6 @@ def _historia_setup_automation_cli() -> None:
             project_public=project_public,
             secret_name=secret_name,
             recency_days=recency_days,
-            python_version=python_version,
             historia_spec=historia_spec,
             cron_schedule=cron_schedule,
         )

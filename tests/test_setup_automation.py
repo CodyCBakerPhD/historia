@@ -10,7 +10,6 @@ import yaml
 from historia.setup import provision_automation
 from historia.setup._automation import (
     _create_data_repository,
-    _extract_supported_python_versions,
     _get_authenticated_username,
     _get_latest_pypi_version,
     _render_workflow_yaml,
@@ -18,18 +17,15 @@ from historia.setup._automation import (
     _upsert_repository_secret,
     _upsert_workflow_file,
     _validate_historia_spec,
-    _validate_python_version,
 )
 
 _RENDER_KWARGS = {
     "username": "octocat",
-    "project_number": 7,
-    "python_version": "3.13",
+    "project_url": "https://github.com/users/octocat/projects/7",
     "historia_spec": "historia==1.2.3",
     "secret_name": "GH_PAT",
     "cron_schedule": "0 0 * * *",
     "recency_days": 2,
-    "default_branch": "main",
 }
 
 _REPOSITORY_PAYLOAD = {
@@ -69,7 +65,6 @@ def test_provision_automation_rejects_both_project_title_and_url() -> None:
             private=False,
             secret_name="GH_PAT",
             recency_days=2,
-            python_version="3.13",
             historia_spec="historia==1.2.3",
             cron_schedule="0 0 * * *",
             project_title="Work History",
@@ -88,7 +83,6 @@ def test_provision_automation_rejects_neither_project_title_nor_url() -> None:
             private=False,
             secret_name="GH_PAT",
             recency_days=2,
-            python_version="3.13",
             historia_spec="historia==1.2.3",
             cron_schedule="0 0 * * *",
         )
@@ -100,7 +94,7 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None, []),
+        lambda **kwargs: kwargs["historia_spec"],
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -131,7 +125,6 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
         private=False,
         secret_name="GH_PAT",
         recency_days=2,
-        python_version="3.13",
         historia_spec="historia==1.2.3",
         cron_schedule="0 0 * * *",
         project_title="Work History",
@@ -145,7 +138,7 @@ def test_provision_automation_creates_new_project(monkeypatch: pytest.MonkeyPatc
     }
     workflow_content = upserted_workflow["content"]
     assert isinstance(workflow_content, str)
-    assert "PROJECT_NUMBER: 1" in workflow_content
+    assert "project-url: https://github.com/users/octocat/projects/1" in workflow_content
     assert create_project_calls["public"] is False
 
 
@@ -155,7 +148,7 @@ def test_provision_automation_passes_project_public_through(monkeypatch: pytest.
 
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None, []),
+        lambda **kwargs: kwargs["historia_spec"],
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -182,7 +175,6 @@ def test_provision_automation_passes_project_public_through(monkeypatch: pytest.
         private=False,
         secret_name="GH_PAT",
         recency_days=2,
-        python_version="3.13",
         historia_spec="historia==1.2.3",
         cron_schedule="0 0 * * *",
         project_title="Work History",
@@ -196,7 +188,7 @@ def test_provision_automation_passes_project_public_through(monkeypatch: pytest.
 def test_provision_automation_reuses_existing_project(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None, []),
+        lambda **kwargs: kwargs["historia_spec"],
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -227,7 +219,6 @@ def test_provision_automation_reuses_existing_project(monkeypatch: pytest.Monkey
         private=False,
         secret_name="GH_PAT",
         recency_days=2,
-        python_version="3.13",
         historia_spec="historia==1.2.3",
         cron_schedule="0 0 * * *",
         project_url="https://github.com/users/octocat/projects/5",
@@ -237,14 +228,14 @@ def test_provision_automation_reuses_existing_project(monkeypatch: pytest.Monkey
     assert result["project_url"] == "https://github.com/users/octocat/projects/5"
     workflow_content = upserted_workflow["content"]
     assert isinstance(workflow_content, str)
-    assert "PROJECT_NUMBER: 5" in workflow_content
+    assert "project-url: https://github.com/users/octocat/projects/5" in workflow_content
 
 
 @pytest.mark.ai_generated
 def test_provision_automation_raises_when_project_creation_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None, []),
+        lambda **kwargs: kwargs["historia_spec"],
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -268,7 +259,6 @@ def test_provision_automation_raises_when_project_creation_rate_limited(monkeypa
             private=False,
             secret_name="GH_PAT",
             recency_days=2,
-            python_version="3.13",
             historia_spec="historia==1.2.3",
             cron_schedule="0 0 * * *",
             project_title="Work History",
@@ -283,7 +273,7 @@ def test_provision_automation_propagates_authentication_failure(monkeypatch: pyt
 
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None, []),
+        lambda **kwargs: kwargs["historia_spec"],
     )
     monkeypatch.setattr("historia.setup._automation._get_authenticated_username", _raise_runtime_error)
 
@@ -296,7 +286,6 @@ def test_provision_automation_propagates_authentication_failure(monkeypatch: pyt
             private=False,
             secret_name="GH_PAT",
             recency_days=2,
-            python_version="3.13",
             historia_spec="historia==1.2.3",
             cron_schedule="0 0 * * *",
             project_url="https://github.com/users/octocat/projects/5",
@@ -314,23 +303,19 @@ def test_render_workflow_yaml_substitutes_all_placeholders() -> None:
 
     for placeholder in (
         "USERNAME",
-        "PROJECT_NUMBER",
-        "PYTHON_VERSION",
-        "HISTORIA_SPEC",
+        "PROJECT_URL",
+        "ACTION_REPOSITORY",
+        "HISTORIA_VERSION",
         "SECRET_NAME",
         "CRON_SCHEDULE",
         "RECENCY_DAYS",
-        "DEFAULT_BRANCH",
     ):
         assert "{{" + placeholder + "}}" not in rendered
-    assert "USERNAME: octocat" in rendered
-    assert "PROJECT_NUMBER: 7" in rendered
-    assert 'PYTHON_VERSION: "3.13"' in rendered
-    assert "HISTORIA_SPEC: historia==1.2.3" in rendered
+    assert "username: octocat" in rendered
+    assert "project-url: https://github.com/users/octocat/projects/7" in rendered
     assert "secrets.GH_PAT" in rendered
     assert 'cron: "0 0 * * *"' in rendered
-    assert "--recency 2" in rendered
-    assert "HEAD:main" in rendered
+    assert 'recency: "2"' in rendered
 
 
 @pytest.mark.ai_generated
@@ -341,34 +326,38 @@ def test_render_workflow_yaml_produces_valid_yaml() -> None:
 
     assert document["name"] == "Update work history data"
     assert document["jobs"]["Update"]["runs-on"] == "ubuntu-latest"
-    step_names = [step["name"] for step in document["jobs"]["Update"]["steps"]]
-    assert "Run update" in step_names
-    assert "Push to GitHub project" in step_names
 
 
 @pytest.mark.ai_generated
-def test_render_workflow_yaml_respects_custom_default_branch() -> None:
-    kwargs = {**_RENDER_KWARGS, "default_branch": "trunk"}
-
-    rendered = _render_workflow_yaml(**kwargs)
-
-    assert "git fetch origin trunk" in rendered
-    assert "git clone -b trunk" in rendered
-    assert "HEAD:trunk" in rendered
-
-
-@pytest.mark.ai_generated
-def test_render_workflow_yaml_always_installs_historia() -> None:
+def test_render_workflow_yaml_is_a_single_call_to_the_composite_action() -> None:
+    """The whole point of the composite action is that a data repository needs one step, not a pipeline."""
     rendered = _render_workflow_yaml(**_RENDER_KWARGS)
 
     document = yaml.safe_load(rendered)
     steps = document["jobs"]["Update"]["steps"]
-    install_step = next(step for step in steps if step["name"] == "Install historia")
-    cache_step = next(step for step in steps if step["name"] == "Restore pip cache")
 
-    assert "if" not in install_step
-    assert "~/.local" not in cache_step["with"]["path"]
-    assert "hashFiles" not in rendered
+    assert len(steps) == 1
+    assert steps[0]["uses"] == "CodyCBakerPhD/historia/action@v1.2.3"
+    assert set(steps[0]["with"]) == {"username", "project-url", "recency", "token"}
+    # Everything the workflow used to spell out itself now lives behind that one reference.
+    for leaked in ("pip", "setup-python", "hashFiles", "historia update", "historia project", "git "):
+        assert leaked not in rendered
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("historia_spec", "match"),
+    [
+        ("historia>=1.2.3", "not a pinned specifier"),
+        ("historia", "not a pinned specifier"),
+        ("historia==0.10.13", "predates the vendored workflow actions"),
+    ],
+)
+def test_render_workflow_yaml_rejects_specs_without_usable_actions(historia_spec: str, match: str) -> None:
+    kwargs = {**_RENDER_KWARGS, "historia_spec": historia_spec}
+
+    with pytest.raises(ValueError, match=match):
+        _render_workflow_yaml(**kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -402,11 +391,9 @@ def test_validate_historia_spec_accepts_published_version() -> None:
     response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": [], "0.10.8": []}})
 
     with unittest.mock.patch("requests.get", return_value=response):
-        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec="historia==0.10.8")
+        spec = _validate_historia_spec(historia_spec="historia==0.10.8")
 
     assert spec == "historia==0.10.8"
-    assert requires_python is None
-    assert supported_python_versions == []
 
 
 @pytest.mark.ai_generated
@@ -440,11 +427,9 @@ def test_validate_historia_spec_normalizes_bare_version() -> None:
     )
 
     with unittest.mock.patch("requests.get", return_value=response):
-        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec="0.10.11")
+        spec = _validate_historia_spec(historia_spec="0.10.11")
 
     assert spec == "historia==0.10.11"
-    assert requires_python == ">=3.10"
-    assert supported_python_versions == ["3.10", "3.11", "3.13"]
 
 
 @pytest.mark.ai_generated
@@ -459,131 +444,16 @@ def test_validate_historia_spec_rejects_unpublished_bare_version() -> None:
 
 
 @pytest.mark.ai_generated
-def test_validate_historia_spec_looks_up_requires_python_for_a_non_latest_pin() -> None:
-    project_response = _mock_response(
-        200,
-        {"info": {"version": "0.10.11", "requires_python": ">=3.10"}, "releases": {"0.10.11": [], "0.10.8": []}},
-    )
-    release_response = _mock_response(200, {"info": {"requires_python": ">=3.9"}})
-
-    def _fake_get(*, url: str, timeout: int) -> unittest.mock.MagicMock:  # noqa: ARG001
-        return release_response if url == "https://pypi.org/pypi/historia/0.10.8/json" else project_response
-
-    with unittest.mock.patch("requests.get", side_effect=_fake_get):
-        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec="historia==0.10.8")
-
-    assert spec == "historia==0.10.8"
-    assert requires_python == ">=3.9"
-    assert supported_python_versions == []
-
-
-@pytest.mark.ai_generated
 @pytest.mark.parametrize(
     "historia_spec",
     ["historia", "historia>=0.10.0", "historia[extra]==0.10.11", "some-other-package==1.0.0"],
 )
 def test_validate_historia_spec_skips_specs_it_cannot_confidently_check(historia_spec: str) -> None:
     with unittest.mock.patch("requests.get") as mock_get:
-        spec, requires_python, supported_python_versions = _validate_historia_spec(historia_spec=historia_spec)
+        spec = _validate_historia_spec(historia_spec=historia_spec)
 
     mock_get.assert_not_called()
     assert spec == historia_spec
-    assert requires_python is None
-    assert supported_python_versions == []
-
-
-@pytest.mark.ai_generated
-def test_extract_supported_python_versions_sorts_and_filters_classifiers() -> None:
-    classifiers = [
-        "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 3.13",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.12",
-    ]
-
-    assert _extract_supported_python_versions(classifiers=classifiers) == ["3.10", "3.12", "3.13"]
-
-
-@pytest.mark.ai_generated
-def test_extract_supported_python_versions_handles_no_classifiers() -> None:
-    assert _extract_supported_python_versions(classifiers=[]) == []
-
-
-# ---------------------------------------------------------------------------
-# _validate_python_version
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.ai_generated
-def test_validate_python_version_accepts_compatible_version() -> None:
-    _validate_python_version(python_version="3.13", requires_python=">=3.10")
-
-
-@pytest.mark.ai_generated
-def test_validate_python_version_skips_compatibility_check_when_requires_python_unknown() -> None:
-    _validate_python_version(python_version="3.7", requires_python=None)
-
-
-@pytest.mark.ai_generated
-def test_validate_python_version_rejects_incompatible_version() -> None:
-    with pytest.raises(ValueError, match="does not satisfy"):
-        _validate_python_version(python_version="3.7", requires_python=">=3.10")
-
-
-@pytest.mark.ai_generated
-def test_validate_python_version_rejects_malformed_version() -> None:
-    with pytest.raises(ValueError, match="not a valid Python version"):
-        _validate_python_version(python_version="not-a-version", requires_python=None)
-
-
-@pytest.mark.ai_generated
-def test_provision_automation_raises_on_incompatible_python_version() -> None:
-    response = _mock_response(
-        200,
-        {"info": {"version": "0.10.11", "requires_python": ">=3.10"}, "releases": {"0.10.11": []}},
-    )
-
-    with (
-        unittest.mock.patch("requests.get", return_value=response),
-        pytest.raises(ValueError, match="does not satisfy"),
-    ):
-        provision_automation(
-            token="fake-token",
-            username="octocat",
-            owner="octocat",
-            repository_name="work-history-data",
-            private=False,
-            secret_name="GH_PAT",
-            recency_days=2,
-            python_version="3.7",
-            historia_spec="historia==0.10.11",
-            cron_schedule="0 0 * * *",
-            project_title="Work History",
-        )
-
-
-@pytest.mark.ai_generated
-def test_provision_automation_raises_on_unpublished_historia_spec() -> None:
-    response = _mock_response(200, {"info": {"version": "0.10.11"}, "releases": {"0.10.11": []}})
-
-    with (
-        unittest.mock.patch("requests.get", return_value=response),
-        pytest.raises(ValueError, match="not a published release"),
-    ):
-        provision_automation(
-            token="fake-token",
-            username="octocat",
-            owner="octocat",
-            repository_name="work-history-data",
-            private=False,
-            secret_name="GH_PAT",
-            recency_days=2,
-            python_version="3.13",
-            historia_spec="historia==0.10.12",
-            cron_schedule="0 0 * * *",
-            project_title="Work History",
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -633,7 +503,7 @@ def test_resolve_cron_schedule_rejects_invalid_custom_expressions(cron_expressio
 def test_provision_automation_expands_cron_shorthand(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "historia.setup._automation._validate_historia_spec",
-        lambda **kwargs: (kwargs["historia_spec"], None, []),
+        lambda **kwargs: kwargs["historia_spec"],
     )
     monkeypatch.setattr(
         "historia.setup._automation._get_authenticated_username",
@@ -662,7 +532,6 @@ def test_provision_automation_expands_cron_shorthand(monkeypatch: pytest.MonkeyP
         private=False,
         secret_name="GH_PAT",
         recency_days=2,
-        python_version="3.13",
         historia_spec="historia==1.2.3",
         cron_schedule="daily",
         project_title="Work History",

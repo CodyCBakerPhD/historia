@@ -6,7 +6,6 @@ import typing
 import beartype
 import nacl.encoding
 import nacl.public
-import packaging.specifiers
 import packaging.version
 import requests
 
@@ -15,7 +14,11 @@ from ..project._add_to_project import _parse_project_url
 
 _GITHUB_API_URL = "https://api.github.com"
 _PYPI_PROJECT_URL = "https://pypi.org/pypi/{package_name}/json"
-_PYPI_RELEASE_URL = "https://pypi.org/pypi/{package_name}/{version}/json"
+
+# The generated workflow calls Historia through the container actions under `action/`, which are
+# tagged alongside the package and pin the image built for that same release.
+_ACTION_REPOSITORY = "CodyCBakerPhD/historia"
+_MINIMUM_ACTION_VERSION = "0.10.14"
 
 # Commits made via the Contents API are attributed to the token owner by default; pin them to a
 # bot identity instead so the wizard doesn't leave commits authored as the person who ran it.
@@ -29,104 +32,17 @@ on:
   schedule:
     - cron: "{{CRON_SCHEDULE}}"
 
-env:
-  # Set these
-  USERNAME: {{USERNAME}}
-  PROJECT_NUMBER: {{PROJECT_NUMBER}}
-  PYTHON_VERSION: "{{PYTHON_VERSION}}"
-  HISTORIA_SPEC: {{HISTORIA_SPEC}}
-  # Let these set themselves
-  GITHUB_TOKEN: ${{ secrets.{{SECRET_NAME}} }}
-  REPO_OWNER: ${{ github.repository_owner }}
-  REPO_OWNER_TYPE: ${{ fromJSON('{"Organization":"orgs","User":"users"}')[github.event.repository.owner.type] }}
-  REPO_DIR: ${{ github.event.repository.name }}
-  REPO_FULL_NAME: ${{ github.repository }}
-
 jobs:
   Update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Restore repository cache
-        id: repo-cache
-        uses: actions/cache@v5
+      - uses: {{ACTION_REPOSITORY}}/action@v{{HISTORIA_VERSION}}
         with:
-          path: ${{ env.REPO_DIR }}
-          key: repo-${{ runner.os }}-${{ github.repository }}
-
-      - name: Prepare repository from cache
-        if: steps.repo-cache.outputs.cache-hit == 'true'
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          git fetch origin {{DEFAULT_BRANCH}}
-          git checkout -f {{DEFAULT_BRANCH}}
-          git reset --hard origin/{{DEFAULT_BRANCH}}
-          git clean -fd
-
-      - name: Prepare repository from remote
-        if: steps.repo-cache.outputs.cache-hit != 'true'
-        run: git clone -b {{DEFAULT_BRANCH}} "https://github.com/$REPO_FULL_NAME.git" "$REPO_DIR"
-
-      - name: Configure git identity
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      # Only the wheel cache is persisted, never the installed tree (`~/.local`).
-      # Console script shebangs embed the exact interpreter path, which the runner image
-      # invalidates whenever it bumps the Python patch release.
-      - name: Restore pip cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-${{ env.HISTORIA_SPEC }}
-          restore-keys: pip-${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-
-
-      - name: Install historia
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install --user "$HISTORIA_SPEC"
-
-      - name: Add user-local bin to PATH
-        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Run update
-        working-directory: ${{ env.REPO_DIR }}
-        run: historia update github --directory ./history --username "$USERNAME" --recency {{RECENCY_DAYS}}
-
-      - name: Upload new content
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          git add .
-          git commit --message "update" || true  # || true in case of no changes
-          git push https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/$REPO_FULL_NAME.git HEAD:{{DEFAULT_BRANCH}}
-
-      - name: Create compressed content
-        working-directory: ${{ env.REPO_DIR }}
-        run: tar -czf content.tar.gz ./history/
-
-      - name: Push archive to dist branch
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          git branch -D dist || true
-          git checkout --orphan dist
-          git rm -rf --cached .
-          git add content.tar.gz
-          git commit -m "update dist archive [skip ci]"
-          git push --force https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/$REPO_FULL_NAME.git HEAD:dist
-
-      - name: Push to GitHub project
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          OWNER_PROJECT_URL="https://github.com/$REPO_OWNER_TYPE/$REPO_OWNER/projects/$PROJECT_NUMBER"
-          historia project populate --directory ./history --url "$OWNER_PROJECT_URL" --yes
-          historia project update dates --url "$OWNER_PROJECT_URL"
+          username: {{USERNAME}}
+          project-url: {{PROJECT_URL}}
+          recency: "{{RECENCY_DAYS}}"
+          token: ${{ secrets.{{SECRET_NAME}} }}
 """
 
 
@@ -140,7 +56,6 @@ def provision_automation(  # noqa: PLR0913
     private: bool,
     secret_name: str,
     recency_days: int,
-    python_version: str,
     historia_spec: str,
     cron_schedule: str,
     project_title: str | None = None,
@@ -152,6 +67,10 @@ def provision_automation(  # noqa: PLR0913
 
     Creates (or reuses) the data repository, creates or reuses the GitHub Project board, commits
     the rendered `.github/workflows/update.yml`, and stores `token` as an encrypted repository secret.
+
+    .. deprecated::
+        The workflow this renders is now a single `uses:` step, short enough to add by hand, so
+        Step 6 of the tutorial no longer documents this path. It will be removed in a future release.
 
     Parameters
     ----------
@@ -169,10 +88,8 @@ def provision_automation(  # noqa: PLR0913
         Name of the repository secret that will hold `token`.
     recency_days : int
         Number of most recent days the scheduled workflow refreshes on each run.
-    python_version : str
-        Python version to use in the workflow.
     historia_spec : str
-        Version specifier for the `historia` package to install in the workflow.
+        Version specifier for the `historia` package the workflow's actions run.
     cron_schedule : str
         CRON schedule for the scheduled run.
     project_title : str, optional
@@ -195,8 +112,7 @@ def provision_automation(  # noqa: PLR0913
         message = "Exactly one of `project_title` or `project_url` must be provided."
         raise ValueError(message)
 
-    historia_spec, requires_python, _ = _validate_historia_spec(historia_spec=historia_spec)
-    _validate_python_version(python_version=python_version, requires_python=requires_python)
+    historia_spec = _validate_historia_spec(historia_spec=historia_spec)
     cron_schedule = _resolve_cron_schedule(cron_schedule=cron_schedule)
 
     authenticated_username = _get_authenticated_username(token=token)
@@ -219,17 +135,16 @@ def provision_automation(  # noqa: PLR0913
     else:
         resolved_project_url = typing.cast("str", project_url)
 
-    _, _, project_number = _parse_project_url(resolved_project_url)
+    # Reject a malformed board URL here rather than letting the generated workflow fail on its first run.
+    _parse_project_url(resolved_project_url)
 
     workflow_yaml = _render_workflow_yaml(
         username=username,
-        project_number=project_number,
-        python_version=python_version,
+        project_url=resolved_project_url,
         historia_spec=historia_spec,
         secret_name=secret_name,
         cron_schedule=cron_schedule,
         recency_days=recency_days,
-        default_branch=repository["default_branch"],
     )
     _upsert_workflow_file(
         owner=owner,
@@ -270,28 +185,7 @@ def _fetch_pypi_project_info(*, package_name: str) -> dict:
     return response.json()
 
 
-def _fetch_pypi_release_info(*, package_name: str, version: str) -> dict:
-    response = requests.get(url=_PYPI_RELEASE_URL.format(package_name=package_name, version=version), timeout=30)
-    if response.status_code != 200:
-        message = (
-            f"\nCould not look up `{package_name}=={version}` on PyPI.\n"
-            f"Status code {response.status_code}: {response.text}\n\n"
-        )
-        raise RuntimeError(message)
-    return response.json()
-
-
-_PYTHON_CLASSIFIER_PATTERN = re.compile(r"Programming Language :: Python :: (\d+\.\d+)$")
-
-
-def _extract_supported_python_versions(*, classifiers: list[str]) -> list[str]:
-    """Extract and sort the `X.Y` versions out of a release's `Programming Language :: Python :: X.Y` classifiers."""
-    matches = (_PYTHON_CLASSIFIER_PATTERN.fullmatch(classifier) for classifier in classifiers)
-    versions = {match.group(1) for match in matches if match is not None}
-    return sorted(versions, key=lambda version: tuple(int(part) for part in version.split(".")))
-
-
-def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, list[str]]:
+def _validate_historia_spec(*, historia_spec: str) -> str:
     """
     Validate a `historia` version specifier against PyPI's published releases.
 
@@ -303,16 +197,13 @@ def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, lis
 
     Returns
     -------
-    tuple[str, str | None, list[str]]
-        The (possibly normalized) specifier, the resolved release's `Requires-Python` constraint
-        (or `None` if the specifier couldn't be resolved to a single published version), and the
-        list of Python versions the resolved release declares support for via its classifiers
-        (empty if unresolved).
+    str
+        The (possibly normalized) specifier.
 
     """
     match = re.fullmatch(r"(?:historia==)?(\d[\w.\-+]*)", historia_spec.strip())
     if match is None:
-        return historia_spec, None, []
+        return historia_spec
     pinned_version = match.group(1)
 
     project_info = _fetch_pypi_project_info(package_name="historia")
@@ -324,34 +215,7 @@ def _validate_historia_spec(*, historia_spec: str) -> tuple[str, str | None, lis
         )
         raise ValueError(message)
 
-    if pinned_version == project_info["info"]["version"]:
-        release_info = project_info
-    else:
-        release_info = _fetch_pypi_release_info(package_name="historia", version=pinned_version)
-
-    supported_python_versions = _extract_supported_python_versions(
-        classifiers=release_info["info"].get("classifiers") or [],
-    )
-    return f"historia=={pinned_version}", release_info["info"].get("requires_python"), supported_python_versions
-
-
-def _validate_python_version(*, python_version: str, requires_python: str | None) -> None:
-    """Validate `python_version` and, if known, check it against a `Requires-Python` constraint."""
-    try:
-        version = packaging.version.Version(python_version)
-    except packaging.version.InvalidVersion as exception:
-        message = f"\n`{python_version}` is not a valid Python version (expected e.g. `3.13`).\n\n"
-        raise ValueError(message) from exception
-
-    if requires_python is None:
-        return
-
-    if not packaging.specifiers.SpecifierSet(requires_python).contains(version):
-        message = (
-            f"\nPython {python_version} does not satisfy the pinned `historia` release's required "
-            f"Python version (`{requires_python}`). Choose a Python version that satisfies this constraint.\n\n"
-        )
-        raise ValueError(message)
+    return f"historia=={pinned_version}"
 
 
 _CRON_SHORTHANDS = {
@@ -416,27 +280,50 @@ def _resolve_cron_schedule(*, cron_schedule: str) -> str:
 
 
 @beartype.beartype
+def _resolve_action_version(historia_spec: str, /) -> str:
+    """
+    Resolve the version tag of the vendored container actions the generated workflow should use.
+
+    The actions live in this repository and are tagged alongside the package, so the workflow can only
+    reference a version that both exists as a release tag and actually contains the `action/` directory.
+    """
+    match = re.fullmatch(r"historia==(\d[\w.\-+]*)", historia_spec.strip())
+    if match is None:
+        message = (
+            f"\nThe generated workflow needs an exact version to pin its actions to, but `{historia_spec}` "
+            "is not a pinned specifier.\nUse the `historia==X.Y.Z` form instead.\n\n"
+        )
+        raise ValueError(message)
+
+    version = match.group(1)
+    if packaging.version.Version(version) < packaging.version.Version(_MINIMUM_ACTION_VERSION):
+        message = (
+            f"\n`historia=={version}` predates the vendored workflow actions, which were introduced in "
+            f"`historia=={_MINIMUM_ACTION_VERSION}`.\nPin `{_MINIMUM_ACTION_VERSION}` or newer.\n\n"
+        )
+        raise ValueError(message)
+    return version
+
+
+@beartype.beartype
 def _render_workflow_yaml(  # noqa: PLR0913
     *,
     username: str,
-    project_number: int,
-    python_version: str,
+    project_url: str,
     historia_spec: str,
     secret_name: str,
     cron_schedule: str,
     recency_days: int,
-    default_branch: str,
 ) -> str:
     """Render the `.github/workflows/update.yml` contents for the CRON-based automation described in Step 6."""
     replacements = {
         "{{USERNAME}}": username,
-        "{{PROJECT_NUMBER}}": str(project_number),
-        "{{PYTHON_VERSION}}": python_version,
-        "{{HISTORIA_SPEC}}": historia_spec,
+        "{{PROJECT_URL}}": project_url,
+        "{{ACTION_REPOSITORY}}": _ACTION_REPOSITORY,
+        "{{HISTORIA_VERSION}}": _resolve_action_version(historia_spec),
         "{{SECRET_NAME}}": secret_name,
         "{{CRON_SCHEDULE}}": cron_schedule,
         "{{RECENCY_DAYS}}": str(recency_days),
-        "{{DEFAULT_BRANCH}}": default_branch,
     }
     rendered = _WORKFLOW_TEMPLATE
     for placeholder, value in replacements.items():
