@@ -221,6 +221,8 @@ on:
 jobs:
   Update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: CodyCBakerPhD/historia/action@v0.10.15
@@ -228,14 +230,18 @@ jobs:
           username: [user]
           project-url: [project url]
           recency: "2"
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GH_READ_TOKEN }}
+          project-token: ${{ secrets.GH_PROJECT_TOKEN }}
+          repository-token: ${{ github.token }}
 ```
 
 The action updates what it is pointed at and creates nothing, so three things have to exist first:
 
 - A dedicated repository you have created (e.g., `work-history-data`) to host the collected JSON files. The workflow file lives in it, and the action commits back to it.
 - The project board from Step 2, whose URL becomes `project-url`.
-- A repository secret named `GH_PAT` holding a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`, and `read:project` scopes. The action uses it to fetch activity, push commits, and update the project board.
+- Two repository secrets holding [fine-grained personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token). `GH_READ_TOKEN` fetches the activity and needs only read-only `Issues` and `Pull requests` permissions on the repositories to track. `GH_PROJECT_TOKEN` updates the board and needs `Projects` read and write on your account, plus the same read-only repository permissions.
+
+The commits and pushes to the data repository use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`. No personal token can push anywhere. If you would rather manage a single token, a classic one with `repo` and `project` scopes passed as `token` alone still works, since the other two inputs fall back to it. The [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action#tokens) explains what each token can see and the limits of fine-grained tokens across organizations.
 
 The action checks out the data repository, fetches recent activity, commits and pushes the new content, updates the project board, and force-pushes a compressed archive to a `dist` branch. Pin the version to a published release, and see the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action) for the optional inputs.
 

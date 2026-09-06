@@ -11,8 +11,10 @@ This page expands that one step into the individual actions it runs, for anyone 
 The example below assumes:
 
 - A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
-- A secret has been set on that repository named `GH_PAT` that holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`,  and `read:project` scopes.
-  - These permissions are required to fetch activity, push commits, and update the project board.
+- Two secrets have been set on that repository, each holding a [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token):
+  - `GH_READ_TOKEN`, with read-only `Issues` and `Pull requests` permissions on the repositories to track. It fetches the activity and can write nothing.
+  - `GH_PROJECT_TOKEN`, with `Projects` read and write on the account that owns the board, plus the same read-only repository permissions. It updates the project board.
+  - The commits and pushes use the workflow's own `GITHUB_TOKEN` instead, granted `contents: write` below. See the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action#tokens) for what each token can see, and for the single classic token that still works in place of all three.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
@@ -28,17 +30,18 @@ on:
 env:
   USERNAME: [user]
   PROJECT_URL: [project url]
-  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
 jobs:
   Update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
+      # Without an explicit token, the checkout uses the workflow's own `GITHUB_TOKEN`
+      # and persists it for the pushes below.
       - name: Check out the data repository
         uses: actions/checkout@v7
-        with:
-          token: ${{ env.GITHUB_TOKEN }}
 
       - name: Configure git identity
         run: |
@@ -51,7 +54,7 @@ jobs:
           directory: history
           username: ${{ env.USERNAME }}
           recency: "2"
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_READ_TOKEN }}
 
       # Container actions run as root, so the files the update wrote are root-owned.
       # The git steps below run as the unprivileged runner user and need to modify them.
@@ -69,13 +72,13 @@ jobs:
         with:
           directory: history
           url: ${{ env.PROJECT_URL }}
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PROJECT_TOKEN }}
 
       - name: Update GitHub project dates
         uses: CodyCBakerPhD/historia/action/project-update-dates@vx.y.z
         with:
           url: ${{ env.PROJECT_URL }}
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PROJECT_TOKEN }}
 
       # Last, because it leaves the checkout on the orphan archive branch.
       - name: Push the compressed archive
@@ -95,6 +98,7 @@ Tips:
 - The `recency: "2"` input tells **Historia** to refresh just the last two days on each run.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `project-populate` steps with another `url:` to post the same data to multiple project boards.
+- Each step takes exactly one token, so hand every step only the token for its job. Tracking private activity across several organizations, which a single fine-grained token cannot see, works by repeating the `update-github` step once per token.
 - **Historia** runs from a pinned container image rather than a `pip install`, so the workflow never depends on the runner's Python. There is no interpreter to set up and no install cache to invalidate.
 - Drop any step you do not want. Collecting data without touching a project board, for instance, means keeping only the checkout, the update, the ownership fix, and the commit.
 

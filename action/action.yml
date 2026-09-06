@@ -10,9 +10,26 @@ inputs:
     required: true
   token:
     description: >-
-      GitHub personal access token with `repo`, `project`, and `read:project` scopes. Used to fetch
-      activity, push commits back to this repository, and update the project board.
+      Token used to fetch the tracked user's activity. A fine-grained token with read-only
+      `Issues` and `Pull requests` permissions on the repositories to track is enough. Also the
+      fallback for `project-token` and `repository-token` when those are left empty, so a single
+      classic token with `repo` and `project` scopes keeps working. See the README for the
+      recommended split.
     required: true
+  project-token:
+    description: >-
+      Token used to update the project board. Needs `Projects` read and write access on the account
+      or organization that owns the board, plus read-only `Issues` and `Pull requests` on the
+      repositories whose items it holds. Falls back to `token` when empty.
+    required: false
+    default: ""
+  repository-token:
+    description: >-
+      Token used to check out and push to this data repository. Pass the workflow's own
+      `GITHUB_TOKEN` (`github.token`) and grant the workflow `contents: write` so that no personal
+      token can push anywhere. Falls back to `token` when empty.
+    required: false
+    default: ""
   recency:
     description: Number of most recent days to fetch. Smart updating still applies.
     required: false
@@ -39,10 +56,11 @@ inputs:
 runs:
   using: composite
   steps:
+    # The checkout persists this token in the git config, so every `git push` below uses it too.
     - name: Check out the data repository
       uses: actions/checkout@v7
       with:
-        token: ${{ inputs.token }}
+        token: ${{ inputs.repository-token || inputs.token }}
 
     - name: Configure git identity
       shell: bash
@@ -50,6 +68,8 @@ runs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
+    # This step handles the most untrusted data of the run (search results across every repository
+    # the token can see), so it is the one that must never hold a token able to write anywhere.
     - name: Update work history data
       uses: CodyCBakerPhD/historia/action/update-github@v0.10.15
       with:
@@ -79,14 +99,14 @@ runs:
         directory: ${{ inputs.directory }}
         url: ${{ inputs.project-url }}
         placeholder: ${{ inputs.placeholder }}
-        token: ${{ inputs.token }}
+        token: ${{ inputs.project-token || inputs.token }}
 
     - name: Update GitHub project dates
       uses: CodyCBakerPhD/historia/action/project-update-dates@v0.10.15
       with:
         url: ${{ inputs.project-url }}
         placeholder: ${{ inputs.placeholder }}
-        token: ${{ inputs.token }}
+        token: ${{ inputs.project-token || inputs.token }}
 
     # Last, because it leaves the checkout on the orphan archive branch.
     - name: Push the compressed archive
