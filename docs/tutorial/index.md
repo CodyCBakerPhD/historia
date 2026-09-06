@@ -237,7 +237,7 @@ The action updates what it is pointed at and creates nothing, so three things ha
 
 - A dedicated repository you have created (e.g., `work-history-data`) to host the collected JSON files. The workflow file lives in it, and the action commits back to it.
 - The project board from Step 2, whose URL becomes `project-url`.
-- A repository secret named `GH_PAT` holding a classic personal access token with the `project` scope, plus `repo` if any repository you track is private. The [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) spells out the steps. The pushes use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`.
+- A repository secret named `GH_PAT` holding a personal access token, created as described under [Setup](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) in the action reference. A board owned by an organization allows a fine-grained token limited to selected repositories and to reading them. A board owned by your user account requires a classic token. The pushes use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`.
 
 The action checks out the data repository, fetches recent activity, commits and pushes the new content, updates the project board, and force-pushes a compressed archive to a `dist` branch. Pin the version to a published release, and see the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action) for the optional inputs.
 

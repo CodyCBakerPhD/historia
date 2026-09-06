@@ -10,9 +10,10 @@ inputs:
     required: true
   token:
     description: >-
-      Classic personal access token with the `project` scope, plus `repo` if any tracked repository
-      is private. Fetches the activity and updates the project board. It never pushes: the checkout
-      and pushes use the workflow's own `GITHUB_TOKEN`, so the job needs `contents: write`.
+      Personal access token that fetches the activity and updates the project board: a fine-grained
+      token for a board owned by an organization, or a classic `project`-scoped token for a board
+      owned by a user account. See the README. It never pushes: the checkout and pushes use the
+      workflow's own `GITHUB_TOKEN`, so the job needs `contents: write`.
     required: true
   recency:
     description: Number of most recent days to fetch. Smart updating still applies.
