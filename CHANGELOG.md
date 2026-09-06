@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- Commands that take options now print their full help when invoked without arguments, matching how groups already list their subcommands. `historia project transition` and friends no longer print only a short usage line and a `Missing option` error. `historia setup automation` is unchanged, since it takes no options and is meant to be run bare. ([#181](https://github.com/CodyCBakerPhD/historia/pull/181))
+
 ## v0.10.15
 
 ### 🚀 Enhancement
