@@ -1037,3 +1037,25 @@ def test_project_command_flags_use_no_dash_format(
         assert expected_flag in result.output
     for removed_flag in removed_flags:
         assert removed_flag not in result.output
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["update", "github"],
+        ["project", "create"],
+        ["project", "populate"],
+        ["project", "update", "dates"],
+        ["project", "update", "members"],
+        ["project", "transition"],
+    ],
+)
+def test_command_without_arguments_shows_help(command: list[str]) -> None:
+    runner = click.testing.CliRunner()
+
+    no_arguments_result = runner.invoke(historia.historia_cli, command)
+    help_result = runner.invoke(historia.historia_cli, [*command, "--help"])
+
+    assert "Missing option" not in no_arguments_result.output
+    assert no_arguments_result.output == help_result.output
