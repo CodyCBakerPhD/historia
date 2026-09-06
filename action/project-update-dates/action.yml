@@ -15,7 +15,7 @@ inputs:
 
 runs:
   using: docker
-  image: docker://ghcr.io/codycbakerphd/historia:0.10.14
+  image: docker://ghcr.io/codycbakerphd/historia:0.10.15
   env:
     GITHUB_TOKEN: ${{ inputs.token }}
   args:

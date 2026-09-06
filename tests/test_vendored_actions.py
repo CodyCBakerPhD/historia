@@ -1,17 +1,24 @@
+import importlib.metadata
 import pathlib
 
 import pytest
-import tomllib
 import yaml
 
 _REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
-_COMPOSITE_ACTION_PATH = _REPOSITORY_ROOT / "action" / "action.yml"
-_ACTION_PATHS = sorted((_REPOSITORY_ROOT / "action").glob("*/action.yml"))
+_ACTION_DIRECTORY = _REPOSITORY_ROOT / "action"
+_COMPOSITE_ACTION_PATH = _ACTION_DIRECTORY / "action.yml"
+_ACTION_PATHS = sorted(_ACTION_DIRECTORY.glob("*/action.yml"))
+
+# These assert on repository files rather than on anything the installed package carries, so they
+# cannot run against a distribution that ships only `src/` and `tests/` (conda-forge, for one).
+pytestmark = pytest.mark.skipif(
+    not _ACTION_DIRECTORY.is_dir(),
+    reason="`action/` is not present, so this is not a repository checkout",
+)
 
 
 def _package_version() -> str:
-    pyproject = tomllib.loads((_REPOSITORY_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    return pyproject["project"]["version"]
+    return importlib.metadata.version("historia")
 
 
 def _composite_action() -> dict:
