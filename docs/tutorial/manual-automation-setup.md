@@ -11,10 +11,7 @@ This page expands that one step into the individual actions it runs, for anyone 
 The example below assumes:
 
 - A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
-- Two secrets have been set on that repository:
-  - `GH_READ_TOKEN`, a [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) with read-only `Issues` and `Pull requests` permissions on the repositories to track. It fetches the activity and can write nothing.
-  - `GH_PROJECT_TOKEN`, which updates the project board. For a board owned by your user account this is a classic token with the `project` scope, plus `repo` if the board holds items from private repositories, because GitHub offers no fine-grained permission for user-owned Projects. For a board owned by an organization, a fine-grained token with the organization's `Projects` read and write permission and the same read-only repository permissions works instead.
-  - The commits and pushes use the workflow's own `GITHUB_TOKEN` instead, granted `contents: write` below. See the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action#tokens) for what each token can see, and for the single classic token that still works in place of all three.
+- Two secrets, `GH_READ_TOKEN` and `GH_PROJECT_TOKEN`, have been set on that repository as described under [Tokens](https://github.com/CodyCBakerPhD/historia/tree/main/action#tokens) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
@@ -38,8 +35,7 @@ jobs:
       contents: write
 
     steps:
-      # Without an explicit token, the checkout uses the workflow's own `GITHUB_TOKEN`
-      # and persists it for the pushes below.
+      # Without an explicit token, the checkout uses the workflow's own `GITHUB_TOKEN`.
       - name: Check out the data repository
         uses: actions/checkout@v7
 
@@ -98,7 +94,7 @@ Tips:
 - The `recency: "2"` input tells **Historia** to refresh just the last two days on each run.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `project-populate` steps with another `url:` to post the same data to multiple project boards.
-- Each step takes exactly one token, so hand every step only the token for its job. Tracking private activity across several organizations, which a single fine-grained token cannot see, works by repeating the `update-github` step once per token.
+- Each step takes one token. Hand every step only the one for its job.
 - **Historia** runs from a pinned container image rather than a `pip install`, so the workflow never depends on the runner's Python. There is no interpreter to set up and no install cache to invalidate.
 - Drop any step you do not want. Collecting data without touching a project board, for instance, means keeping only the checkout, the update, the ownership fix, and the commit.
 

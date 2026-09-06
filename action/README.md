@@ -36,9 +36,9 @@ It checks out the data repository, fetches recent activity, commits and pushes t
 | --- | --- | --- | --- |
 | `username` | yes | | GitHub username whose activity is tracked. |
 | `project-url` | yes | | URL of the GitHub Project v2 to keep up to date. |
-| `token` | yes | | Token that fetches the activity. Read-only is enough. See [Tokens](#tokens). |
-| `project-token` | no | `token` | Token that updates the project board. |
-| `repository-token` | no | `token` | Token that checks out and pushes to the data repository. |
+| `token` | yes | | Token that fetches the activity. See [Tokens](#tokens). |
+| `project-token` | no | `token` | Token that updates the project board. See [Tokens](#tokens). |
+| `repository-token` | no | `token` | Token that checks out and pushes the data repository. See [Tokens](#tokens). |
 | `recency` | no | `2` | Number of most recent days to fetch. |
 | `directory` | no | `history` | Directory in the repository holding the JSON files. |
 | `placeholder` | no | `180` | Days after creation to use as a placeholder end date for open items. |
@@ -47,33 +47,20 @@ It checks out the data repository, fetches recent activity, commits and pushes t
 
 ## Tokens
 
-The process does three distinct things with GitHub, and each one gets its own token so that none of them holds more access than its step needs.
+Each step gets its own token, so the activity fetch never holds one that can write anywhere and no personal token can push to a repository.
 
-| Input | Step | Access it needs |
+| Input | Used by | Create it as |
 | --- | --- | --- |
-| `token` | Fetch activity | Read issues and pull requests in the repositories to track. |
-| `project-token` | Populate the board and refresh its dates | Write the project board. Read issues and pull requests, since adding an item resolves its URL and the dates step reads each item's creation and closing dates. Both steps silently skip any item the token cannot read. |
-| `repository-token` | Check out, commit, push | Write the contents of the data repository. Nothing else. |
+| `token` | Fetch activity | A [fine-grained token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) with read-only `Issues` and `Pull requests` permissions on the repositories to track. |
+| `project-token` | Populate the board and refresh its dates | A [classic token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic) with the `project` scope, plus `repo` if the board holds items from private repositories. GitHub offers no fine-grained permission for Projects. |
+| `repository-token` | Check out and push the data repository | The workflow's own `${{ github.token }}`, with `permissions: contents: write` on the job. |
 
-The activity fetch is the step that handles the most untrusted input of the run, since it processes search results from every repository its token can see. With the split above, that step holds a token that cannot write anywhere, and no personal token can push to any repository at all.
+Store the first two as repository secrets on the data repository. The examples call them `GH_READ_TOKEN` and `GH_PROJECT_TOKEN`.
 
-**The read token.** Create a [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) and store it as the `GH_READ_TOKEN` secret on the data repository. Repository access: the repositories to track. Repository permissions: `Issues` read-only and `Pull requests` read-only. Leave every account permission off.
-
-**The project token.** What `GH_PROJECT_TOKEN` can be depends on who owns the board:
-
-- *An organization owns the board.* A fine-grained token works. Organization permissions: `Projects` read and write. Repository access and permissions: the same read-only `Issues` and `Pull requests` as the read token, so the board can resolve the items it holds. The organization has to allow fine-grained tokens first.
-- *Your user account owns the board.* GitHub offers no fine-grained permission for Projects owned by a user account. The fine-grained token screen has no `Projects` entry under account permissions, and this has been an [open gap since 2023](https://github.com/orgs/community/discussions/52671). Use a classic token with the `project` scope. Add the `repo` scope only if the board holds items from private repositories, since resolving an item and reading its dates needs read access to it. A board of public items needs `project` alone. That classic token is confined to the two project steps. The activity fetch and the pushes never see it. Moving the board to an organization, a free one is enough, is the way to have every token fine-grained.
-
-**The repository token.** Pass `repository-token: ${{ github.token }}` and grant the job `permissions: contents: write`, as in the example above. The workflow's own token is scoped to the data repository, expires when the run ends, and cannot be used to push anywhere else. Pushes made with it also do not trigger other workflows, which is what a scheduled update wants.
-
-Two things to know about fine-grained tokens:
-
-- A fine-grained token belongs to one resource owner, either your account or a single organization. Private repositories under other owners are invisible to it, and their activity silently does not appear in the results. Public repositories are always readable. Track private activity across several organizations by running the `update-github` step once per token, or by falling back to a classic token for `token` only.
-- Organizations have to allow fine-grained tokens before one can reach their private repositories. Check the organization's third-party access settings if a repository you expect is missing.
-
-**One classic token.** `project-token` and `repository-token` both fall back to `token` when left empty, so a workflow that passes a single classic token with `repo` and `project` scopes keeps working exactly as before. That token can write to every repository it can see, though, which is what the split is for.
-
-The `workflow` scope is not needed by the action. Only the deprecated `historia setup automation` wizard requires it, because it commits `.github/workflows/update.yml` through the Contents API, which GitHub gates behind that scope.
+- `project-token` and `repository-token` fall back to `token` when empty, so one classic token with `repo` and `project` scopes still works as before.
+- A fine-grained token only sees private repositories of one owner, your account or a single organization. Activity elsewhere silently does not appear. Repeat the `update-github` step once per token to cover several.
+- The project steps silently skip items their token cannot read.
+- The `workflow` scope is only needed by the deprecated `historia setup automation` wizard.
 
 ## The individual steps
 
@@ -94,7 +81,7 @@ The composite is built from three narrower actions, each wrapping one command. U
     token: ${{ secrets.GH_READ_TOKEN }}
 ```
 
-Each of the three takes exactly one `token`, which is what makes the split in [Tokens](#tokens) possible: hand every step only the token for its job.
+Each takes one `token`. Hand every step only the one for its job, per [Tokens](#tokens).
 
 Paths are relative to the workspace root, since GitHub mounts the workspace as the container's working directory. A step-level `working-directory:` has no effect on `uses:` steps.
 
