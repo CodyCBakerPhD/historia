@@ -32,91 +32,17 @@ on:
   schedule:
     - cron: "{{CRON_SCHEDULE}}"
 
-env:
-  # Set these
-  USERNAME: {{USERNAME}}
-  PROJECT_URL: {{PROJECT_URL}}
-  # Let these set themselves
-  GITHUB_TOKEN: ${{ secrets.{{SECRET_NAME}} }}
-  REPO_DIR: ${{ github.event.repository.name }}
-  REPO_FULL_NAME: ${{ github.repository }}
-
 jobs:
   Update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Restore repository cache
-        id: repo-cache
-        uses: actions/cache@v5
+      - uses: {{ACTION_REPOSITORY}}/action@v{{HISTORIA_VERSION}}
         with:
-          path: ${{ env.REPO_DIR }}
-          key: repo-${{ runner.os }}-${{ github.repository }}
-
-      - name: Prepare repository from cache
-        if: steps.repo-cache.outputs.cache-hit == 'true'
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          git fetch origin {{DEFAULT_BRANCH}}
-          git checkout -f {{DEFAULT_BRANCH}}
-          git reset --hard origin/{{DEFAULT_BRANCH}}
-          git clean -fd
-
-      - name: Prepare repository from remote
-        if: steps.repo-cache.outputs.cache-hit != 'true'
-        run: git clone -b {{DEFAULT_BRANCH}} "https://github.com/$REPO_FULL_NAME.git" "$REPO_DIR"
-
-      - name: Configure git identity
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Run update
-        uses: {{ACTION_REPOSITORY}}/action/update-github@v{{HISTORIA_VERSION}}
-        with:
-          directory: ${{ env.REPO_DIR }}/history
-          username: ${{ env.USERNAME }}
+          username: {{USERNAME}}
+          project-url: {{PROJECT_URL}}
           recency: "{{RECENCY_DAYS}}"
-          token: ${{ env.GITHUB_TOKEN }}
-
-      # Container actions run as root, so anything they write into the workspace is root-owned.
-      # The git steps below run as the unprivileged runner user and need to modify those files.
-      - name: Restore workspace ownership
-        run: sudo chown -R "$(id -u):$(id -g)" "$REPO_DIR"
-
-      - name: Upload new content
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          git add .
-          git commit --message "update" || true  # || true in case of no changes
-          git push https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/$REPO_FULL_NAME.git HEAD:{{DEFAULT_BRANCH}}
-
-      - name: Create compressed content
-        working-directory: ${{ env.REPO_DIR }}
-        run: tar -czf content.tar.gz ./history/
-
-      - name: Push archive to dist branch
-        working-directory: ${{ env.REPO_DIR }}
-        run: |
-          git branch -D dist || true
-          git checkout --orphan dist
-          git rm -rf --cached .
-          git add content.tar.gz
-          git commit -m "update dist archive [skip ci]"
-          git push --force https://x-access-token:${{ env.GITHUB_TOKEN }}@github.com/$REPO_FULL_NAME.git HEAD:dist
-
-      - name: Push to GitHub project
-        uses: {{ACTION_REPOSITORY}}/action/project-populate@v{{HISTORIA_VERSION}}
-        with:
-          directory: ${{ env.REPO_DIR }}/history
-          url: ${{ env.PROJECT_URL }}
-          token: ${{ env.GITHUB_TOKEN }}
-
-      - name: Update GitHub project dates
-        uses: {{ACTION_REPOSITORY}}/action/project-update-dates@v{{HISTORIA_VERSION}}
-        with:
-          url: ${{ env.PROJECT_URL }}
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.{{SECRET_NAME}} }}
 """
 
 
@@ -215,7 +141,6 @@ def provision_automation(  # noqa: PLR0913
         secret_name=secret_name,
         cron_schedule=cron_schedule,
         recency_days=recency_days,
-        default_branch=repository["default_branch"],
     )
     _upsert_workflow_file(
         owner=owner,
@@ -385,7 +310,6 @@ def _render_workflow_yaml(  # noqa: PLR0913
     secret_name: str,
     cron_schedule: str,
     recency_days: int,
-    default_branch: str,
 ) -> str:
     """Render the `.github/workflows/update.yml` contents for the CRON-based automation described in Step 6."""
     replacements = {
@@ -396,7 +320,6 @@ def _render_workflow_yaml(  # noqa: PLR0913
         "{{SECRET_NAME}}": secret_name,
         "{{CRON_SCHEDULE}}": cron_schedule,
         "{{RECENCY_DAYS}}": str(recency_days),
-        "{{DEFAULT_BRANCH}}": default_branch,
     }
     rendered = _WORKFLOW_TEMPLATE
     for placeholder, value in replacements.items():

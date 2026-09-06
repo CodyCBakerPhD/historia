@@ -338,6 +338,14 @@ def _historia_setup_cli() -> None:
 def _historia_setup_automation_cli() -> None:
     """Interactively provision the CRON-based GitHub Action described in Step 6 of the tutorial."""
     rich_click.echo(
+        rich_click.style(
+            "\nDeprecated: the workflow this wizard writes is now a single `uses:` step, short enough to add by "
+            "hand. See Step 6 of the tutorial for the file to copy. This command still works and will be removed "
+            "in a future release.",
+            fg="yellow",
+        ),
+    )
+    rich_click.echo(
         "\nThis wizard sets up the scheduled GitHub Action from Step 6 of the tutorial: it creates (or reuses) a "
         "dedicated data repository, optionally creates a GitHub Project board, stores your token as a repository "
         "secret, and commits the workflow file.\n",
