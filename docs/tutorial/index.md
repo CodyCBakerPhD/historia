@@ -223,7 +223,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: CodyCBakerPhD/historia/action@v0.10.14
+      - uses: CodyCBakerPhD/historia/action@v0.10.15
         with:
           username: [user]
           project-url: [project url]
