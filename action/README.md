@@ -21,13 +21,11 @@ jobs:
       contents: write
 
     steps:
-      - uses: CodyCBakerPhD/historia/action@v0.10.15
+      - uses: CodyCBakerPhD/historia/action@v0.10.16
         with:
           username: octocat
           project-url: https://github.com/users/octocat/projects/1
-          token: ${{ secrets.GH_READ_TOKEN }}
-          project-token: ${{ secrets.GH_PROJECT_TOKEN }}
-          repository-token: ${{ github.token }}
+          token: ${{ secrets.GH_PAT }}
 ```
 
 It checks out the data repository, fetches recent activity, commits and pushes the new content, populates the project board, refreshes the board's dates, and force-pushes a compressed archive to a `dist` branch.
@@ -36,31 +34,22 @@ It checks out the data repository, fetches recent activity, commits and pushes t
 | --- | --- | --- | --- |
 | `username` | yes | | GitHub username whose activity is tracked. |
 | `project-url` | yes | | URL of the GitHub Project v2 to keep up to date. |
-| `token` | yes | | Token that fetches the activity. See [Tokens](#tokens). |
-| `project-token` | no | `token` | Token that updates the project board. See [Tokens](#tokens). |
-| `repository-token` | no | `token` | Token that checks out and pushes the data repository. See [Tokens](#tokens). |
+| `token` | yes | | Classic personal access token with the `project` scope. See [Setup](#setup). |
 | `recency` | no | `2` | Number of most recent days to fetch. |
 | `directory` | no | `history` | Directory in the repository holding the JSON files. |
 | `placeholder` | no | `180` | Days after creation to use as a placeholder end date for open items. |
 | `archive-branch` | no | `dist` | Orphan branch for the `content.tar.gz` archive. Empty string skips it. |
 | `commit-message` | no | `update` | Message for each run's commit. |
 
-## Tokens
+## Setup
 
-Each step gets its own token, so the activity fetch never holds one that can write anywhere and no personal token can push to a repository.
+The action needs one personal access token, plus the workflow's own `GITHUB_TOKEN` for the pushes.
 
-| Input | Used by | Create it as |
-| --- | --- | --- |
-| `token` | Fetch activity | A [fine-grained token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) with read-only `Issues` and `Pull requests` permissions on the repositories to track. |
-| `project-token` | Populate the board and refresh its dates | A [classic token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic) with the `project` scope, plus `repo` if the board holds items from private repositories. GitHub offers no fine-grained permission for Projects. |
-| `repository-token` | Check out and push the data repository | The workflow's own `${{ github.token }}`, with `permissions: contents: write` on the job. |
+1. Create a [classic personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic) with the `project` scope. Add the `repo` scope only if any repository you track is private. It must be a classic token because GitHub offers no fine-grained permission for Projects, and `repo` is the only classic scope that reads private repositories.
+2. In the data repository, open Settings, then Secrets and variables, then Actions, and add a repository secret named `GH_PAT` holding that token.
+3. Give the job `permissions: contents: write`, as in the example above. The checkout and every push use the workflow's own `GITHUB_TOKEN`, which is limited to the data repository. The personal token never pushes anywhere.
 
-Store the first two as repository secrets on the data repository. The examples call them `GH_READ_TOKEN` and `GH_PROJECT_TOKEN`.
-
-- `project-token` and `repository-token` fall back to `token` when empty, so one classic token with `repo` and `project` scopes still works as before.
-- A fine-grained token only sees private repositories of one owner, your account or a single organization. Activity elsewhere silently does not appear. Repeat the `update-github` step once per token to cover several.
-- The project steps silently skip items their token cannot read.
-- The `workflow` scope is only needed by the deprecated `historia setup automation` wizard.
+Unless you track private repositories, the personal token cannot write to any repository. The `workflow` scope is only needed by the deprecated `historia setup automation` wizard.
 
 ## The individual steps
 
@@ -73,21 +62,19 @@ The composite is built from three narrower actions, each wrapping one command. U
 | `action/project-update-dates` | `historia project update dates` |
 
 ```yaml
-- uses: CodyCBakerPhD/historia/action/update-github@v0.10.15
+- uses: CodyCBakerPhD/historia/action/update-github@v0.10.16
   with:
     directory: history
     username: octocat
     recency: "2"
-    token: ${{ secrets.GH_READ_TOKEN }}
+    token: ${{ secrets.GH_PAT }}
 ```
-
-Each takes one `token`. Hand every step only the one for its job, per [Tokens](#tokens).
 
 Paths are relative to the workspace root, since GitHub mounts the workspace as the container's working directory. A step-level `working-directory:` has no effect on `uses:` steps.
 
 ## Versioning
 
-Every action is tagged alongside the package and pins the container image built for that same release, so `@v0.10.15` runs `ghcr.io/codycbakerphd/historia:0.10.15`. Always reference a released tag. `@main` points at an image that has not been published yet.
+Every action is tagged alongside the package and pins the container image built for that same release, so `@v0.10.16` runs `ghcr.io/codycbakerphd/historia:0.10.16`. Always reference a released tag. `@main` points at an image that has not been published yet.
 
 The `action/` directory was introduced in `v0.10.14`; earlier tags do not contain it.
 
@@ -100,4 +87,4 @@ The `action/` directory was introduced in `v0.10.14`; earlier tags do not contai
   - run: sudo chown -R "$(id -u):$(id -g)" .
   ```
 
-- Each action exposes the options the scheduled workflow uses. For anything else, run the image directly with `docker run --rm -v "$PWD:/github/workspace" -w /github/workspace ghcr.io/codycbakerphd/historia:0.10.15 ...`.
+- Each action exposes the options the scheduled workflow uses. For anything else, run the image directly with `docker run --rm -v "$PWD:/github/workspace" -w /github/workspace ghcr.io/codycbakerphd/historia:0.10.16 ...`.

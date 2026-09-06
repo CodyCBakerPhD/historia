@@ -10,21 +10,10 @@ inputs:
     required: true
   token:
     description: >-
-      Token that fetches the activity. A fine-grained token with read-only `Issues` and `Pull
-      requests` permissions is enough. Also the fallback for the other two tokens. See the README.
+      Classic personal access token with the `project` scope, plus `repo` if any tracked repository
+      is private. Fetches the activity and updates the project board. It never pushes: the checkout
+      and pushes use the workflow's own `GITHUB_TOKEN`, so the job needs `contents: write`.
     required: true
-  project-token:
-    description: >-
-      Token that updates the project board. A classic token with the `project` scope, plus `repo`
-      for private items. Falls back to `token` when empty. See the README.
-    required: false
-    default: ""
-  repository-token:
-    description: >-
-      Token that checks out and pushes this data repository. Pass the workflow's own `github.token`
-      with `contents: write`. Falls back to `token` when empty. See the README.
-    required: false
-    default: ""
   recency:
     description: Number of most recent days to fetch. Smart updating still applies.
     required: false
@@ -55,7 +44,7 @@ runs:
     - name: Check out the data repository
       uses: actions/checkout@v7
       with:
-        token: ${{ inputs.repository-token || inputs.token }}
+        token: ${{ github.token }}
 
     - name: Configure git identity
       shell: bash
@@ -63,9 +52,8 @@ runs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    # Processes search results from every repository it can see, so it only ever gets the read token.
     - name: Update work history data
-      uses: CodyCBakerPhD/historia/action/update-github@v0.10.15
+      uses: CodyCBakerPhD/historia/action/update-github@v0.10.16
       with:
         directory: ${{ inputs.directory }}
         username: ${{ inputs.username }}
@@ -88,19 +76,19 @@ runs:
         git push
 
     - name: Populate the GitHub project
-      uses: CodyCBakerPhD/historia/action/project-populate@v0.10.15
+      uses: CodyCBakerPhD/historia/action/project-populate@v0.10.16
       with:
         directory: ${{ inputs.directory }}
         url: ${{ inputs.project-url }}
         placeholder: ${{ inputs.placeholder }}
-        token: ${{ inputs.project-token || inputs.token }}
+        token: ${{ inputs.token }}
 
     - name: Update GitHub project dates
-      uses: CodyCBakerPhD/historia/action/project-update-dates@v0.10.15
+      uses: CodyCBakerPhD/historia/action/project-update-dates@v0.10.16
       with:
         url: ${{ inputs.project-url }}
         placeholder: ${{ inputs.placeholder }}
-        token: ${{ inputs.project-token || inputs.token }}
+        token: ${{ inputs.token }}
 
     # Last, because it leaves the checkout on the orphan archive branch.
     - name: Push the compressed archive

@@ -117,45 +117,26 @@ def test_composite_action_pushes_the_archive_last() -> None:
 
 
 @pytest.mark.ai_generated
-def test_composite_action_keeps_the_tokens_out_of_command_lines() -> None:
-    """Interpolating a token into a `run:` body would place it in the command GitHub echoes."""
+def test_composite_action_keeps_the_token_out_of_command_lines() -> None:
+    """Interpolating the token into a `run:` body would place it in the command GitHub echoes."""
+    for step in _composite_action()["runs"]["steps"]:
+        assert "inputs.token" not in step.get("run", "")
+
+
+@pytest.mark.ai_generated
+def test_composite_action_pushes_with_the_workflow_token_only() -> None:
+    """
+    The personal token never pushes.
+
+    The checkout persists its credential for every later `git push`, so handing it the workflow's own
+    token is what keeps the personal token unable to write to any repository. The Historia steps are
+    the only ones that receive the personal token.
+    """
     action = _composite_action()
-    token_inputs = [name for name in action["inputs"] if name == "token" or name.endswith("-token")]
+    steps = {step["name"]: step for step in action["runs"]["steps"]}
 
-    assert token_inputs == ["token", "project-token", "repository-token"]
+    assert [name for name in action["inputs"] if "token" in name] == ["token"]
+    assert steps["Check out the data repository"]["with"]["token"] == "${{ github.token }}"  # noqa: S105
     for step in action["runs"]["steps"]:
-        for name in token_inputs:
-            assert f"inputs.{name}" not in step.get("run", ""), (step["name"], name)
-
-
-@pytest.mark.ai_generated
-def test_composite_action_optional_tokens_fall_back_to_the_read_token() -> None:
-    """A single classic token in `token` has to keep working for repositories that predate the split."""
-    inputs = _composite_action()["inputs"]
-
-    for name in ("project-token", "repository-token"):
-        assert inputs[name]["required"] is False, name
-        assert inputs[name]["default"] == "", name
-
-
-@pytest.mark.ai_generated
-@pytest.mark.parametrize(
-    ("step_name", "expected_token"),
-    [
-        ("Check out the data repository", "${{ inputs.repository-token || inputs.token }}"),
-        ("Update work history data", "${{ inputs.token }}"),
-        ("Populate the GitHub project", "${{ inputs.project-token || inputs.token }}"),
-        ("Update GitHub project dates", "${{ inputs.project-token || inputs.token }}"),
-    ],
-)
-def test_composite_action_routes_each_token_to_its_own_step(step_name: str, expected_token: str) -> None:
-    """
-    Each step receives only the token for its job.
-
-    The activity fetch handles search results from every repository the token can see, so it must
-    never be handed the project or repository token. The pushes reuse the checkout's credential, so
-    the checkout is the only step that needs the repository token.
-    """
-    steps = {step["name"]: step for step in _composite_action()["runs"]["steps"]}
-
-    assert steps[step_name]["with"]["token"] == expected_token
+        if step.get("uses", "").startswith("CodyCBakerPhD/"):
+            assert step["with"]["token"] == "${{ inputs.token }}", step["name"]  # noqa: S105

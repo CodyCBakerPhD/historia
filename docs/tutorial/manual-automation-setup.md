@@ -11,7 +11,7 @@ This page expands that one step into the individual actions it runs, for anyone 
 The example below assumes:
 
 - A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
-- Two secrets, `GH_READ_TOKEN` and `GH_PROJECT_TOKEN`, have been set on that repository as described under [Tokens](https://github.com/CodyCBakerPhD/historia/tree/main/action#tokens) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
+- A secret named `GH_PAT` has been set on that repository as described under [Setup](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
@@ -50,7 +50,7 @@ jobs:
           directory: history
           username: ${{ env.USERNAME }}
           recency: "2"
-          token: ${{ secrets.GH_READ_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       # Container actions run as root, so the files the update wrote are root-owned.
       # The git steps below run as the unprivileged runner user and need to modify them.
@@ -68,13 +68,13 @@ jobs:
         with:
           directory: history
           url: ${{ env.PROJECT_URL }}
-          token: ${{ secrets.GH_PROJECT_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       - name: Update GitHub project dates
         uses: CodyCBakerPhD/historia/action/project-update-dates@vx.y.z
         with:
           url: ${{ env.PROJECT_URL }}
-          token: ${{ secrets.GH_PROJECT_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       # Last, because it leaves the checkout on the orphan archive branch.
       - name: Push the compressed archive
@@ -94,7 +94,6 @@ Tips:
 - The `recency: "2"` input tells **Historia** to refresh just the last two days on each run.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `project-populate` steps with another `url:` to post the same data to multiple project boards.
-- Each step takes one token. Hand every step only the one for its job.
 - **Historia** runs from a pinned container image rather than a `pip install`, so the workflow never depends on the runner's Python. There is no interpreter to set up and no install cache to invalidate.
 - Drop any step you do not want. Collecting data without touching a project board, for instance, means keeping only the checkout, the update, the ownership fix, and the commit.
 

@@ -225,21 +225,19 @@ jobs:
       contents: write
 
     steps:
-      - uses: CodyCBakerPhD/historia/action@v0.10.15
+      - uses: CodyCBakerPhD/historia/action@v0.10.16
         with:
           username: [user]
           project-url: [project url]
           recency: "2"
-          token: ${{ secrets.GH_READ_TOKEN }}
-          project-token: ${{ secrets.GH_PROJECT_TOKEN }}
-          repository-token: ${{ github.token }}
+          token: ${{ secrets.GH_PAT }}
 ```
 
 The action updates what it is pointed at and creates nothing, so three things have to exist first:
 
 - A dedicated repository you have created (e.g., `work-history-data`) to host the collected JSON files. The workflow file lives in it, and the action commits back to it.
 - The project board from Step 2, whose URL becomes `project-url`.
-- Two repository secrets, `GH_READ_TOKEN` and `GH_PROJECT_TOKEN`, created as described under [Tokens](https://github.com/CodyCBakerPhD/historia/tree/main/action#tokens) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`.
+- A repository secret named `GH_PAT` holding a classic personal access token with the `project` scope, plus `repo` if any repository you track is private. The [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) spells out the steps. The pushes use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`.
 
 The action checks out the data repository, fetches recent activity, commits and pushes the new content, updates the project board, and force-pushes a compressed archive to a `dist` branch. Pin the version to a published release, and see the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action) for the optional inputs.
 
