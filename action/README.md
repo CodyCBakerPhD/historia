@@ -52,17 +52,19 @@ The process does three distinct things with GitHub, and each one gets its own to
 | Input | Step | Access it needs |
 | --- | --- | --- |
 | `token` | Fetch activity | Read issues and pull requests in the repositories to track. |
-| `project-token` | Populate the board and refresh its dates | Write the project board. Read issues and pull requests, since adding an item resolves its URL and the dates step reads each item's creation and closing dates. |
+| `project-token` | Populate the board and refresh its dates | Write the project board. Read issues and pull requests, since adding an item resolves its URL and the dates step reads each item's creation and closing dates. Both steps silently skip any item the token cannot read. |
 | `repository-token` | Check out, commit, push | Write the contents of the data repository. Nothing else. |
 
 The activity fetch is the step that handles the most untrusted input of the run, since it processes search results from every repository its token can see. With the split above, that step holds a token that cannot write anywhere, and no personal token can push to any repository at all.
 
-**Fine-grained tokens.** Create two [fine-grained personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) and store them as repository secrets on the data repository:
+**The read token.** Create a [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) and store it as the `GH_READ_TOKEN` secret on the data repository. Repository access: the repositories to track. Repository permissions: `Issues` read-only and `Pull requests` read-only. Leave every account permission off.
 
-- `GH_READ_TOKEN`, for `token`. Repository access: the repositories to track. Repository permissions: `Issues` read-only, `Pull requests` read-only. Leave every account permission off.
-- `GH_PROJECT_TOKEN`, for `project-token`. Account permissions: `Projects` read and write (for an organization board, the organization's `Projects` permission instead). Repository access and permissions: the same read-only `Issues` and `Pull requests` as above, so the board can resolve the items it holds.
+**The project token.** What `GH_PROJECT_TOKEN` can be depends on who owns the board:
 
-Then pass `repository-token: ${{ github.token }}` and grant the job `permissions: contents: write`, as in the example above. The workflow's own token is scoped to the data repository, expires when the run ends, and cannot be used to push anywhere else. Pushes made with it also do not trigger other workflows, which is what a scheduled update wants.
+- *An organization owns the board.* A fine-grained token works. Organization permissions: `Projects` read and write. Repository access and permissions: the same read-only `Issues` and `Pull requests` as the read token, so the board can resolve the items it holds. The organization has to allow fine-grained tokens first.
+- *Your user account owns the board.* GitHub offers no fine-grained permission for Projects owned by a user account. The fine-grained token screen has no `Projects` entry under account permissions, and this has been an [open gap since 2023](https://github.com/orgs/community/discussions/52671). Use a classic token with the `project` scope. Add the `repo` scope only if the board holds items from private repositories, since resolving an item and reading its dates needs read access to it. A board of public items needs `project` alone. That classic token is confined to the two project steps. The activity fetch and the pushes never see it. Moving the board to an organization, a free one is enough, is the way to have every token fine-grained.
+
+**The repository token.** Pass `repository-token: ${{ github.token }}` and grant the job `permissions: contents: write`, as in the example above. The workflow's own token is scoped to the data repository, expires when the run ends, and cannot be used to push anywhere else. Pushes made with it also do not trigger other workflows, which is what a scheduled update wants.
 
 Two things to know about fine-grained tokens:
 

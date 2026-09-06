@@ -11,9 +11,9 @@ This page expands that one step into the individual actions it runs, for anyone 
 The example below assumes:
 
 - A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
-- Two secrets have been set on that repository, each holding a [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token):
-  - `GH_READ_TOKEN`, with read-only `Issues` and `Pull requests` permissions on the repositories to track. It fetches the activity and can write nothing.
-  - `GH_PROJECT_TOKEN`, with `Projects` read and write on the account that owns the board, plus the same read-only repository permissions. It updates the project board.
+- Two secrets have been set on that repository:
+  - `GH_READ_TOKEN`, a [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) with read-only `Issues` and `Pull requests` permissions on the repositories to track. It fetches the activity and can write nothing.
+  - `GH_PROJECT_TOKEN`, which updates the project board. For a board owned by your user account this is a classic token with the `project` scope, plus `repo` if the board holds items from private repositories, because GitHub offers no fine-grained permission for user-owned Projects. For a board owned by an organization, a fine-grained token with the organization's `Projects` read and write permission and the same read-only repository permissions works instead.
   - The commits and pushes use the workflow's own `GITHUB_TOKEN` instead, granted `contents: write` below. See the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action#tokens) for what each token can see, and for the single classic token that still works in place of all three.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 

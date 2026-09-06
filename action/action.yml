@@ -18,9 +18,10 @@ inputs:
     required: true
   project-token:
     description: >-
-      Token used to update the project board. Needs `Projects` read and write access on the account
-      or organization that owns the board, plus read-only `Issues` and `Pull requests` on the
-      repositories whose items it holds. Falls back to `token` when empty.
+      Token used to update the project board. Needs write access to the board (the organization
+      `Projects` permission on a fine-grained token, or the `project` scope on a classic token, since
+      boards owned by a user account have no fine-grained permission) plus read access to the
+      issues and pull requests it holds. Falls back to `token` when empty.
     required: false
     default: ""
   repository-token:
