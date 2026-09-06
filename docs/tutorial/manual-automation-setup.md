@@ -8,11 +8,10 @@ orphan: true
 
 The example below assumes:
 
-- A dedicated repository (e.g., `work-history-data`) hosts the collected JSON files.
-- A repository secret named `GH_PAT` holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`,  and `read:project` scopes.
+- A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
+- A secret has been set on that repository named `GH_PAT` that holds a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`,  and `read:project` scopes.
   - These permissions are required to fetch activity, push commits, and update the project board.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
-- The runner is Linux. **Historia** runs through container actions, which GitHub only runs on Linux runners.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
 
