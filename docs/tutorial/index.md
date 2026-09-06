@@ -231,10 +231,10 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 ```
 
-That needs three things in place beforehand:
+The action updates what it is pointed at and creates nothing, so three things have to exist first:
 
-- A dedicated repository (e.g., `work-history-data`) to host the collected JSON files.
-- The project board from Step 2, whose URL becomes `project-url`. The action updates an existing board, it does not create one.
+- A dedicated repository you have created (e.g., `work-history-data`) to host the collected JSON files. The workflow file lives in it, and the action commits back to it.
+- The project board from Step 2, whose URL becomes `project-url`.
 - A repository secret named `GH_PAT` holding a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`, and `read:project` scopes. The action uses it to fetch activity, push commits, and update the project board.
 
 The action checks out the data repository, fetches recent activity, commits and pushes the new content, updates the project board, and force-pushes a compressed archive to a `dist` branch. Pin the version to a published release, and see the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action) for the optional inputs.

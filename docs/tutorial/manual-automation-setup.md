@@ -4,7 +4,7 @@ orphan: true
 
 # Manual setup: the expanded workflow
 
-[Step 6 of the tutorial](index.md) sets a data repository up with a single `uses:` step. This page expands that one step into the individual actions it runs, for anyone who wants to see exactly what happens, run only part of the process, or slot extra steps in between.
+[Step 6 of the tutorial](index.md) keeps a data repository up to date with a single `uses:` step. This page expands that one step into the individual actions it runs, for anyone who wants to see exactly what happens, run only part of the process, or slot extra steps in between.
 
 The example below assumes:
 
