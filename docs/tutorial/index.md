@@ -208,7 +208,7 @@ historia.project.transition_status(
 
 The steps above can be wired together into a data repository with a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs regularly, keeping content on its associated project board up to date without manual effort.
 
-Everything in Steps 3 through 5 runs from one action. Save this as `.github/workflows/update.yml` in the data repository:
+Steps 1, 3, and 4 all run from one action: it collects the activity data, populates the project board, and refreshes the board's date fields. Save this as `.github/workflows/update.yml` in the data repository:
 
 ```yaml
 name: Update work history data
@@ -231,12 +231,15 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 ```
 
-That needs two things in place beforehand:
+That needs three things in place beforehand:
 
 - A dedicated repository (e.g., `work-history-data`) to host the collected JSON files.
+- The project board from Step 2, whose URL becomes `project-url`. The action updates an existing board, it does not create one.
 - A repository secret named `GH_PAT` holding a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo`, `project`, and `read:project` scopes. The action uses it to fetch activity, push commits, and update the project board.
 
 The action checks out the data repository, fetches recent activity, commits and pushes the new content, updates the project board, and force-pushes a compressed archive to a `dist` branch. Pin the version to a published release, and see the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action) for the optional inputs.
+
+Step 5 is deliberately not included. Transitioning statuses is an occasional editorial decision rather than something to run on a schedule, so keep using `historia project transition` by hand when you want it.
 
 The final output should appear similar to [`work-history-data`](https://github.com/CodyCBakerPhD/work-history-data).
 
