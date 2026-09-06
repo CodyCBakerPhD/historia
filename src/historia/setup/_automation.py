@@ -68,6 +68,10 @@ def provision_automation(  # noqa: PLR0913
     Creates (or reuses) the data repository, creates or reuses the GitHub Project board, commits
     the rendered `.github/workflows/update.yml`, and stores `token` as an encrypted repository secret.
 
+    .. deprecated::
+        The workflow this renders is now a single `uses:` step, short enough to add by hand, so
+        Step 6 of the tutorial no longer documents this path. It will be removed in a future release.
+
     Parameters
     ----------
     token : str

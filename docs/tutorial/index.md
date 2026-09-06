@@ -246,7 +246,3 @@ The final output should appear similar to [`work-history-data`](https://github.c
 :::{tip}
 Want to see each underlying step spelled out, or run only part of the process? See the [manual setup instructions](manual-automation-setup.md).
 :::
-
-:::{note}
-`historia setup automation` still creates the repository, the project board, the secret, and this workflow file in one interactive pass. It is deprecated now that the workflow is short enough to add by hand, and will be removed in a future release.
-:::
