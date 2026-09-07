@@ -76,11 +76,11 @@ Paths are relative to the workspace root, since GitHub mounts the workspace as t
 
 ## Versioning
 
-Reference `@v0`. That tag moves to each new release, so it always points at an action whose container image has been published, and its contents change only when the action's own inputs or requirements change. A breaking change to those becomes `@v1` rather than moving `@v0`.
+Reference `@v0`. The action tag versions the actions, not the package, so it does not change when **Historia** releases. `v0` names one published container image, `ghcr.io/codycbakerphd/historia:0.10.15`, and never moves off it.
 
-The actions run `ghcr.io/codycbakerphd/historia:latest`, the image every release pushes, so a workflow picks up new **Historia** versions without being edited. The action tag versions the action's interface, not the package.
+Changing the actions means cutting `@v1`, which states the image it needs. The image is chosen deliberately at that point rather than tracking whatever released last, so a workflow keeps running the version its action tag was built against until it is pointed at a new one.
 
-Exact release tags such as `@v0.10.15` still work and stay frozen at the image they were released with. The `action/` directory was introduced in `v0.10.14`; earlier tags do not contain it.
+The `action/` directory was introduced in `v0.10.14`; earlier tags do not contain it.
 
 ## Notes
 
