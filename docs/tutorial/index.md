@@ -225,7 +225,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: CodyCBakerPhD/historia/action@v0.10.17
+      - uses: CodyCBakerPhD/historia/action@v0
         with:
           username: [user]
           project-url: [project url]

@@ -9,7 +9,7 @@
 
 ## Versioning and changelog
 
-- Bump the version in `pyproject.toml` once per PR when any file under `src/` or `pyproject.toml` itself changes. Do NOT bump for changes that are purely CI/workflow, documentation, or configuration (e.g., GitHub Actions workflows, `AGENTS.md`, `README.md` badges).
+- Bump the version in `pyproject.toml` once per PR when any file under `src/` or `pyproject.toml` itself changes. That is the only place to edit it. Nothing under `action/` or in the documentation repeats it: the vendored actions run the `latest` image, they reach each other by the `@v0` tag, and the documentation references `@v0`. Never write a specific version into those files. `@v0` is moved to each new release by the `Move the action major tag` workflow, and becomes `@v1` only if the actions' inputs or requirements change incompatibly. Do NOT bump for changes that are purely CI/workflow, documentation, or configuration (e.g., GitHub Actions workflows, `AGENTS.md`, `README.md` badges).
 - Add a short entry to the `## Upcoming` section of `CHANGELOG.md` under the appropriate subsection (`### 🚀 Enhancement`, `### 🐛 Bug Fix`, `### 📝 Documentation`, `### 🔩 Dependency Updates`, `### 🏠 Internal`). Include the PR link at the end of each entry in the format `([#N](https://github.com/<org>/<repo>/pull/N))`. Create the `## Upcoming` section or subsection if it does not yet exist.
 
 ## Code style
