@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- Commands that take options now print their full help when invoked without arguments, matching how groups already list their subcommands. `historia project transition` and friends no longer print only a short usage line and a `Missing option` error. `historia setup automation` is unchanged, since it takes no options and is meant to be run bare. ([#181](https://github.com/CodyCBakerPhD/historia/pull/181))
+
 ### 🏠 Internal
 
 - Added `scripts/sync_version_pins.py` and a `sync-version-pins` pre-commit hook that rewrite the version pins in the vendored actions, the action README, and the tutorial from `pyproject.toml`. Those pins cannot interpolate the version, since GitHub Actions expands no expression in a container action's `runs.image` or a composite action's `uses:`, so bumping the version in `pyproject.toml` is now the only edit. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))

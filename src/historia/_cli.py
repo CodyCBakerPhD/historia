@@ -38,7 +38,7 @@ def historia_data_update_cli() -> None:
 
 
 # historia update github
-@historia_data_update_cli.command(name="github")
+@historia_data_update_cli.command(name="github", no_args_is_help=True)
 @rich_click.option("--directory", type=str, required=True, help="Directory to save the data to.")
 @rich_click.option("--username", type=str, required=True, help="GitHub username to fetch information about.")
 @rich_click.option(
@@ -84,7 +84,7 @@ def _historia_project_cli() -> None:
 
 
 # historia project create
-@_historia_project_cli.command(name="create")
+@_historia_project_cli.command(name="create", no_args_is_help=True)
 @rich_click.option("--owner", type=str, required=True, help="GitHub user or organization login to own the project.")
 @rich_click.option("--title", type=str, required=True, help="Title of the new GitHub Project.")
 @rich_click.option(
@@ -105,7 +105,7 @@ def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> Non
 
 
 # historia project populate
-@_historia_project_cli.command(name="populate")
+@_historia_project_cli.command(name="populate", no_args_is_help=True)
 @rich_click.option(
     "--directory",
     type=str,
@@ -210,7 +210,7 @@ def _historia_project_update_cli() -> None:
 
 
 # historia project update dates
-@_historia_project_update_cli.command(name="dates")
+@_historia_project_update_cli.command(name="dates", no_args_is_help=True)
 @rich_click.option(
     "--url",
     "project_url",
@@ -243,7 +243,7 @@ def _historia_project_update_dates_cli(*, project_url: str, end_date_placeholder
 
 
 # historia project update members
-@_historia_project_update_cli.command(name="members")
+@_historia_project_update_cli.command(name="members", no_args_is_help=True)
 @rich_click.option(
     "--url",
     "project_url",
@@ -264,7 +264,7 @@ def _historia_project_update_members_cli(*, project_url: str) -> None:
 
 
 # historia project transition
-@_historia_project_cli.command(name="transition")
+@_historia_project_cli.command(name="transition", no_args_is_help=True)
 @rich_click.option(
     "--url",
     "project_url",

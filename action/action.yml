@@ -54,7 +54,7 @@ runs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Update work history data
-      uses: CodyCBakerPhD/historia/action/update-github@v0.10.16
+      uses: CodyCBakerPhD/historia/action/update-github@v0.10.17
       with:
         directory: ${{ inputs.directory }}
         username: ${{ inputs.username }}
@@ -77,7 +77,7 @@ runs:
         git push
 
     - name: Populate the GitHub project
-      uses: CodyCBakerPhD/historia/action/project-populate@v0.10.16
+      uses: CodyCBakerPhD/historia/action/project-populate@v0.10.17
       with:
         directory: ${{ inputs.directory }}
         url: ${{ inputs.project-url }}
@@ -85,7 +85,7 @@ runs:
         token: ${{ inputs.token }}
 
     - name: Update GitHub project dates
-      uses: CodyCBakerPhD/historia/action/project-update-dates@v0.10.16
+      uses: CodyCBakerPhD/historia/action/project-update-dates@v0.10.17
       with:
         url: ${{ inputs.project-url }}
         placeholder: ${{ inputs.placeholder }}
