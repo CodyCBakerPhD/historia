@@ -10,6 +10,7 @@
 ## Versioning and changelog
 
 - Bump the version in `pyproject.toml` once per PR when any file under `src/` or `pyproject.toml` itself changes. That is the only place to edit it. The workflow actions live in [`CodyCBakerPhD/historia-action`](https://github.com/CodyCBakerPhD/historia-action) and are versioned by their own interface, so a release here never changes them and nothing in this repository pins their version. Do NOT bump for changes that are purely CI/workflow, documentation, or configuration (e.g., GitHub Actions workflows, `AGENTS.md`, `README.md` badges).
+- Cut a release tag on a commit whose `pyproject.toml` names that exact version, and rename the `## Upcoming` heading to that version first. The version is bumped once per PR, so a tag cut after the next merge names a version that was never built. The `Release guard` workflow checks both on every published release.
 - Add a short entry to the `## Upcoming` section of `CHANGELOG.md` under the appropriate subsection (`### 🚀 Enhancement`, `### 🐛 Bug Fix`, `### 📝 Documentation`, `### 🔩 Dependency Updates`, `### 🏠 Internal`). Include the PR link at the end of each entry in the format `([#N](https://github.com/<org>/<repo>/pull/N))`. Create the `## Upcoming` section or subsection if it does not yet exist.
 
 ## Code style

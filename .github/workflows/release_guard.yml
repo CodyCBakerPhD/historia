@@ -1,0 +1,67 @@
+name: Release guard
+
+# `Version Check` proves a pull request bumped the version, but nothing proved the tag matches it.
+# That gap shipped `v0.10.15` on a tree already bumped to `0.10.16`, so every action file under
+# that tag referenced a version that was never released and no workflow using them could resolve.
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to check the repository against, e.g. v0.11.1"
+        required: true
+
+jobs:
+  Guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout the tag being released
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Check the tag against the packaged version
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          VERSION=$(python3 -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "Tag:                $TAG"
+          echo "pyproject version:  $VERSION"
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag $TAG does not match the packaged version $VERSION. The version is bumped once per pull request, so a tag cut after the next merge names a release that was never built. Re-cut the tag as v$VERSION, or cut it on the commit whose pyproject.toml says ${TAG#v}."
+            exit 1
+          fi
+          echo "Tag and pyproject agree on $VERSION ✓"
+
+      - name: Check the changelog records this version
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          if ! grep -qx "## $TAG" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## $TAG' section. Rename the '## Upcoming' heading to '## $TAG' before releasing, so the released version is the one the changelog describes."
+            exit 1
+          fi
+          echo "CHANGELOG.md records $TAG ✓"
+
+  NotifyOnFailure:
+    runs-on: ubuntu-latest
+    permissions: {}
+    needs: [Guard]
+    if: ${{ always() && needs.Guard.result == 'failure' }}
+    steps:
+      - uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "CI Failure: Historia Release Guard"
+          to: cody.c.baker.phd@gmail.com
+          from: Historia <historia@users.noreply.github.com>
+          body: "A published release does not match the tree it was cut from, please check status at https://github.com/CodyCBakerPhD/historia/actions/workflows/release_guard.yml"

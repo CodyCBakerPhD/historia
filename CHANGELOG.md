@@ -8,6 +8,10 @@
 - Moved the workflow actions to [`CodyCBakerPhD/historia-action`](https://github.com/CodyCBakerPhD/historia-action) and deleted `action/`. They are versioned by their own interface there and pin the container image they run, so a release here no longer rewrites them and the tutorial no longer names a package version. Workflows should reference `CodyCBakerPhD/historia-action@v0`. Tags up to `v0.10.15` still carry the old in-repository actions and keep working. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
 - Removed the `historia_spec` parameter from `provision_automation` and its wizard prompt, along with the PyPI lookup and specifier validation that only served it. The generated workflow is now a single reference to the action, which pins its own image, so no package version appears in it. This is a breaking change for anything calling `provision_automation` with `historia_spec`. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
 
+### 🏠 Internal
+
+- Added a `Release guard` workflow that checks a published release against the tree it was cut from: the tag must match the version in `pyproject.toml`, and `CHANGELOG.md` must carry a section for it. `Version Check` already proved a pull request bumped the version, but nothing tied that version to the tag, which is how `v0.10.15` came to be cut on a tree bumped to `0.10.16`. ([#184](https://github.com/CodyCBakerPhD/historia/pull/184))
+
 ### 🐛 Bug Fix
 
 - Fixed the tutorial advertising a version that had never been released. It pointed at `v0.10.17`, which has no tag and no container image, so a reader copying the workflow got an action that could not resolve. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
