@@ -13,12 +13,7 @@ from .project import (
     update_project_item_members,
 )
 from .setup import provision_automation
-from .setup._automation import (
-    _get_authenticated_username,
-    _get_latest_pypi_version,
-    _resolve_cron_schedule,
-    _validate_historia_spec,
-)
+from .setup._automation import _get_authenticated_username, _resolve_cron_schedule
 
 
 # historia
@@ -387,28 +382,6 @@ def _historia_setup_automation_cli() -> None:
         default=2,
         type=int,
     )
-    try:
-        latest_pypi_version = _get_latest_pypi_version(package_name="historia")
-        default_historia_spec = f"historia=={latest_pypi_version}"
-    except RuntimeError:
-        # Fall back to no default rather than risk pinning to a locally installed version that
-        # may not be published yet (e.g. a development install) if PyPI can't be reached.
-        default_historia_spec = None
-    while True:
-        historia_spec = rich_click.prompt(
-            "Version specifier for the `historia` package the workflow will run",
-            default=default_historia_spec,
-        )
-        try:
-            historia_spec = _validate_historia_spec(historia_spec=historia_spec)
-        except ValueError as exception:
-            rich_click.echo(rich_click.style(str(exception), fg="red"))
-            continue
-        except RuntimeError as exception:
-            rich_click.echo(rich_click.style(str(exception), fg="red"))
-            raise SystemExit(1) from exception
-        break
-
     while True:
         cron_schedule = rich_click.prompt(
             "CRON schedule for the scheduled run (`daily`, `weekly`, `monthly`, or a custom CRON)",
@@ -433,7 +406,6 @@ def _historia_setup_automation_cli() -> None:
             project_public=project_public,
             secret_name=secret_name,
             recency_days=recency_days,
-            historia_spec=historia_spec,
             cron_schedule=cron_schedule,
         )
     except (ValueError, RuntimeError) as exception:
