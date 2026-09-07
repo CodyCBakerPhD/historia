@@ -1,0 +1,62 @@
+name: Sync documentation version pins
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Build and upload latest release Docker image to GHCR]
+    types: [completed]
+
+jobs:
+  sync-pins:
+    name: Point the documentation at the newest release
+    # The documentation may only advertise a release whose container image is already on GHCR, so this
+    # waits for the image workflow rather than for the release itself.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout the default branch
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Resolve latest release tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_tag="$(gh release view --repo "${GITHUB_REPOSITORY}" --json tagName --jq .tagName)"
+          if [ -z "${release_tag}" ]; then
+            echo "Could not resolve latest release tag." >&2
+            exit 1
+          fi
+          echo "version=${release_tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Rewrite the documentation pins
+        run: python3 scripts/sync_version_pins.py --release "${{ steps.release.outputs.version }}"
+
+      - name: Open a pull request when anything changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if git diff --quiet; then
+            echo "The documentation already points at ${VERSION}."
+            exit 0
+          fi
+          branch="documentation-pins-${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${branch}"
+          git commit --all --message "Documented the ${VERSION} release"
+          git push --force origin "${branch}"
+          if [ -z "$(gh pr list --head "${branch}" --state open --json number --jq '.[].number')" ]; then
+            gh pr create \
+              --base main \
+              --head "${branch}" \
+              --title "Documented the ${VERSION} release" \
+              --body "The ${VERSION} image is on GHCR, so the tutorial and the action README can point at it. Opened automatically by .github/workflows/sync_documentation_pins.yml."
+          fi

@@ -21,7 +21,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: CodyCBakerPhD/historia/action@v0.10.17
+      - uses: CodyCBakerPhD/historia/action@v0.10.15
         with:
           username: octocat
           project-url: https://github.com/users/octocat/projects/1
@@ -64,7 +64,7 @@ The composite is built from three narrower actions, each wrapping one command. U
 | `action/project-update-dates` | `historia project update dates` |
 
 ```yaml
-- uses: CodyCBakerPhD/historia/action/update-github@v0.10.17
+- uses: CodyCBakerPhD/historia/action/update-github@v0.10.15
   with:
     directory: history
     username: octocat
@@ -76,7 +76,7 @@ Paths are relative to the workspace root, since GitHub mounts the workspace as t
 
 ## Versioning
 
-Every action is tagged alongside the package and pins the container image built for that same release, so `@v0.10.17` runs `ghcr.io/codycbakerphd/historia:0.10.17`. Always reference a released tag. `@main` points at an image that has not been published yet.
+Every action is tagged alongside the package and pins the container image built for that same release, so `@v0.10.15` runs `ghcr.io/codycbakerphd/historia:0.10.15`. Always reference a released tag. `@main` points at an image that has not been published yet.
 
 The `action/` directory was introduced in `v0.10.14`; earlier tags do not contain it.
 
@@ -89,4 +89,4 @@ The `action/` directory was introduced in `v0.10.14`; earlier tags do not contai
   - run: sudo chown -R "$(id -u):$(id -g)" .
   ```
 
-- Each action exposes the options the scheduled workflow uses. For anything else, run the image directly with `docker run --rm -v "$PWD:/github/workspace" -w /github/workspace ghcr.io/codycbakerphd/historia:0.10.17 ...`.
+- Each action exposes the options the scheduled workflow uses. For anything else, run the image directly with `docker run --rm -v "$PWD:/github/workspace" -w /github/workspace ghcr.io/codycbakerphd/historia:0.10.15 ...`.

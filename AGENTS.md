@@ -9,7 +9,7 @@
 
 ## Versioning and changelog
 
-- Bump the version in `pyproject.toml` once per PR when any file under `src/` or `pyproject.toml` itself changes. That is the only place to edit it. The vendored actions and the tutorial pin the same version, and the `sync-version-pins` pre-commit hook rewrites those pins from `pyproject.toml`. Do NOT bump for changes that are purely CI/workflow, documentation, or configuration (e.g., GitHub Actions workflows, `AGENTS.md`, `README.md` badges).
+- Bump the version in `pyproject.toml` once per PR when any file under `src/` or `pyproject.toml` itself changes. That is the only place to edit it. The vendored actions pin the same version, and the `sync-version-pins` pre-commit hook rewrites those pins from `pyproject.toml`. Never bump the versions quoted in `action/README.md` or the tutorial by hand. Those name the newest published release, not the version under development, and the `Sync documentation version pins` workflow opens a pull request to move them once the release image reaches GHCR. Do NOT bump for changes that are purely CI/workflow, documentation, or configuration (e.g., GitHub Actions workflows, `AGENTS.md`, `README.md` badges).
 - Add a short entry to the `## Upcoming` section of `CHANGELOG.md` under the appropriate subsection (`### 🚀 Enhancement`, `### 🐛 Bug Fix`, `### 📝 Documentation`, `### 🔩 Dependency Updates`, `### 🏠 Internal`). Include the PR link at the end of each entry in the format `([#N](https://github.com/<org>/<repo>/pull/N))`. Create the `## Upcoming` section or subsection if it does not yet exist.
 
 ## Code style

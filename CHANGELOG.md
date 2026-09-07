@@ -8,7 +8,8 @@
 
 ### 🏠 Internal
 
-- Added `scripts/sync_version_pins.py` and a `sync-version-pins` pre-commit hook that rewrite the version pins in the vendored actions, the action README, and the tutorial from `pyproject.toml`. Those pins cannot interpolate the version, since GitHub Actions expands no expression in a container action's `runs.image` or a composite action's `uses:`, so bumping the version in `pyproject.toml` is now the only edit. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
+- Added `scripts/sync_version_pins.py` and a `sync-version-pins` pre-commit hook that rewrite the vendored actions' version pins from `pyproject.toml`. Those pins cannot interpolate the version, since GitHub Actions expands no expression in a container action's `runs.image` or a composite action's `uses:`, so bumping the version in `pyproject.toml` is now the only edit. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
+- Fixed the tutorial and the action README advertising the version under development rather than the newest release. Both pointed at `v0.10.17`, which has no tag and no container image, so a reader copying the workflow got an action that could not resolve. They now point at `v0.10.15`, and the new `Sync documentation version pins` workflow opens a pull request to move them once a release's image reaches GHCR. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
 
 ## v0.10.15
 
