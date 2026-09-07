@@ -1,3 +1,4 @@
+import datetime
 import json
 import pathlib
 import typing
@@ -1377,6 +1378,107 @@ def test_update_project_item_dates_updates_items(monkeypatch: pytest.MonkeyPatch
     assert item2_end["itemId"] == "PVTI_open"
     assert item2_end["fieldId"] == "PVTF_end"
     assert item2_end["date"] == "2023-04-04"
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("past_number_of_days", "expected_item_ids"),
+    [
+        (None, ["PVTI_stale", "PVTI_recently_created", "PVTI_recently_closed"]),
+        (7, ["PVTI_recently_created", "PVTI_recently_closed"]),
+        (0, []),
+    ],
+)
+def test_update_project_item_dates_respects_recency(
+    monkeypatch: pytest.MonkeyPatch,
+    past_number_of_days: int | None,
+    expected_item_ids: list[str],
+) -> None:
+    """Only items created or closed within the recency window are written back."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    today = datetime.datetime.now(tz=datetime.timezone.utc).date()
+    long_ago = (today - datetime.timedelta(days=400)).isoformat()
+    still_long_ago = (today - datetime.timedelta(days=300)).isoformat()
+    yesterday = (today - datetime.timedelta(days=1)).isoformat()
+
+    project_info_response = unittest.mock.MagicMock()
+    project_info_response.status_code = 200
+    project_info_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "id": "PVT_project",
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "PVTSSF_status",
+                                "name": "Status",
+                                "options": [{"id": "opt_done", "name": "Done"}],
+                            },
+                            {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
+                            {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
+                        ],
+                    },
+                },
+            },
+        },
+    }
+
+    list_items_response = unittest.mock.MagicMock()
+    list_items_response.status_code = 200
+    list_items_response.json.return_value = {
+        "data": {
+            "user": {
+                "projectV2": {
+                    "items": {
+                        "nodes": [
+                            {
+                                "id": "PVTI_stale",
+                                "content": {
+                                    "createdAt": f"{long_ago}T12:00:00Z",
+                                    "closedAt": f"{still_long_ago}T12:00:00Z",
+                                },
+                            },
+                            {
+                                "id": "PVTI_recently_created",
+                                "content": {"createdAt": f"{yesterday}T12:00:00Z", "closedAt": None},
+                            },
+                            {
+                                "id": "PVTI_recently_closed",
+                                "content": {
+                                    "createdAt": f"{long_ago}T12:00:00Z",
+                                    "closedAt": f"{yesterday}T12:00:00Z",
+                                },
+                            },
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                },
+            },
+        },
+    }
+
+    set_field_response = unittest.mock.MagicMock()
+    set_field_response.status_code = 200
+    set_field_response.json.return_value = {
+        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_stale"}}},
+    }
+
+    response_sequence = [project_info_response, list_items_response]
+    response_sequence += [set_field_response] * (2 * len(expected_item_ids))
+
+    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
+        historia.project.update_project_item_dates(
+            project_url="https://github.com/users/testuser/projects/1",
+            end_date_placeholder_days=30,
+            past_number_of_days=past_number_of_days,
+        )
+
+    mutated_item_ids = [call.kwargs["json"]["variables"]["itemId"] for call in mock_post.call_args_list[2:]]
+
+    assert mock_post.call_count == 2 + 2 * len(expected_item_ids)
+    assert list(dict.fromkeys(mutated_item_ids)) == expected_item_ids
 
 
 @pytest.mark.ai_generated

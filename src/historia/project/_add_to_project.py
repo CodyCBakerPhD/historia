@@ -947,16 +947,28 @@ mutation SetText($projectId: ID!, $itemId: ID!, $fieldId: ID!, $text: String!) {
             raise
 
 
+def _is_item_recent(*, item: dict, cutoff_date: datetime.date) -> bool:
+    """Return whether the item was created or closed on or after the cutoff date."""
+    created_at: str = item["createdAt"]
+    closed_at: str | None = item.get("closedAt")
+
+    if datetime.date.fromisoformat(created_at[:10]) >= cutoff_date:
+        return True
+
+    return closed_at is not None and datetime.date.fromisoformat(closed_at[:10]) >= cutoff_date
+
+
 @beartype.beartype
 def update_project_item_dates(
     *,
     project_url: str,
     end_date_placeholder_days: int = 180,
+    past_number_of_days: int | None = None,
 ) -> None:
     """
-    Update the start and end date fields on all items already added to a GitHub Project (v2).
+    Update the start and end date fields on items already added to a GitHub Project (v2).
 
-    For each item in the project:
+    For each item considered:
 
     - The start date field ("Start date") is set to the item's creation date.
     - The end date field ("End date") is set to the item's closed date (if closed),
@@ -973,6 +985,12 @@ def update_project_item_dates(
     end_date_placeholder_days : int, optional
         Number of days after the item's creation date to use as the placeholder end date
         when the item has not yet been closed. Default is 180 (approximately 6 months).
+    past_number_of_days : int, optional
+        Consider only items created or closed within this many most recent days.
+        Both dates an item derives come from its creation and close timestamps, so an item
+        untouched over that window would be written back the value it already holds.
+        Every item is considered when this is not specified, which is what a first run or a
+        backfill of a project whose items predate this field needs.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")
@@ -1009,7 +1027,14 @@ def update_project_item_dates(
         headers=headers,
     )
 
-    for item in tqdm.tqdm(iterable=all_items, desc="Updating item dates", unit="items", dynamic_ncols=True):
+    items_to_update = all_items
+    if past_number_of_days is not None:
+        cutoff_date = datetime.datetime.now(tz=datetime.timezone.utc).date() - datetime.timedelta(
+            days=past_number_of_days,
+        )
+        items_to_update = [item for item in all_items if _is_item_recent(item=item, cutoff_date=cutoff_date)]
+
+    for item in tqdm.tqdm(iterable=items_to_update, desc="Updating item dates", unit="items", dynamic_ncols=True):
         item_id = item["id"]
         created_at: str = item["createdAt"]
         closed_at: str | None = item.get("closedAt")
