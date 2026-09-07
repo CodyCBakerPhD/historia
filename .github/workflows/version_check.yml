@@ -40,8 +40,11 @@ jobs:
           PR_VERSION=$(python3 -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
           BASE_VERSION=$(python3 -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('/tmp/base_pyproject.toml').read_text())['project']['version'])")
 
-          python3 -m pip install --quiet --upgrade packaging
-          if ! python3 -c "import sys; from packaging.version import Version; sys.exit(0 if Version('$PR_VERSION') > Version('$BASE_VERSION') else 1)"; then
+          # `sort -V` rather than a Python version library, so this needs nothing installed. It
+          # orders 0.9.0 below 0.10.0, which a lexical sort does not. Equality passes here and is
+          # rejected by the step above.
+          HIGHEST=$(printf '%s\n%s\n' "$BASE_VERSION" "$PR_VERSION" | sort -V | tail -1)
+          if [ "$HIGHEST" != "$PR_VERSION" ]; then
             echo "::error::Version $PR_VERSION is not ahead of $BASE_VERSION. A release is cut from whatever main declares, so main moving backwards makes the next tag name wrong."
             exit 1
           fi
