@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🏠 Internal
+
+- Added `scripts/sync_version_pins.py` and a `sync-version-pins` pre-commit hook that rewrite the version pins in the vendored actions, the action README, and the tutorial from `pyproject.toml`. Those pins cannot interpolate the version, since GitHub Actions expands no expression in a container action's `runs.image` or a composite action's `uses:`, so bumping the version in `pyproject.toml` is now the only edit. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
+
 ## v0.10.15
 
 ### 🚀 Enhancement

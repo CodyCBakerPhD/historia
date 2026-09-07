@@ -12,6 +12,7 @@ import argparse
 import pathlib
 import re
 import sys
+
 import tomllib
 
 _REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
