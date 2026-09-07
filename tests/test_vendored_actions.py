@@ -1,8 +1,10 @@
-import importlib.metadata
 import pathlib
 
+import click.testing
 import pytest
 import yaml
+
+import historia
 
 _REPOSITORY_ROOT = pathlib.Path(__file__).parent.parent
 _ACTION_DIRECTORY = _REPOSITORY_ROOT / "action"
@@ -15,10 +17,6 @@ pytestmark = pytest.mark.skipif(
     not _ACTION_DIRECTORY.is_dir(),
     reason="`action/` is not present, so this is not a repository checkout",
 )
-
-
-def _package_version() -> str:
-    return importlib.metadata.version("historia")
 
 
 def _composite_action() -> dict:
@@ -34,16 +32,17 @@ def test_vendored_actions_are_discovered() -> None:
 
 @pytest.mark.ai_generated
 @pytest.mark.parametrize("action_path", _ACTION_PATHS, ids=lambda path: path.parent.name)
-def test_vendored_action_pins_the_current_package_version(action_path: pathlib.Path) -> None:
+def test_vendored_action_runs_the_newest_published_image(action_path: pathlib.Path) -> None:
     """
-    The image tag must track the release that carries the action.
+    The actions run whichever **Historia** a release last published, not the version they shipped beside.
 
-    Consumers reference `.../action/<name>@vX.Y.Z`, so the action file at tag `vX.Y.Z` has to pin the
-    `X.Y.Z` image. Letting the two drift would silently run a different version than the one requested.
+    `runs.image` expands no expression, so a version here would have to be rewritten every release and
+    would send readers to an image that does not exist until that release completes. `latest` is pushed
+    by every release, so it is always resolvable.
     """
     action = yaml.safe_load(action_path.read_text(encoding="utf-8"))
 
-    assert action["runs"]["image"] == f"docker://ghcr.io/codycbakerphd/historia:{_package_version()}"
+    assert action["runs"]["image"] == "docker://ghcr.io/codycbakerphd/historia:latest"
 
 
 @pytest.mark.ai_generated
@@ -68,18 +67,18 @@ def test_vendored_action_passes_the_token_and_no_empty_arguments(action_path: pa
 
 
 @pytest.mark.ai_generated
-def test_composite_action_pins_the_current_package_version() -> None:
+def test_composite_action_reaches_its_siblings_by_major_tag() -> None:
     """
     The composite reaches its siblings by full reference, since `uses:` accepts no expressions.
 
-    A stale tag here would run last release's commands from inside this release's action, so the
-    references have to move with the version exactly like the image tags do.
+    They move together, so the moving major tag is the reference that never needs rewriting. An exact
+    version here would have to be bumped every release and would name a tag that does not exist yet.
     """
     steps = _composite_action()["runs"]["steps"]
     historia_refs = [step["uses"] for step in steps if step.get("uses", "").startswith("CodyCBakerPhD/")]
 
     expected = [
-        f"CodyCBakerPhD/historia/action/{name}@v{_package_version()}"
+        f"CodyCBakerPhD/historia/action/{name}@v0"
         for name in ("update-github", "project-populate", "project-update-dates")
     ]
     assert historia_refs == expected
@@ -140,3 +139,25 @@ def test_composite_action_pushes_with_the_workflow_token_only() -> None:
     for step in action["runs"]["steps"]:
         if step.get("uses", "").startswith("CodyCBakerPhD/"):
             assert step["with"]["token"] == "${{ inputs.token }}", step["name"]  # noqa: S105
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize("action_path", _ACTION_PATHS, ids=lambda path: path.parent.name)
+def test_vendored_action_arguments_are_accepted_by_the_cli(action_path: pathlib.Path) -> None:
+    """
+    The actions run the newest image, so the CLI they call is a compatibility surface.
+
+    An action tag stays usable forever while the image beneath it moves, which means renaming or
+    dropping one of these options breaks published workflows. This fails before such a release, rather
+    than after it.
+    """
+    arguments = yaml.safe_load(action_path.read_text(encoding="utf-8"))["runs"]["args"]
+    command = [argument for argument in arguments if not argument.startswith(("-", "${{"))]
+    command = command[: next((index for index, value in enumerate(arguments) if value.startswith("-")), len(command))]
+    options = [argument for argument in arguments if argument.startswith("--")]
+
+    result = click.testing.CliRunner().invoke(historia.historia_cli, [*command, "--help"])
+
+    assert result.exit_code == 0, result.output
+    for option in options:
+        assert option in result.output, option

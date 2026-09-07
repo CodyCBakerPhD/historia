@@ -8,8 +8,8 @@
 
 ### 🏠 Internal
 
-- Added `scripts/sync_version_pins.py` and a `sync-version-pins` pre-commit hook that rewrite the vendored actions' version pins from `pyproject.toml`. Those pins cannot interpolate the version, since GitHub Actions expands no expression in a container action's `runs.image` or a composite action's `uses:`, so bumping the version in `pyproject.toml` is now the only edit. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
-- Fixed the tutorial and the action README advertising the version under development rather than the newest release. Both pointed at `v0.10.17`, which has no tag and no container image, so a reader copying the workflow got an action that could not resolve. They now point at `v0.10.15`, and the new `Sync documentation version pins` workflow opens a pull request to move them once a release's image reaches GHCR. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
+- Fixed the tutorial and the action README advertising a version that had never been released. Both pointed at `v0.10.17`, which has no tag and no container image, so a reader copying the workflow got an action that could not resolve. Every hard-coded version is now gone from `action/` and the documentation instead: the vendored actions run `ghcr.io/codycbakerphd/historia:latest`, the composite reaches its siblings by `@v0`, and the documentation references `@v0`. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
+- Changed the action tags to version the actions' own interface rather than the package. `@v0` moves to each new release through the new `Move the action major tag` workflow, so a workflow using it picks up new **Historia** releases without being edited, and it becomes `@v1` only if the actions' inputs or requirements change incompatibly. Exact tags such as `@v0.10.15` still work and stay frozen at the image they were released with. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
 
 ## v0.10.15
 

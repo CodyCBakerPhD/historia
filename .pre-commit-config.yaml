@@ -56,15 +56,6 @@ repos:
     additional_dependencies:
     - types-requests
 
-- repo: local
-  hooks:
-    - id: sync-version-pins
-      name: sync version pins
-      entry: python scripts/sync_version_pins.py
-      language: python
-      pass_filenames: false
-      files: ^(pyproject\.toml|action/.+/action\.yml|action/action\.yml)$
-
 - repo: https://github.com/koalaman/shellcheck-precommit
   rev: v0.11.0
   hooks:
