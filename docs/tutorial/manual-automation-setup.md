@@ -45,7 +45,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Update work history data
-        uses: CodyCBakerPhD/historia/action/update-github@vx.y.z
+        uses: CodyCBakerPhD/historia-action/update-github@v0
         with:
           directory: history
           username: ${{ env.USERNAME }}
@@ -64,14 +64,14 @@ jobs:
           git push
 
       - name: Populate the GitHub project
-        uses: CodyCBakerPhD/historia/action/project-populate@vx.y.z
+        uses: CodyCBakerPhD/historia-action/project-populate@v0
         with:
           directory: history
           url: ${{ env.PROJECT_URL }}
           token: ${{ secrets.GH_PAT }}
 
       - name: Update GitHub project dates
-        uses: CodyCBakerPhD/historia/action/project-update-dates@vx.y.z
+        uses: CodyCBakerPhD/historia-action/project-update-dates@v0
         with:
           url: ${{ env.PROJECT_URL }}
           token: ${{ secrets.GH_PAT }}

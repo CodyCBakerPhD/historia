@@ -1,24 +1,20 @@
 import base64
 import os
-import re
 import typing
 
 import beartype
 import nacl.encoding
 import nacl.public
-import packaging.version
 import requests
 
 from ..project import create_project_page
 from ..project._add_to_project import _parse_project_url
 
 _GITHUB_API_URL = "https://api.github.com"
-_PYPI_PROJECT_URL = "https://pypi.org/pypi/{package_name}/json"
 
-# The generated workflow calls Historia through the container actions under `action/`, which are
-# tagged alongside the package and pin the image built for that same release.
-_ACTION_REPOSITORY = "CodyCBakerPhD/historia"
-_MINIMUM_ACTION_VERSION = "0.10.14"
+# The generated workflow calls Historia through the composite action, which lives in its own
+# repository and pins the container image it runs, so no package version appears in the workflow.
+_ACTION_REFERENCE = "CodyCBakerPhD/historia-action@v0"
 
 # Commits made via the Contents API are attributed to the token owner by default; pin them to a
 # bot identity instead so the wizard doesn't leave commits authored as the person who ran it.
@@ -39,7 +35,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: {{ACTION_REPOSITORY}}/action@v{{HISTORIA_VERSION}}
+      - uses: {{ACTION_REFERENCE}}
         with:
           username: {{USERNAME}}
           project-url: {{PROJECT_URL}}
@@ -58,7 +54,6 @@ def provision_automation(  # noqa: PLR0913
     private: bool,
     secret_name: str,
     recency_days: int,
-    historia_spec: str,
     cron_schedule: str,
     project_title: str | None = None,
     project_url: str | None = None,
@@ -90,8 +85,6 @@ def provision_automation(  # noqa: PLR0913
         Name of the repository secret that will hold `token`.
     recency_days : int
         Number of most recent days the scheduled workflow refreshes on each run.
-    historia_spec : str
-        Version specifier for the `historia` package the workflow's actions run.
     cron_schedule : str
         CRON schedule for the scheduled run.
     project_title : str, optional
@@ -114,7 +107,6 @@ def provision_automation(  # noqa: PLR0913
         message = "Exactly one of `project_title` or `project_url` must be provided."
         raise ValueError(message)
 
-    historia_spec = _validate_historia_spec(historia_spec=historia_spec)
     cron_schedule = _resolve_cron_schedule(cron_schedule=cron_schedule)
 
     authenticated_username = _get_authenticated_username(token=token)
@@ -143,7 +135,6 @@ def provision_automation(  # noqa: PLR0913
     workflow_yaml = _render_workflow_yaml(
         username=username,
         project_url=resolved_project_url,
-        historia_spec=historia_spec,
         secret_name=secret_name,
         cron_schedule=cron_schedule,
         recency_days=recency_days,
@@ -169,55 +160,6 @@ def provision_automation(  # noqa: PLR0913
         "project_url": resolved_project_url,
         "workflow_url": f"{repository['html_url']}/actions/workflows/update.yml",
     }
-
-
-@beartype.beartype
-def _get_latest_pypi_version(*, package_name: str = "historia") -> str:
-    """Return the latest version of `package_name` published on PyPI."""
-    return _fetch_pypi_project_info(package_name=package_name)["info"]["version"]
-
-
-def _fetch_pypi_project_info(*, package_name: str) -> dict:
-    response = requests.get(url=_PYPI_PROJECT_URL.format(package_name=package_name), timeout=30)
-    if response.status_code != 200:
-        message = (
-            f"\nCould not look up `{package_name}` on PyPI.\nStatus code {response.status_code}: {response.text}\n\n"
-        )
-        raise RuntimeError(message)
-    return response.json()
-
-
-def _validate_historia_spec(*, historia_spec: str) -> str:
-    """
-    Validate a `historia` version specifier against PyPI's published releases.
-
-    Accepts either the full `historia==X.Y.Z` form or a bare `X.Y.Z` version (a common slip,
-    since the prompt asks for "the version"), normalizing the latter to the full form. Specifiers
-    that match neither shape (a range, extras, no pin, a different package name, ...) are left
-    alone; validating those in general would require a real dependency resolver, which is out of
-    scope here.
-
-    Returns
-    -------
-    str
-        The (possibly normalized) specifier.
-
-    """
-    match = re.fullmatch(r"(?:historia==)?(\d[\w.\-+]*)", historia_spec.strip())
-    if match is None:
-        return historia_spec
-    pinned_version = match.group(1)
-
-    project_info = _fetch_pypi_project_info(package_name="historia")
-    if pinned_version not in project_info["releases"]:
-        message = (
-            f"\n`{historia_spec}` is not a published release of `historia` on PyPI.\n"
-            "This often happens when defaulting to a local development install that hasn't been "
-            f"released yet. The latest published version is `{project_info['info']['version']}`.\n\n"
-        )
-        raise ValueError(message)
-
-    return f"historia=={pinned_version}"
 
 
 _CRON_SHORTHANDS = {
@@ -282,37 +224,10 @@ def _resolve_cron_schedule(*, cron_schedule: str) -> str:
 
 
 @beartype.beartype
-def _resolve_action_version(historia_spec: str, /) -> str:
-    """
-    Resolve the version tag of the vendored container actions the generated workflow should use.
-
-    The actions live in this repository and are tagged alongside the package, so the workflow can only
-    reference a version that both exists as a release tag and actually contains the `action/` directory.
-    """
-    match = re.fullmatch(r"historia==(\d[\w.\-+]*)", historia_spec.strip())
-    if match is None:
-        message = (
-            f"\nThe generated workflow needs an exact version to pin its actions to, but `{historia_spec}` "
-            "is not a pinned specifier.\nUse the `historia==X.Y.Z` form instead.\n\n"
-        )
-        raise ValueError(message)
-
-    version = match.group(1)
-    if packaging.version.Version(version) < packaging.version.Version(_MINIMUM_ACTION_VERSION):
-        message = (
-            f"\n`historia=={version}` predates the vendored workflow actions, which were introduced in "
-            f"`historia=={_MINIMUM_ACTION_VERSION}`.\nPin `{_MINIMUM_ACTION_VERSION}` or newer.\n\n"
-        )
-        raise ValueError(message)
-    return version
-
-
-@beartype.beartype
-def _render_workflow_yaml(  # noqa: PLR0913
+def _render_workflow_yaml(
     *,
     username: str,
     project_url: str,
-    historia_spec: str,
     secret_name: str,
     cron_schedule: str,
     recency_days: int,
@@ -321,8 +236,7 @@ def _render_workflow_yaml(  # noqa: PLR0913
     replacements = {
         "{{USERNAME}}": username,
         "{{PROJECT_URL}}": project_url,
-        "{{ACTION_REPOSITORY}}": _ACTION_REPOSITORY,
-        "{{HISTORIA_VERSION}}": _resolve_action_version(historia_spec),
+        "{{ACTION_REFERENCE}}": _ACTION_REFERENCE,
         "{{SECRET_NAME}}": secret_name,
         "{{CRON_SCHEDULE}}": cron_schedule,
         "{{RECENCY_DAYS}}": str(recency_days),

@@ -5,11 +5,12 @@
 ### 🚀 Enhancement
 
 - Commands that take options now print their full help when invoked without arguments, matching how groups already list their subcommands. `historia project transition` and friends no longer print only a short usage line and a `Missing option` error. `historia setup automation` is unchanged, since it takes no options and is meant to be run bare. ([#181](https://github.com/CodyCBakerPhD/historia/pull/181))
+- Moved the workflow actions to [`CodyCBakerPhD/historia-action`](https://github.com/CodyCBakerPhD/historia-action) and deleted `action/`. They are versioned by their own interface there and pin the container image they run, so a release here no longer rewrites them and the tutorial no longer names a package version. Workflows should reference `CodyCBakerPhD/historia-action@v0`. Tags up to `v0.10.15` still carry the old in-repository actions and keep working. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
+- Removed the `historia_spec` parameter from `provision_automation` and its wizard prompt, along with the PyPI lookup and specifier validation that only served it. The generated workflow is now a single reference to the action, which pins its own image, so no package version appears in it. This is a breaking change for anything calling `provision_automation` with `historia_spec`. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
 
-### 🏠 Internal
+### 🐛 Bug Fix
 
-- Fixed the tutorial and the action README advertising a version that had never been released. Both pointed at `v0.10.17`, which has no tag and no container image, so a reader copying the workflow got an action that could not resolve. They now reference `@v0`. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
-- Changed the action tags to version the actions rather than the package. `@v0` names one published image, `ghcr.io/codycbakerphd/historia:0.10.15`, and stays put while the package releases, so nothing in `action/` or the documentation is rewritten on a version bump. Changing the actions means cutting `@v1` and stating the image it needs, chosen deliberately rather than tracking whatever released last. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
+- Fixed the tutorial advertising a version that had never been released. It pointed at `v0.10.17`, which has no tag and no container image, so a reader copying the workflow got an action that could not resolve. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
 
 ## v0.10.15
 
