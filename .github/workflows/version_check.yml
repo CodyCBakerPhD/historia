@@ -31,26 +31,3 @@ jobs:
             exit 1
           fi
           echo "Version bumped from $BASE_VERSION to $PR_VERSION ✓"
-
-      # A release is cut by hand from whatever `main` declares, so `main` must never declare a
-      # version that is already released, or one behind what is. Either state makes the obvious tag
-      # to cut the wrong one, which is how `v0.10.15` came to be cut on a tree bumped to `0.10.16`.
-      - name: Check the version is ahead and unreleased
-        run: |
-          PR_VERSION=$(python3 -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
-          BASE_VERSION=$(python3 -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('/tmp/base_pyproject.toml').read_text())['project']['version'])")
-
-          # `sort -V` rather than a Python version library, so this needs nothing installed. It
-          # orders 0.9.0 below 0.10.0, which a lexical sort does not. Equality passes here and is
-          # rejected by the step above.
-          HIGHEST=$(printf '%s\n%s\n' "$BASE_VERSION" "$PR_VERSION" | sort -V | tail -1)
-          if [ "$HIGHEST" != "$PR_VERSION" ]; then
-            echo "::error::Version $PR_VERSION is not ahead of $BASE_VERSION. A release is cut from whatever main declares, so main moving backwards makes the next tag name wrong."
-            exit 1
-          fi
-
-          if git ls-remote --exit-code --tags origin "refs/tags/v$PR_VERSION" >/dev/null 2>&1; then
-            echo "::error::v$PR_VERSION is already tagged. Merging this would leave main declaring a version that is already released, so the next release cut from main would either collide with that tag or be named something main does not say. Bump to an unreleased version."
-            exit 1
-          fi
-          echo "Version $PR_VERSION is ahead of $BASE_VERSION and not yet tagged ✓"

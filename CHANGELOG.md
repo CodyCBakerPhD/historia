@@ -10,7 +10,7 @@
 
 ### 🏠 Internal
 
-- Added `Prepare release draft`, which keeps a draft release on every merge to `main` whose tag name and target come from `pyproject.toml`. Releasing is publishing that draft, so the tag is never typed and cannot disagree with the tree it points at, which is how `v0.10.15` came to be cut on a tree bumped to `0.10.16`. `Version Check` also now requires the new version to be ahead of the base and not already tagged, so `main` never declares a version that is released or behind one. ([#184](https://github.com/CodyCBakerPhD/historia/pull/184))
+- The released container image is now tagged with the version in `pyproject.toml` rather than with the release tag name. The image is built from the tree at that tag, so those can disagree, as they did when `v0.10.15` was cut on a tree bumped to `0.10.16`. An image named for one version while holding another is silent, and the actions pin these images by exact version. A mismatch also emits a warning on the release run. ([#184](https://github.com/CodyCBakerPhD/historia/pull/184))
 
 ### 🐛 Bug Fix
 
