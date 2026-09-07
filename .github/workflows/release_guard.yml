@@ -3,6 +3,10 @@ name: Release guard
 # `Version Check` proves a pull request bumped the version, but nothing proved the tag matches it.
 # That gap shipped `v0.10.15` on a tree already bumped to `0.10.16`, so every action file under
 # that tag referenced a version that was never released and no workflow using them could resolve.
+#
+# This reports, it does not prevent. `release: published` fires once the tag and the release already
+# exist, so a mismatch fails here and mails, rather than being refused. Cutting the tag from a
+# workflow that validates first is what would refuse it.
 
 on:
   release:
