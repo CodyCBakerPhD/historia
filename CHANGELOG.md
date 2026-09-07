@@ -10,7 +10,7 @@
 
 ### 🏠 Internal
 
-- Added a `Release guard` workflow that checks a published release against the tree it was cut from: the tag must match the version in `pyproject.toml`, and `CHANGELOG.md` must carry a section for it. `Version Check` already proved a pull request bumped the version, but nothing tied that version to the tag, which is how `v0.10.15` came to be cut on a tree bumped to `0.10.16`. The check runs once a release is published, so it reports a mismatch and mails rather than preventing one. ([#184](https://github.com/CodyCBakerPhD/historia/pull/184))
+- Added `Prepare release draft`, which keeps a draft release on every merge to `main` whose tag name and target come from `pyproject.toml`. Releasing is publishing that draft, so the tag is never typed and cannot disagree with the tree it points at, which is how `v0.10.15` came to be cut on a tree bumped to `0.10.16`. `Version Check` also now requires the new version to be ahead of the base and not already tagged, so `main` never declares a version that is released or behind one. ([#184](https://github.com/CodyCBakerPhD/historia/pull/184))
 
 ### 🐛 Bug Fix
 
