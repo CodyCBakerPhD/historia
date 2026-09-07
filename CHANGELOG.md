@@ -9,6 +9,10 @@
 - Added `--recency` to `historia project update dates`, bounding the pass to items created or closed within that many most recent days. Both dates an item derives come from its creation and close timestamps, so an item untouched over that window is only ever written back the value it already holds. Without the option the command issues two GraphQL mutations for every item on the board on every run, which exhausts the hourly GraphQL budget on a board of a few thousand items. Omitting it still updates every item, which is what a first run or a backfill needs. ([#183](https://github.com/CodyCBakerPhD/historia/pull/183))
 - Removed the `historia_spec` parameter from `provision_automation` and its wizard prompt, along with the PyPI lookup and specifier validation that only served it. The generated workflow is now a single reference to the action, which pins its own image, so no package version appears in it. This is a breaking change for anything calling `provision_automation` with `historia_spec`. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
 
+### 🏠 Internal
+
+- The released container image is now tagged with the version in `pyproject.toml` rather than with the release tag name. The image is built from the tree at that tag, so those can disagree, as they did when `v0.10.15` was cut on a tree bumped to `0.10.16`. An image named for one version while holding another is silent, and the actions pin these images by exact version. A mismatch also emits a warning on the release run. ([#184](https://github.com/CodyCBakerPhD/historia/pull/184))
+
 ### 🐛 Bug Fix
 
 - Fixed the tutorial advertising a version that had never been released. It pointed at `v0.10.17`, which has no tag and no container image, so a reader copying the workflow got an action that could not resolve. ([#182](https://github.com/CodyCBakerPhD/historia/pull/182))
