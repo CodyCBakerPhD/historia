@@ -30,8 +30,8 @@ def _run_script(*, root: pathlib.Path, check_only: bool) -> subprocess.Completed
     arguments = [sys.executable, str(root / "scripts" / "sync_version_pins.py")]
     if check_only:
         arguments.append("--check")
-    completed_process = subprocess.run(arguments, capture_output=True, text=True, check=False)
-    return completed_process
+    # S603: the arguments are this interpreter and a path built from the repository layout.
+    return subprocess.run(arguments, capture_output=True, text=True, check=False)  # noqa: S603
 
 
 @pytest.mark.ai_generated
