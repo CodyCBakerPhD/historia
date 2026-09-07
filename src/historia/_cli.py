@@ -229,9 +229,30 @@ def _historia_project_update_cli() -> None:
         "when the item has not yet been closed. Default is 180 (approximately 6 months)."
     ),
 )
-def _historia_project_update_dates_cli(*, project_url: str, end_date_placeholder_days: int) -> None:
+@rich_click.option(
+    "--recency",
+    "past_number_of_days",
+    type=int,
+    default=None,
+    required=False,
+    help=(
+        "Only update items created or closed within this many most recent days. "
+        "Every item is updated when this is not specified, which is what a first run "
+        "or a backfill needs."
+    ),
+)
+def _historia_project_update_dates_cli(
+    *,
+    project_url: str,
+    end_date_placeholder_days: int,
+    past_number_of_days: int | None,
+) -> None:
     try:
-        update_project_item_dates(project_url=project_url, end_date_placeholder_days=end_date_placeholder_days)
+        update_project_item_dates(
+            project_url=project_url,
+            end_date_placeholder_days=end_date_placeholder_days,
+            past_number_of_days=past_number_of_days,
+        )
     except (ValueError, RuntimeError) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))
         raise SystemExit(1) from exception

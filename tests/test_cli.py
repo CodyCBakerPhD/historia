@@ -360,11 +360,16 @@ def test_project_populate_auto_accepts_when_yes_flag_and_closing_workflows_exist
 
 @pytest.mark.ai_generated
 def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pytest.MonkeyPatch) -> None:
-    called_args: dict[str, str | int] = {}
+    called_args: dict[str, str | int | None] = {}
 
-    def _fake_update_project_item_dates(project_url: str, end_date_placeholder_days: int) -> None:
+    def _fake_update_project_item_dates(
+        project_url: str,
+        end_date_placeholder_days: int,
+        past_number_of_days: int | None,
+    ) -> None:
         called_args["project_url"] = project_url
         called_args["end_date_placeholder_days"] = end_date_placeholder_days
+        called_args["past_number_of_days"] = past_number_of_days
 
     monkeypatch.setattr(historia._cli, "update_project_item_dates", _fake_update_project_item_dates)
     runner = click.testing.CliRunner()
@@ -385,6 +390,40 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
     assert result.exit_code == 0
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
     assert called_args["end_date_placeholder_days"] == 200
+    assert called_args["past_number_of_days"] is None
+
+
+@pytest.mark.ai_generated
+def test_project_update_dates_command_forwards_recency(monkeypatch: pytest.MonkeyPatch) -> None:
+    called_args: dict[str, str | int | None] = {}
+
+    def _fake_update_project_item_dates(
+        project_url: str,
+        end_date_placeholder_days: int,
+        past_number_of_days: int | None,
+    ) -> None:
+        called_args["project_url"] = project_url
+        called_args["end_date_placeholder_days"] = end_date_placeholder_days
+        called_args["past_number_of_days"] = past_number_of_days
+
+    monkeypatch.setattr(historia._cli, "update_project_item_dates", _fake_update_project_item_dates)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "project",
+            "update",
+            "dates",
+            "--url",
+            "https://github.com/users/octocat/projects/1",
+            "--recency",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert called_args["past_number_of_days"] == 2
 
 
 @pytest.mark.ai_generated
