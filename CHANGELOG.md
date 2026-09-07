@@ -2,10 +2,6 @@
 
 ## Upcoming
 
-### 🏠 Internal
-
-- `Release to PyPI` no longer listens for tag pushes. Publishing a release creates its tag, so that trigger fired a second run which existed only to be skipped, and the skipped run woke the image workflow through `workflow_run` to skip in turn. A release left two dead rows in the Actions list, both looking like something had gone wrong. ([#185](https://github.com/CodyCBakerPhD/historia/pull/185))
-
 ## v0.11.1
 
 ### 🚀 Enhancement
