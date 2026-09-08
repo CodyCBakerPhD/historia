@@ -157,8 +157,10 @@ As items progress and are eventually closed, their recorded end dates should be 
 ::::{tabs}
 :::{tab} CLI
 ```bash
-historia project update dates --url $PROJECT_URL
+historia project update dates --url $PROJECT_URL --recency 2
 ```
+
+`--recency [days]` limits the pass to items created or closed in that window. Each item costs two GraphQL mutations, and an item untouched over the window is only ever written back the value it already holds, so a board of a few thousand items spends the hourly budget to change almost nothing. Omit it to update every item, which is what a first run or a backfill needs.
 
 Use `--placeholder [days]` to change the placeholder window for still-open items.
 :::
@@ -208,7 +210,7 @@ historia.project.transition_status(
 
 The steps above can be wired together into a data repository with a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs regularly, keeping content on its associated project board up to date without manual effort.
 
-Steps 1, 3, and 4 all run from one action: it collects the activity data, populates the project board, and refreshes the board's date fields. Save this as `.github/workflows/update.yml` in the data repository:
+Steps 1 and 3 run from one action, which collects the activity data and populates the project board. Step 4 follows as its own step, since refreshing dates is priced by the size of the board rather than by recent activity. Save this as `.github/workflows/update.yml` in the data repository:
 
 ```yaml
 name: Update work history data
@@ -225,10 +227,16 @@ jobs:
       contents: write
 
     steps:
-      - uses: CodyCBakerPhD/historia-action@v0
+      - uses: CodyCBakerPhD/historia-action@v2
         with:
           username: [user]
           project-url: [project url]
+          recency: "2"
+          token: ${{ secrets.GH_PAT }}
+
+      - uses: CodyCBakerPhD/historia-action/project-update-dates@v2
+        with:
+          url: [project url]
           recency: "2"
           token: ${{ secrets.GH_PAT }}
 ```
@@ -237,9 +245,9 @@ The action updates what it is pointed at and creates nothing, so three things ha
 
 - A dedicated repository you have created (e.g., `work-history-data`) to host the collected JSON files. The workflow file lives in it, and the action commits back to it.
 - The project board from Step 2, whose URL becomes `project-url`.
-- A repository secret named `GH_PAT` holding a personal access token, created as described under [Setup](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) in the action reference. A board owned by an organization allows a fine-grained token limited to selected repositories and to reading them. A board owned by your user account requires a classic token. The pushes use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`.
+- A repository secret named `GH_PAT` holding a personal access token, created as described under [Setup](https://github.com/CodyCBakerPhD/historia-action#setup) in the action reference. A board owned by an organization allows a fine-grained token limited to selected repositories and to reading them. A board owned by your user account requires a classic token. The pushes use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`.
 
-The action checks out the data repository, fetches recent activity, commits and pushes the new content, updates the project board, and force-pushes a compressed archive to a `dist` branch. Pin the version to a published release, and see the [action reference](https://github.com/CodyCBakerPhD/historia/tree/main/action) for the optional inputs.
+The first action checks out the data repository, fetches recent activity, commits and pushes the new content, populates the project board, and force-pushes a compressed archive to a `dist` branch. The second refreshes the dates already on the board, which populating does not revisit once an item is added. Pin both to a published tag, and see the [action reference](https://github.com/CodyCBakerPhD/historia-action) for the optional inputs.
 
 Step 5 is deliberately not included. Transitioning statuses is an occasional editorial decision rather than something to run on a schedule, so keep using `historia project transition` by hand when you want it.
 

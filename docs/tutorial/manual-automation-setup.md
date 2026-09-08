@@ -4,14 +4,14 @@ orphan: true
 
 # Manual setup: the expanded workflow
 
-[Step 6 of the tutorial](index.md) keeps a data repository up to date with a single `uses:` step by harnessing a vendored action.
+[Step 6 of the tutorial](index.md) keeps a data repository up to date with a composite action from [`CodyCBakerPhD/historia-action`](https://github.com/CodyCBakerPhD/historia-action).
 
 This page expands that one step into the individual actions it runs, for anyone who wants to see exactly what happens, run only part of the process, or slot extra steps in between.
 
 The example below assumes:
 
 - A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
-- A secret named `GH_PAT` has been set on that repository as described under [Setup](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
+- A secret named `GH_PAT` has been set on that repository as described under [Setup](https://github.com/CodyCBakerPhD/historia-action#setup) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:
@@ -45,7 +45,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Update work history data
-        uses: CodyCBakerPhD/historia-action/update-github@v0
+        uses: CodyCBakerPhD/historia-action/update-github@v2
         with:
           directory: history
           username: ${{ env.USERNAME }}
@@ -64,16 +64,17 @@ jobs:
           git push
 
       - name: Populate the GitHub project
-        uses: CodyCBakerPhD/historia-action/project-populate@v0
+        uses: CodyCBakerPhD/historia-action/project-populate@v2
         with:
           directory: history
           url: ${{ env.PROJECT_URL }}
           token: ${{ secrets.GH_PAT }}
 
       - name: Update GitHub project dates
-        uses: CodyCBakerPhD/historia-action/project-update-dates@v0
+        uses: CodyCBakerPhD/historia-action/project-update-dates@v2
         with:
           url: ${{ env.PROJECT_URL }}
+          recency: "2"
           token: ${{ secrets.GH_PAT }}
 
       # Last, because it leaves the checkout on the orphan archive branch.
@@ -90,8 +91,8 @@ jobs:
 
 Tips:
 
-- Replace `x.y.z` in the three `uses:` lines with the **Historia** version you want to run. Each action tag pins the matching container image, so all three should name the same version.
-- The `recency: "2"` input tells **Historia** to refresh just the last two days on each run.
+- The actions are versioned by their own major tag rather than by a **Historia** release, and each tag pins the container image it was built against. Keep the three `historia-action` references on the same tag.
+- The `recency: "2"` inputs tell **Historia** to fetch just the last two days, and to refresh only the dates of items created or closed in that window. Matching the two means a run covers exactly the items it could have changed. Dropping `recency` from the dates step walks every item on the board instead, at two GraphQL mutations each, which is a backfill rather than something to schedule.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `project-populate` steps with another `url:` to post the same data to multiple project boards.
 - **Historia** runs from a pinned container image rather than a `pip install`, so the workflow never depends on the runner's Python. There is no interpreter to set up and no install cache to invalidate.
