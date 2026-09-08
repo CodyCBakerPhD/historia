@@ -91,7 +91,7 @@ jobs:
 
 Tips:
 
-- The `recency: "2"` inputs tell **Historia** to fetch just the last two days, and to refresh only the dates of items created or closed in that window. Matching the two means a run covers exactly the items it could have changed. Dropping `recency` from the dates step walks every item on the board instead, at two GraphQL mutations each, which is a backfill rather than something to schedule.
+- The `recency: "2"` input tells **Historia** to refresh just the last two days on each run.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `project-populate` steps with another `url:` to post the same data to multiple project boards.
 - **Historia** runs from a pinned container image rather than a `pip install`, so the workflow never depends on the runner's Python. There is no interpreter to set up and no install cache to invalidate.
