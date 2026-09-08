@@ -91,7 +91,6 @@ jobs:
 
 Tips:
 
-- The actions are versioned by their own major tag rather than by a **Historia** release, and each tag pins the container image it was built against. Keep the three `historia-action` references on the same tag.
 - The `recency: "2"` inputs tell **Historia** to fetch just the last two days, and to refresh only the dates of items created or closed in that window. Matching the two means a run covers exactly the items it could have changed. Dropping `recency` from the dates step walks every item on the board instead, at two GraphQL mutations each, which is a backfill rather than something to schedule.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `project-populate` steps with another `url:` to post the same data to multiple project boards.
