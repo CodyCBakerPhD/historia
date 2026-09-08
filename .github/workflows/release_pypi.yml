@@ -1,16 +1,16 @@
 name: Release to PyPI
 
+# Only `release: published`. Publishing a release also creates its tag, so a `push: tags` trigger
+# fired a second run of this workflow that an `if: github.event_name == 'release'` guard existed
+# only to skip. That skipped run still counts as completed, so it woke the image workflow through
+# `workflow_run` for it to skip in turn. Two dead rows per release, and no trigger left to guard.
 on:
-  push:
-    tags:
-      - "v*"
   release:
     types:
       - published
 
 jobs:
   publish:
-    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: read
