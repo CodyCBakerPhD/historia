@@ -2,10 +2,6 @@
 
 ## Upcoming
 
-### 📝 Documentation
-
-- Caught the tutorial up with the actions living in their own repository. The `uses:` references move to `@v2`, Step 4 appears as its own workflow step rather than something the composite does, and both links to the action reference point at `CodyCBakerPhD/historia-action` rather than the deleted `historia/tree/main/action`, which had been 404ing since the move. Step 4 and the expanded workflow also show `--recency`, without which the pass walks every item on the board. ([#186](https://github.com/CodyCBakerPhD/historia/pull/186))
-
 ## v0.11.1
 
 ### 🚀 Enhancement
