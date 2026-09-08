@@ -160,7 +160,7 @@ As items progress and are eventually closed, their recorded end dates should be 
 historia project update dates --url $PROJECT_URL --recency 2
 ```
 
-`--recency [days]` limits the pass to items created or closed in that window. Each item costs two GraphQL mutations, and an item untouched over the window is only ever written back the value it already holds, so a board of a few thousand items spends the hourly budget to change almost nothing. Omit it to update every item, which is what a first run or a backfill needs.
+`--recency [days]` limits the pass to items created or closed in that window. Omit it to update every item.
 
 Use `--placeholder [days]` to change the placeholder window for still-open items.
 :::
