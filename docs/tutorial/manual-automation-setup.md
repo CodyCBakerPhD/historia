@@ -11,7 +11,7 @@ This page expands that one step into the individual actions it runs, for anyone 
 The example below assumes:
 
 - A dedicated data repository (e.g., `work-history-data`) has been created to host the collected JSON files.
-- A secret named `GH_PAT` has been set on that repository as described under [Setup](https://github.com/CodyCBakerPhD/historia/tree/main/action#setup) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
+- A secret named `GH_PAT` has been set on that repository as described under [Setup](https://github.com/CodyCBakerPhD/historia-action#setup) in the action reference. The pushes use the workflow's own `GITHUB_TOKEN`, granted `contents: write` below.
 - A GitHub Project board has already been created via Step 2; its URL is referenced as `[project url]` below.
 
 Save the file as `.github/workflows/update.yml` in the data repository:

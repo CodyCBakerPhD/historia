@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 📝 Documentation
+
+- Pointed the tutorial's action reference links at [`CodyCBakerPhD/historia-action`](https://github.com/CodyCBakerPhD/historia-action). They still named the deleted `action/` directory in this repository, so all three returned 404 and the daily link checker failed.
+
 ## v0.11.1
 
 ### 🚀 Enhancement
