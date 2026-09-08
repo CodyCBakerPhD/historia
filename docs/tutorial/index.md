@@ -210,7 +210,7 @@ historia.project.transition_status(
 
 The steps above can be wired together into a data repository with a scheduled [GitHub Actions](https://docs.github.com/en/actions) workflow that runs regularly, keeping content on its associated project board up to date without manual effort.
 
-Steps 1 and 3 run from one action, which collects the activity data and populates the project board. Step 4 follows as its own step, since refreshing dates is priced by the size of the board rather than by recent activity. Save this as `.github/workflows/update.yml` in the data repository:
+Steps 1 and 3 run from one action, which collects the activity data and populates the project board. Save this as `.github/workflows/update.yml` in the data repository:
 
 ```yaml
 name: Update work history data
