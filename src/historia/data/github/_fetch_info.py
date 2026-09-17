@@ -18,6 +18,9 @@ def fetch_info_for_date(
     """
     Fetch GitHub info (issues, PRs, etc.) created by a specific user on a specific date.
 
+    The `assigned` types instead match items the user is assigned to but did not author, by the date the item was
+    last updated. GitHub search has no qualifier for the date of assignment.
+
     Parameters
     ----------
     info_type : Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"]
@@ -80,7 +83,7 @@ query OpenPRs($first: Int!) {
             """
 query AssignedPRs($first: Int!) {
     search(
-        query: "assignee:{username} type:pr assigned:{date}..{date}"
+        query: "assignee:{username} -author:{username} type:pr updated:{date}..{date}"
         type: ISSUE
         first: $first
     ) {
@@ -106,7 +109,7 @@ query OpenIssues($first: Int!) {
             """
 query AssignedIssues($first: Int!) {
     search(
-        query: "assignee:{username} type:issue assigned:{date}..{date}"
+        query: "assignee:{username} -author:{username} type:issue updated:{date}..{date}"
         type: ISSUE
         first: $first
     ) {
