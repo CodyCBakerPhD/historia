@@ -4,7 +4,7 @@
 
 ### 🐛 Bug Fix
 
-- Fixed the `prs_assigned` and `issues_assigned` searches, which never returned anything. They filtered on `assigned:DATE..DATE`, which is not a GitHub search qualifier, so GitHub matched it as literal text and found nothing. They now match items the user is assigned to but did not author, by `updated:` date, since GitHub search has no qualifier for the date of assignment. Items the user both authored and is assigned to are already found by the `opened` searches. ([#189](https://github.com/CodyCBakerPhD/historia/pull/189))
+- Fixed the `prs_assigned` and `issues_assigned` searches, which never returned anything. They filtered on `assigned:DATE..DATE`, which is not a GitHub search qualifier, so GitHub matched it as literal text and found nothing. GitHub search has no qualifier for the date of assignment, so they now search for items the user is assigned to that were updated on or after the date, read each item's assignment events from its timeline, and keep the items with an assignment to the user on that date. The candidate search is paginated. ([#189](https://github.com/CodyCBakerPhD/historia/pull/189))
 
 ### 🏠 Internal
 

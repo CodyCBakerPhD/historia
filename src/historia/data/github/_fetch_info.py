@@ -18,8 +18,9 @@ def fetch_info_for_date(
     """
     Fetch GitHub info (issues, PRs, etc.) created by a specific user on a specific date.
 
-    The `assigned` types instead match items the user is assigned to but did not author, by the date the item was
-    last updated. GitHub search has no qualifier for the date of assignment.
+    The `assigned` types instead match items with an assignment event to the user on that date, read from each
+    item's timeline. GitHub search has no qualifier for the date of assignment, so the search only narrows the
+    candidates to items the user is currently assigned to and that were updated on or after the date.
 
     Parameters
     ----------
@@ -81,13 +82,24 @@ query OpenPRs($first: Int!) {
 """,
         "prs_assigned": (
             """
-query AssignedPRs($first: Int!) {
+query AssignedPRs($first: Int!, $after: String) {
     search(
-        query: "assignee:{username} -author:{username} type:pr updated:{date}..{date}"
+        query: "assignee:{username} type:pr updated:>={date}"
         type: ISSUE
         first: $first
+        after: $after
     ) {
-        edges { node { ... on PullRequest { url } } }
+        pageInfo { hasNextPage endCursor }
+        edges {
+            node {
+                ... on PullRequest {
+                    url
+                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 20) {
+                        nodes { ... on AssignedEvent { createdAt assignee { ... on User { login } } } }
+                    }
+                }
+            }
+        }
     }
 }
 """
@@ -107,13 +119,24 @@ query OpenIssues($first: Int!) {
         ),
         "issues_assigned": (
             """
-query AssignedIssues($first: Int!) {
+query AssignedIssues($first: Int!, $after: String) {
     search(
-        query: "assignee:{username} -author:{username} type:issue updated:{date}..{date}"
+        query: "assignee:{username} type:issue updated:>={date}"
         type: ISSUE
         first: $first
+        after: $after
     ) {
-        edges { node { ... on Issue { url } } }
+        pageInfo { hasNextPage endCursor }
+        edges {
+            node {
+                ... on Issue {
+                    url
+                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 20) {
+                        nodes { ... on AssignedEvent { createdAt assignee { ... on User { login } } } }
+                    }
+                }
+            }
+        }
     }
 }
 """
@@ -136,13 +159,44 @@ def _fetch_info_for_date_graphql(
     token: str,
 ) -> tuple[list[str], bool]:
     entities_to_graphql_query_mapping = _format_graphql_queries(date=date, username=username)
-
     query = entities_to_graphql_query_mapping[info_type]
-    variables = {
-        "user": username,
-        "date": date,
-        "first": 100,  # Required by query, should be good enough for a single day
-    }
+
+    if info_type in ("prs_assigned", "issues_assigned"):
+        urls, hit_rate_limit = _fetch_assigned_urls(query=query, date=date, username=username, token=token)
+        return urls, hit_rate_limit
+
+    # 100 per page is required by the query and should be good enough for a single day
+    nodes, _, hit_rate_limit = _post_search_query(query=query, variables={"first": 100}, token=token)
+    if hit_rate_limit:
+        return [], hit_rate_limit
+    urls = [node["url"] for node in nodes]
+    return urls, False
+
+
+def _fetch_assigned_urls(*, query: str, date: str, username: str, token: str) -> tuple[list[str], bool]:
+    urls: list[str] = []
+    after_cursor = None
+    while True:
+        variables = {"first": 100, "after": after_cursor}
+        nodes, after_cursor, hit_rate_limit = _post_search_query(query=query, variables=variables, token=token)
+        if hit_rate_limit:
+            return [], hit_rate_limit
+        urls.extend(node["url"] for node in nodes if _was_assigned_on_date(node=node, date=date, username=username))
+        if after_cursor is None:
+            return urls, False
+
+
+def _was_assigned_on_date(*, node: dict, date: str, username: str) -> bool:
+    for event in node["timelineItems"]["nodes"]:
+        assignee = event.get("assignee") or {}
+        login = assignee.get("login", "")
+        if login.lower() == username.lower() and event["createdAt"].startswith(date):
+            return True
+    return False
+
+
+def _post_search_query(*, query: str, variables: dict, token: str) -> tuple[list[dict], str | None, bool]:
+    """Run one page of a GraphQL search, returning its nodes, the next page cursor (if any), and a rate limit flag."""
     headers = {"Authorization": f"token {token}"}
     response = requests.post(
         url="https://api.github.com/graphql",
@@ -159,7 +213,7 @@ def _fetch_info_for_date_graphql(
             rate_limit_result = response.text.strip() or "<empty response body>"
         message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {rate_limit_result}"
         warnings.warn(message=message, stacklevel=2)
-        return [], hit_rate_limit
+        return [], None, hit_rate_limit
     try:
         result = response.json()
     except requests.exceptions.JSONDecodeError as exception:
@@ -175,11 +229,14 @@ def _fetch_info_for_date_graphql(
     try:
         if result.get("errors") is not None:
             raise RuntimeError(message)
-        unpacked_result = [node["node"]["url"] for node in result["data"]["search"]["edges"]]
+        search = result["data"]["search"]
+        nodes = [edge["node"] for edge in search["edges"]]
+        page_info = search.get("pageInfo") or {}
+        next_cursor = page_info["endCursor"] if page_info.get("hasNextPage") else None
     except (AttributeError, KeyError, TypeError) as exception:
         unexpected_payload_message = (
             f"GitHub GraphQL API query `{query}` failed!\n"
             f"Status code {status}: GitHub returned an unexpected JSON payload: {result}"
         )
         raise RuntimeError(unexpected_payload_message) from exception
-    return unpacked_result, False
+    return nodes, next_cursor, False
