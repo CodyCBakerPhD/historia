@@ -4,7 +4,7 @@
 
 ### 🏠 Internal
 
-- The remote tests no longer run on pull requests from forks. GitHub does not expose repository secrets to those runs, so the job had no token and failed every fork PR with `401 Bad credentials` regardless of its contents. The daily scheduled run still covers the remote tests on `main`. ([#PR](https://github.com/CodyCBakerPhD/historia/pull/PR))
+- The remote tests no longer run on pull requests from forks. GitHub does not expose repository secrets to those runs, so the job had no token and failed every fork PR with `401 Bad credentials` regardless of its contents. The daily scheduled run still covers the remote tests on `main`. ([#190](https://github.com/CodyCBakerPhD/historia/pull/190))
 
 ## v0.11.1
 
