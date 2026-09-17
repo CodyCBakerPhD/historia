@@ -13,6 +13,9 @@ jobs:
       marks: "not remote"
 
   TestingRemote:
+    # GitHub does not expose repository secrets to workflows triggered by pull requests from forks, so the remote
+    # tests would run without a token and fail with 401. Skip them there; the daily scheduled run covers them on main.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: read
     uses: ./.github/workflows/testing.yml

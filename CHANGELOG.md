@@ -6,6 +6,10 @@
 
 - Fixed the `prs_assigned` and `issues_assigned` searches, which never returned anything. They filtered on `assigned:DATE..DATE`, which is not a GitHub search qualifier, so GitHub matched it as literal text and found nothing. They now match items the user is assigned to but did not author, by `updated:` date, since GitHub search has no qualifier for the date of assignment. Items the user both authored and is assigned to are already found by the `opened` searches. ([#PR](https://github.com/CodyCBakerPhD/historia/pull/PR))
 
+### 🏠 Internal
+
+- The remote tests no longer run on pull requests from forks. GitHub does not expose repository secrets to those runs, so the job had no token and failed every fork PR with `401 Bad credentials` regardless of its contents. The daily scheduled run still covers the remote tests on `main`. ([#190](https://github.com/CodyCBakerPhD/historia/pull/190))
+
 ## v0.11.1
 
 ### 🚀 Enhancement
