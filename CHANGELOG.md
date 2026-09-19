@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
+
+- `fetch_info_for_date` now retries a GraphQL request that gets a server error (any 5xx status) or a dropped connection, with exponential backoff over up to five attempts, before giving up. GitHub's edge occasionally answers a single request with an HTML `502 Bad Gateway` page. That one response used to abort the whole fetch and fail the daily scheduled run, even though a repeat of the same request succeeds. ([#191](https://github.com/CodyCBakerPhD/historia/pull/191))
+
 ## v0.11.2
 
 ### 🐛 Bug Fix
