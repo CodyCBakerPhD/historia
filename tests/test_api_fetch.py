@@ -57,16 +57,21 @@ def test_fetch_info_graphql_warns_on_rate_limit(monkeypatch: pytest.MonkeyPatch)
     assert hit_rate_limit is True
 
 
-@pytest.mark.ai_generated
-def test_fetch_info_graphql_raises_on_non_json_response(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+def _bad_gateway_response() -> unittest.mock.MagicMock:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 502
-    mock_response.text = ""
-    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "<empty>", 0)
+    mock_response.text = "<html><head><title>502 Bad Gateway</title></head></html>"
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "<html>", 0)
+    return mock_response
+
+
+@pytest.mark.ai_generated
+def test_fetch_info_graphql_raises_on_persistent_non_json_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
     with (
-        unittest.mock.patch("requests.post", return_value=mock_response),
+        unittest.mock.patch("requests.post", return_value=_bad_gateway_response()) as mock_post,
+        unittest.mock.patch("time.sleep") as mock_sleep,
         pytest.raises(RuntimeError, match="non-JSON response body"),
     ):
         historia.data.github.fetch_info_for_date(
@@ -74,6 +79,92 @@ def test_fetch_info_graphql_raises_on_non_json_response(monkeypatch: pytest.Monk
             date="2026-01-05",
             username="codycbakerphd",
         )
+
+    assert mock_post.call_count == 5
+    slept_seconds = [call.args[0] for call in mock_sleep.call_args_list]
+    assert slept_seconds == [2.0, 4.0, 8.0, 16.0]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "transient_failure",
+    [
+        _bad_gateway_response(),
+        requests.exceptions.ConnectionError("connection reset"),
+        requests.exceptions.ReadTimeout("read timed out"),
+    ],
+    ids=["bad_gateway", "connection_error", "timeout"],
+)
+def test_fetch_info_graphql_retries_transient_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    transient_failure: unittest.mock.MagicMock | Exception,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    success_response = unittest.mock.MagicMock()
+    success_response.status_code = 200
+    success_response.json.return_value = {
+        "data": {"search": {"edges": [{"node": {"url": "https://github.com/con/nwb2bids/issues/252"}}]}},
+    }
+
+    with (
+        unittest.mock.patch("requests.post", side_effect=[transient_failure, success_response]) as mock_post,
+        unittest.mock.patch("time.sleep") as mock_sleep,
+    ):
+        test_info, hit_rate_limit = historia.data.github.fetch_info_for_date(
+            info_type="issues_opened",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
+
+    assert hit_rate_limit is False
+    expected_info = ["https://github.com/con/nwb2bids/issues/252"]
+    assert test_info == expected_info
+    assert mock_post.call_count == 2
+    slept_seconds = [call.args[0] for call in mock_sleep.call_args_list]
+    assert slept_seconds == [2.0]
+
+
+@pytest.mark.ai_generated
+def test_fetch_info_graphql_raises_on_persistent_connection_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    with (
+        unittest.mock.patch(
+            "requests.post",
+            side_effect=requests.exceptions.ConnectionError("connection reset"),
+        ) as mock_post,
+        unittest.mock.patch("time.sleep"),
+        pytest.raises(requests.exceptions.ConnectionError, match="connection reset"),
+    ):
+        historia.data.github.fetch_info_for_date(
+            info_type="issues_opened",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
+
+    assert mock_post.call_count == 5
+
+
+@pytest.mark.ai_generated
+def test_fetch_info_graphql_does_not_retry_client_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 401
+    mock_response.json.return_value = {"message": "Bad credentials"}
+
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response) as mock_post,
+        unittest.mock.patch("time.sleep") as mock_sleep,
+        pytest.raises(RuntimeError, match="Status code 401"),
+    ):
+        historia.data.github.fetch_info_for_date(
+            info_type="issues_opened",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
+
+    assert mock_post.call_count == 1
+    assert mock_sleep.call_count == 0
 
 
 @pytest.mark.ai_generated

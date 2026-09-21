@@ -1,11 +1,15 @@
 import functools
 import os
 import re
+import time
 import typing
 import warnings
 
 import beartype
 import requests
+
+_MAXIMUM_ATTEMPTS = 5
+_INITIAL_BACKOFF_SECONDS = 2.0
 
 
 @beartype.beartype
@@ -195,15 +199,40 @@ def _was_assigned_on_date(*, node: dict, date: str, username: str) -> bool:
     return False
 
 
-def _post_search_query(*, query: str, variables: dict, token: str) -> tuple[list[dict], str | None, bool]:
-    """Run one page of a GraphQL search, returning its nodes, the next page cursor (if any), and a rate limit flag."""
+def _post_with_retries(*, query: str, variables: dict, token: str) -> requests.Response:
+    """
+    Post a GraphQL query, retrying with exponential backoff on server errors and dropped connections.
+
+    GitHub occasionally answers with a 502 or 503 from its edge for a moment. Those carry an HTML body rather than
+    a GraphQL payload, and a repeat of the same request usually succeeds. The last response is returned regardless
+    of its status so the caller can report it, and the last connection error is re-raised.
+    """
+    backoff_seconds = _INITIAL_BACKOFF_SECONDS
+    for _ in range(_MAXIMUM_ATTEMPTS - 1):
+        try:
+            response: requests.Response | None = _post_once(query=query, variables=variables, token=token)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            response = None
+        if response is not None and response.status_code < 500:
+            return response
+        time.sleep(backoff_seconds)
+        backoff_seconds *= 2
+    return _post_once(query=query, variables=variables, token=token)
+
+
+def _post_once(*, query: str, variables: dict, token: str) -> requests.Response:
     headers = {"Authorization": f"token {token}"}
-    response = requests.post(
+    return requests.post(
         url="https://api.github.com/graphql",
         json={"query": query, "variables": variables},
         headers=headers,
         timeout=30,
     )
+
+
+def _post_search_query(*, query: str, variables: dict, token: str) -> tuple[list[dict], str | None, bool]:
+    """Run one page of a GraphQL search, returning its nodes, the next page cursor (if any), and a rate limit flag."""
+    response = _post_with_retries(query=query, variables=variables, token=token)
     status = response.status_code
     if status == 403:
         hit_rate_limit = True
