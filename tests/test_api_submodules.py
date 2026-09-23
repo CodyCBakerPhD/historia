@@ -14,6 +14,7 @@ import historia.project
         ("github", True),
         ("historia_cli", True),
         ("project", True),
+        ("setup", False),
         ("add_to_project", False),
         ("dump_info_for_date", False),
         ("fetch_info_for_date", False),
