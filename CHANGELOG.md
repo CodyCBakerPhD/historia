@@ -53,7 +53,7 @@
 
 ### 🐛 Bug Fix
 
-- Fixed `tests/test_vendored_actions.py` breaking downstream builds of the `0.10.14` sdist. It imported `tomllib`, which is standard library only from Python 3.11 while this package supports 3.10, and it asserted on `action/` files that a source distribution consumer does not necessarily unpack. The version now comes from `importlib.metadata`, and the module skips itself when `action/` is absent, since it checks repository files rather than anything the installed package carries. ([#178](https://github.com/CodyCBakerPhD/historia/pull/178))
+- Fixed `tests/test_vendored_actions.py` breaking downstream builds of the `0.10.14` sdist. It imported `tomllib`, which is standard library only from Python 3.11 while this package supports 3.10, and it asserted on `action/` files that a source distribution consumer does not necessarily unpack. The version now comes from `importlib.metadata`, and the module skips itself when `action/` is absent, since it checks repository files rather than anything the installed package carries. ([#179](https://github.com/CodyCBakerPhD/historia/pull/179))
 
 ## v0.10.14
 
