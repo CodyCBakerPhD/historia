@@ -5,6 +5,7 @@
 ### 🐛 Bug Fix
 
 - `fetch_info_for_date` now retries a GraphQL request that gets a server error (any 5xx status) or a dropped connection, with exponential backoff over up to five attempts, before giving up. GitHub's edge occasionally answers a single request with an HTML `502 Bad Gateway` page. That one response used to abort the whole fetch and fail the daily scheduled run, even though a repeat of the same request succeeds. ([#191](https://github.com/CodyCBakerPhD/historia/pull/191))
+- `historia project populate` now follows items that have moved since they were recorded. Transferring an issue to another repository, or renaming or transferring a repository, changes the URL of each item it moves, and GraphQL finds nothing at the old URL. Those items used to be skipped without a word and retried on every run. The old URL is now looked up through the REST API, which follows GitHub's redirect, and the item is added under its current URL unless the project already has it there. With `--members`, the usernames recorded under the old URL are merged into that item. The history files keep every URL as it was recorded. A recorded URL that still leads nowhere, such as a deleted issue, is now listed in a warning instead of being skipped silently. ([#193](https://github.com/CodyCBakerPhD/historia/pull/193))
 
 ## v0.11.2
 
