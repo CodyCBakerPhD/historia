@@ -2,10 +2,6 @@
 
 ## Upcoming
 
-### 🚀 Enhancement
-
-- Removed `historia setup automation` and `historia.setup.provision_automation`, deprecated since v0.10.14. Step 6 of the tutorial shows the workflow to add by hand instead. This is a breaking change for anything that runs the command or calls `provision_automation`. ([#194](https://github.com/CodyCBakerPhD/historia/pull/194))
-
 ### 🐛 Bug Fix
 
 - `fetch_info_for_date` now retries a GraphQL request that gets a server error (any 5xx status) or a dropped connection, with exponential backoff over up to five attempts, before giving up. GitHub's edge occasionally answers a single request with an HTML `502 Bad Gateway` page. That one response used to abort the whole fetch and fail the daily scheduled run, even though a repeat of the same request succeeds. ([#191](https://github.com/CodyCBakerPhD/historia/pull/191))
@@ -16,6 +12,7 @@
 
 ### 🏠 Internal
 
+- Removed `historia setup automation` and `historia.setup.provision_automation`, deprecated since v0.10.14. Step 6 of the tutorial shows the workflow to add by hand instead. This is a breaking change for anything that runs the command or calls `provision_automation`. ([#194](https://github.com/CodyCBakerPhD/historia/pull/194))
 - Dropped the daily link checker excludes that only existed for URLs in the setup wizard's template and tests. ([#194](https://github.com/CodyCBakerPhD/historia/pull/194))
 
 ## v0.11.2
