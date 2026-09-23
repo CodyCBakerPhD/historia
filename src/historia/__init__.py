@@ -1,4 +1,4 @@
-from . import data, project, setup
+from . import data, project
 from .data import github
 from ._cli import historia_cli
 
@@ -7,5 +7,4 @@ __all__ = [
     "github",
     "historia_cli",
     "project",
-    "setup",
 ]
