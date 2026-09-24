@@ -36,6 +36,96 @@ from historia.project._add_to_project import (
 
 _TEST_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/5"
 
+# The daily link checker skips fake item URLs under `owner/repo`, including `old-` and `new-` versions of either name
+_RECORDED_ISSUE_URL = "https://github.com/old-owner/repo/issues/184"
+_CURRENT_ISSUE_URL = "https://github.com/new-owner/repo/issues/184"
+_RECORDED_PR_URL = "https://github.com/old-owner/repo/pull/12"
+_CURRENT_PR_URL = "https://github.com/new-owner/repo/pull/12"
+_RECORDED_TRANSFERRED_ISSUE_URL = "https://github.com/owner/old-repo/issues/7"
+_CURRENT_TRANSFERRED_ISSUE_URL = "https://github.com/owner/new-repo/issues/41"
+_DELETED_ISSUE_URL = "https://github.com/owner/repo/issues/404"
+
+
+class _FakeGitHub:
+    """
+    Answer the requests made by ``add_to_project`` from an in-memory model of GitHub.
+
+    ``items`` maps the current URL of each issue or pull request to its node ID. ``moves`` maps a URL that an item
+    was recorded under to the URL it has moved to since. GraphQL finds nothing at a moved URL, while REST redirects
+    it. ``project`` maps the URL of each item already in the project to its Members value.
+    """
+
+    def __init__(self, *, items: dict[str, str], moves: dict[str, str], project: dict[str, str | None]) -> None:
+        self.items = items
+        self.moves = moves
+        self.project = project
+        self.item_lookups: list[str] = []
+        self.rest_lookups: list[str] = []
+        self.added_node_ids: list[str] = []
+        self.members_writes: list[tuple[str, str]] = []
+
+    def post(self, *, json: dict, **_kwargs: object) -> unittest.mock.MagicMock:
+        operation = json["query"].split("(")[0].split()[-1]
+        variables = json["variables"]
+        if operation == "GetProject":
+            fields = [
+                {"id": "PVTSSF_status", "name": "Status", "options": [{"id": "opt_done", "name": "Done"}]},
+                {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+            ]
+            data: dict = {"user": {"projectV2": {"id": "PVT_project", "fields": {"nodes": fields}}}}
+        elif operation in ("GetItemUrls", "GetItemsWithMembers"):
+            nodes = [
+                {
+                    "id": f"PVTI_{self.items[url]}",
+                    "content": {"url": url},
+                    "fieldValues": {"nodes": [{"text": members, "field": {"id": "PVTF_members"}}]},
+                }
+                for url, members in self.project.items()
+            ]
+            page_info = {"hasNextPage": False, "endCursor": None}
+            data = {"user": {"projectV2": {"items": {"nodes": nodes, "pageInfo": page_info}}}}
+        elif operation == "GetItem":
+            self.item_lookups.append(variables["url"])
+            node_id = self.items.get(variables["url"])
+            resource = None
+            if node_id is not None:
+                resource = {
+                    "id": node_id,
+                    "state": "CLOSED",
+                    "createdAt": "2026-01-05T00:00:00Z",
+                    "closedAt": "2026-01-06T00:00:00Z",
+                }
+            data = {"resource": resource}
+        elif operation == "AddItem":
+            self.added_node_ids.append(variables["contentId"])
+            data = {"addProjectV2ItemById": {"item": {"id": f"PVTI_{variables['contentId']}"}}}
+        else:
+            if operation == "SetText":
+                self.members_writes.append((variables["itemId"], variables["text"]))
+            data = {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": variables["itemId"]}}}
+
+        response = unittest.mock.MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"data": data}
+        return response
+
+    def get(self, *, url: str, **_kwargs: object) -> unittest.mock.MagicMock:
+        requested_path = url.partition("/repos/")[2]
+        self.rest_lookups.append(requested_path)
+
+        response = unittest.mock.MagicMock()
+        response.status_code = 404
+        response.json.return_value = {"message": "Not Found"}
+        for recorded_url in [*self.moves, *self.items]:
+            # The issues endpoint serves pull requests too
+            if recorded_url.removeprefix("https://github.com/").replace("/pull/", "/issues/") != requested_path:
+                continue
+            current_url = self.moves.get(recorded_url, recorded_url)
+            if current_url in self.items:
+                response.status_code = 200
+                response.json.return_value = {"html_url": current_url}
+        return response
+
 
 # ---------------------------------------------------------------------------
 # Unit tests – no network calls
@@ -203,10 +293,14 @@ def test_add_to_project_processes_latest_version_when_multiple_exist(
         seen_urls.append(url)
 
     monkeypatch.setattr("historia.project._add_to_project._get_item_info", _mock_get_item_info)
+    monkeypatch.setattr("historia.project._add_to_project._resolve_current_url", lambda **_: None)
 
-    with pytest.warns(
-        UserWarning,
-        match="Incompatible database versions detected! Using only the latest - please run database migration.",
+    with (
+        pytest.warns(
+            UserWarning,
+            match="Incompatible database versions detected! Using only the latest - please run database migration.",
+        ),
+        pytest.warns(UserWarning, match="Skipped 1 recorded URL"),
     ):
         historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
 
@@ -725,64 +819,166 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
 
 
 @pytest.mark.ai_generated
-def test_add_to_project_skips_url_with_null_resource(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    """Items that return a null resource are silently skipped."""
+def test_add_to_project_warns_about_recorded_urls_that_lead_nowhere(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    """URLs that neither GraphQL nor a REST redirect can place are skipped, listed in a warning, and left recorded."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
-
-    (tmp_path / "urls.json").write_text(json.dumps(["https://github.com/owner/repo/pull/999"]))
-
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-    }
-
-    null_resource_response = unittest.mock.MagicMock()
-    null_resource_response.status_code = 200
-    null_resource_response.json.return_value = {"data": {"resource": None}}
-
-    empty_project_response = unittest.mock.MagicMock()
-    empty_project_response.status_code = 200
-    empty_project_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
+    (tmp_path / "urls.json").write_text(json.dumps([_RECORDED_ISSUE_URL, _DELETED_ISSUE_URL]))
+    github = _FakeGitHub(
+        items={_CURRENT_ISSUE_URL: "NODE_current"},
+        moves={_RECORDED_ISSUE_URL: _CURRENT_ISSUE_URL},
+        project={_CURRENT_ISSUE_URL: None},
+    )
 
     with (
-        unittest.mock.patch(
-            "requests.post",
-            side_effect=[project_info_response, empty_project_response, null_resource_response],
-        ),
+        unittest.mock.patch("requests.post", side_effect=github.post),
+        unittest.mock.patch("requests.get", side_effect=github.get),
+        pytest.warns(UserWarning, match="Skipped 1 recorded URL") as caught_warnings,
+    ):
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+
+    assert str(caught_warnings[0].message).splitlines()[1:] == [_DELETED_ISSUE_URL]
+    assert github.added_node_ids == []
+    assert json.loads((tmp_path / "urls.json").read_text()) == [_CURRENT_ISSUE_URL, _DELETED_ISSUE_URL]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("recorded_url", "current_url", "expected_rest_lookup"),
+    [
+        (_RECORDED_ISSUE_URL, _CURRENT_ISSUE_URL, "old-owner/repo/issues/184"),
+        (_RECORDED_PR_URL, _CURRENT_PR_URL, "old-owner/repo/issues/12"),
+        (_RECORDED_TRANSFERRED_ISSUE_URL, _CURRENT_TRANSFERRED_ISSUE_URL, "owner/old-repo/issues/7"),
+    ],
+    ids=["issue-in-moved-repository", "pull-request-in-moved-repository", "transferred-issue"],
+)
+@pytest.mark.parametrize("already_in_project", [True, False], ids=["already-in-project", "not-yet-in-project"])
+def test_add_to_project_follows_moved_item_to_its_current_url(  # noqa: PLR0913
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    recorded_url: str,
+    current_url: str,
+    expected_rest_lookup: str,
+    already_in_project: bool,
+) -> None:
+    """A moved item is added under its current URL unless the project has it there, and is recorded under it after."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    (tmp_path / "urls.json").write_text(json.dumps([recorded_url]))
+    github = _FakeGitHub(
+        items={current_url: "NODE_current"},
+        moves={recorded_url: current_url},
+        project={current_url: None} if already_in_project else {},
+    )
+
+    with (
+        unittest.mock.patch("requests.post", side_effect=github.post),
+        unittest.mock.patch("requests.get", side_effect=github.get),
         _warnings_module.catch_warnings(),
     ):
         _warnings_module.simplefilter("error")
-        historia.project.add_to_project(
-            directory=tmp_path,
-            project_url="https://github.com/users/testuser/projects/1",
-        )
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+
+    assert github.rest_lookups == [expected_rest_lookup]
+    assert github.item_lookups == ([recorded_url] if already_in_project else [recorded_url, current_url])
+    assert github.added_node_ids == ([] if already_in_project else ["NODE_current"])
+    assert json.loads((tmp_path / "urls.json").read_text()) == [current_url]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "recorded_urls",
+    [[_RECORDED_ISSUE_URL, _CURRENT_ISSUE_URL], [_CURRENT_ISSUE_URL, _RECORDED_ISSUE_URL]],
+    ids=["old-url-first", "current-url-first"],
+)
+def test_add_to_project_adds_item_recorded_under_old_and_current_urls_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    recorded_urls: list[str],
+) -> None:
+    """An item recorded both before and after it moved is added, and has its members written, only once."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    user_directory = tmp_path / "username-cody"
+    user_directory.mkdir()
+    (user_directory / "urls.json").write_text(json.dumps(recorded_urls))
+    github = _FakeGitHub(
+        items={_CURRENT_ISSUE_URL: "NODE_current"},
+        moves={_RECORDED_ISSUE_URL: _CURRENT_ISSUE_URL},
+        project={},
+    )
+
+    with (
+        unittest.mock.patch("requests.post", side_effect=github.post),
+        unittest.mock.patch("requests.get", side_effect=github.get),
+    ):
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL, assign_members=True)
+
+    assert github.added_node_ids == ["NODE_current"]
+    assert github.members_writes == [("PVTI_NODE_current", "cody")]
+    assert json.loads((user_directory / "urls.json").read_text()) == [_CURRENT_ISSUE_URL]
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_merges_members_of_moved_item_into_its_current_url(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    user_directory = tmp_path / "username-alex"
+    user_directory.mkdir()
+    (user_directory / "urls.json").write_text(json.dumps([_RECORDED_ISSUE_URL]))
+    github = _FakeGitHub(
+        items={_CURRENT_ISSUE_URL: "NODE_current"},
+        moves={_RECORDED_ISSUE_URL: _CURRENT_ISSUE_URL},
+        project={_CURRENT_ISSUE_URL: "cody"},
+    )
+
+    with (
+        unittest.mock.patch("requests.post", side_effect=github.post),
+        unittest.mock.patch("requests.get", side_effect=github.get),
+    ):
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL, assign_members=True)
+
+    assert github.added_node_ids == []
+    assert github.members_writes == [("PVTI_NODE_current", "alex,cody")]
+    assert json.loads((user_directory / "urls.json").read_text()) == [_CURRENT_ISSUE_URL]
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_rewrites_every_record_of_a_moved_item(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every history file recording a moved URL is rewritten in the dump format, and no other file is touched."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    other_url = "https://github.com/owner/repo/issues/1"
+    first_day = tmp_path / "year-2026" / "month-01" / "day-05"
+    second_day = tmp_path / "year-2026" / "month-02" / "day-09"
+    first_day.mkdir(parents=True)
+    second_day.mkdir(parents=True)
+    (first_day / "issues.json").write_text(json.dumps([_RECORDED_ISSUE_URL, other_url], indent=1))
+    (second_day / "issues.json").write_text(json.dumps([_RECORDED_ISSUE_URL], indent=1))
+    unrelated_text = json.dumps([other_url])
+    (second_day / "prs.json").write_text(unrelated_text)
+    legacy_text = json.dumps({"items": [{"html_url": _RECORDED_ISSUE_URL}]})
+    (tmp_path / "legacy.json").write_text(legacy_text)
+    github = _FakeGitHub(
+        items={_CURRENT_ISSUE_URL: "NODE_current", other_url: "NODE_other"},
+        moves={_RECORDED_ISSUE_URL: _CURRENT_ISSUE_URL},
+        project={_CURRENT_ISSUE_URL: None, other_url: None},
+    )
+
+    with (
+        unittest.mock.patch("requests.post", side_effect=github.post),
+        unittest.mock.patch("requests.get", side_effect=github.get),
+    ):
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+
+    assert (first_day / "issues.json").read_text() == json.dumps([_CURRENT_ISSUE_URL, other_url], indent=1)
+    assert (second_day / "issues.json").read_text() == json.dumps([_CURRENT_ISSUE_URL], indent=1)
+    assert (second_day / "prs.json").read_text() == unrelated_text
+    assert (tmp_path / "legacy.json").read_text() == legacy_text
 
 
 @pytest.mark.ai_generated

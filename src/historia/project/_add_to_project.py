@@ -2,12 +2,15 @@ import datetime
 import json
 import os
 import pathlib
+import re
 import typing
 import warnings
 
 import beartype
 import requests
 import tqdm
+
+_GITHUB_API_URL = "https://api.github.com"
 
 
 def _parse_project_url(project_url: str, /) -> tuple[str, str, int]:
@@ -53,6 +56,12 @@ def add_to_project(
     Add all unique URLs from the derivatives directory to a GitHub Project (v2).
 
     Items that are already present in the project are automatically skipped.
+
+    An item that has moved since it was recorded, such as an issue transferred to another repository or anything in
+    a renamed or transferred repository, is followed through the redirect GitHub leaves behind to its current URL.
+    It is added under that URL, or skipped if the project already has it. The history files under ``directory`` are
+    then rewritten to record the item at that URL, so later runs find it directly. URLs that lead to no issue or pull
+    request even after following redirects are left as they are, skipped, and listed in a warning.
 
     For each new item:
 
@@ -142,33 +151,46 @@ def add_to_project(
 
     if assign_members:
         for url in all_urls:
-            if url not in existing_items:
-                continue
-            existing_item_info = existing_items[url]
-            current_members = existing_item_info["members"]
-            updated_members = _merge_member_values(
-                current_value=current_members,
-                usernames=url_to_members.get(url, set()),
-            )
-            if updated_members is not None:
-                normalized_current_members = _normalize_member_value(current_members)
-                if updated_members == normalized_current_members:
-                    continue
-                _set_item_text(
+            if url in existing_items:
+                _merge_existing_item_members(
                     project_id=project_id,
-                    item_id=typing.cast("str", existing_item_info["item_id"]),
-                    field_id=typing.cast("str", validated_members_field_id),
-                    text=updated_members,
+                    existing_item_info=existing_items[url],
+                    usernames=url_to_members.get(url, set()),
+                    members_field_id=typing.cast("str", validated_members_field_id),
                     headers=headers,
                 )
 
     urls_to_add = [url for url in all_urls if url not in existing_items]
+    moved_urls: dict[str, str] = {}
+    unresolved_urls: list[str] = []
     for url in tqdm.tqdm(iterable=urls_to_add, desc="Adding items to project", unit="items", dynamic_ncols=True):
 
-        # Determine the item type, state, and dates from the URL
+        # Determine the item type, state, and dates from the URL, following the item if it has moved since
         item_info = _get_item_info(url=url, headers=headers)
-        if item_info is None:
+        current_url = url if item_info is not None else _resolve_current_url(url=url, headers=headers)
+        if current_url is None:
+            unresolved_urls.append(url)
             continue
+        if current_url != url:
+            moved_urls[url] = current_url
+
+        # A moved item may already be on the project under its current URL, possibly added earlier in this loop
+        if current_url in existing_items:
+            if assign_members:
+                _merge_existing_item_members(
+                    project_id=project_id,
+                    existing_item_info=existing_items[current_url],
+                    usernames=url_to_members.get(url, set()),
+                    members_field_id=typing.cast("str", validated_members_field_id),
+                    headers=headers,
+                )
+            continue
+
+        if item_info is None:
+            item_info = _get_item_info(url=current_url, headers=headers)
+            if item_info is None:
+                unresolved_urls.append(url)
+                continue
         item_node_id, item_type, item_state, created_at, closed_at = item_info
 
         # Add the item to the project
@@ -176,9 +198,10 @@ def add_to_project(
         if item_id is None:
             continue
 
+        member_usernames = url_to_members.get(url, set())
         _set_initial_project_item_fields(
             item_values={
-                "url": url,
+                "url": current_url,
                 "item_id": item_id,
                 "item_type": item_type,
                 "item_state": item_state,
@@ -194,10 +217,25 @@ def add_to_project(
                 "end_date_field_id": end_date_field_id,
                 "end_date_placeholder_days": end_date_placeholder_days,
                 "members_field_id": validated_members_field_id if assign_members else None,
-                "member_usernames": url_to_members.get(url, set()),
+                "member_usernames": member_usernames,
             },
             headers=headers,
         )
+        existing_items[current_url] = {
+            "item_id": item_id,
+            "members": _merge_member_values(current_value=None, usernames=member_usernames),
+        }
+
+    if moved_urls:
+        _rewrite_moved_urls(directory=data_directory, moved_urls=moved_urls)
+
+    if unresolved_urls:
+        url_list = "\n".join(sorted(unresolved_urls))
+        message = (
+            f"Skipped {len(unresolved_urls)} recorded URL(s) that lead to no issue or pull request, even after "
+            f"following redirects. The items may have been deleted, or the token may lack access to them.\n{url_list}"
+        )
+        warnings.warn(message=message, stacklevel=2)
 
 
 def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
@@ -212,6 +250,24 @@ def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
                 if isinstance(value, str):
                     all_urls.add(value)
     return list(all_urls)
+
+
+def _rewrite_moved_urls(*, directory: pathlib.Path, moved_urls: dict[str, str]) -> None:
+    """Rewrite the history files under ``directory`` so each URL in ``moved_urls`` is recorded where it moved to."""
+    for info_file_path in directory.rglob(pattern="*.json"):
+        with info_file_path.open(mode="r") as file_stream:
+            info = json.load(file_stream)
+        if not isinstance(info, list) or not any(isinstance(value, str) and value in moved_urls for value in info):
+            continue
+
+        # A file listing an item under both its old and its current URL keeps a single entry for it
+        rewritten_info: list = []
+        for value in info:
+            rewritten_value = moved_urls.get(value, value) if isinstance(value, str) else value
+            if rewritten_value not in rewritten_info:
+                rewritten_info.append(rewritten_value)
+        with info_file_path.open(mode="w") as file_stream:
+            json.dump(obj=rewritten_info, fp=file_stream, indent=1)
 
 
 def _resolve_latest_version_data_directory(directory: pathlib.Path, /) -> pathlib.Path:
@@ -327,6 +383,30 @@ def _merge_member_values(*, current_value: str | None, usernames: set[str]) -> s
 def _normalize_member_value(current_value: str | None, /) -> str | None:
     """Return a normalized comma-separated member string for a current field value."""
     return _merge_member_values(current_value=current_value, usernames=set())
+
+
+def _merge_existing_item_members(
+    *,
+    project_id: str,
+    existing_item_info: dict[str, str | None],
+    usernames: set[str],
+    members_field_id: str,
+    headers: dict[str, str],
+) -> None:
+    """Merge usernames into the Members field of an item already in the project, skipping writes that change nothing."""
+    current_members = existing_item_info["members"]
+    updated_members = _merge_member_values(current_value=current_members, usernames=usernames)
+    if updated_members is None or updated_members == _normalize_member_value(current_members):
+        return
+
+    _set_item_text(
+        project_id=project_id,
+        item_id=typing.cast("str", existing_item_info["item_id"]),
+        field_id=members_field_id,
+        text=updated_members,
+        headers=headers,
+    )
+    existing_item_info["members"] = updated_members
 
 
 def _set_initial_project_item_fields(
@@ -717,6 +797,47 @@ query GetItem($url: URI!) {
     item_type = "PullRequest" if "/pull/" in url else "Issue"
 
     return node_id, item_type, item_state, created_at, closed_at
+
+
+def _resolve_current_url(*, url: str, headers: dict[str, str]) -> str | None:
+    """
+    Return the URL at which an issue or pull request lives now, following it if it has moved since it was recorded.
+
+    Renaming or transferring a repository, or transferring an issue to another repository, leaves the old URL
+    redirecting to the new one. GraphQL ``resource(url:)`` does not follow that redirect, so it finds nothing at the
+    old URL. The REST API answers it with the redirect instead, which ``requests`` follows to the item.
+
+    Parameters
+    ----------
+    url : str
+        The GitHub URL of the PR or Issue as it was recorded.
+    headers : dict[str, str]
+        HTTP headers including the Authorization token.
+
+    Returns
+    -------
+    str or None
+        The current URL of the item, or None if the item cannot be found.
+
+    """
+    match = re.fullmatch(
+        pattern=r"([^/]+)/([^/]+)/(?:issues|pull)/(\d+)",
+        string=url.removeprefix("https://github.com/"),
+    )
+    if match is None:
+        return None
+    owner, repository, number = match.groups()
+
+    # The issues endpoint also serves pull requests, and reports them under their `/pull/` URL
+    response = requests.get(
+        url=f"{_GITHUB_API_URL}/repos/{owner}/{repository}/issues/{number}",
+        headers=headers,
+        timeout=30,
+    )
+    if response.status_code != 200:
+        return None
+
+    return response.json()["html_url"]
 
 
 def _add_item_to_project(*, project_id: str, content_id: str, headers: dict[str, str]) -> str | None:
