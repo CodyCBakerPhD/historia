@@ -57,11 +57,11 @@ def add_to_project(
 
     Items that are already present in the project are automatically skipped.
 
-    The history keeps the URL each item had when it was recorded. An item that has moved since, such as an issue
-    transferred to another repository or anything in a renamed or transferred repository, is followed through the
-    redirect GitHub leaves behind to its current URL. It is added under that URL, or skipped if the project already
-    has it. URLs that lead to no issue or pull request even after following redirects are skipped and listed in a
-    warning.
+    An item that has moved since it was recorded, such as an issue transferred to another repository or anything in
+    a renamed or transferred repository, is followed through the redirect GitHub leaves behind to its current URL.
+    It is added under that URL, or skipped if the project already has it. The history files under ``directory`` are
+    then rewritten to record the item at that URL, so later runs find it directly. URLs that lead to no issue or pull
+    request even after following redirects are left as they are, skipped, and listed in a warning.
 
     For each new item:
 
@@ -161,6 +161,7 @@ def add_to_project(
                 )
 
     urls_to_add = [url for url in all_urls if url not in existing_items]
+    moved_urls: dict[str, str] = {}
     unresolved_urls: list[str] = []
     for url in tqdm.tqdm(iterable=urls_to_add, desc="Adding items to project", unit="items", dynamic_ncols=True):
 
@@ -170,6 +171,8 @@ def add_to_project(
         if current_url is None:
             unresolved_urls.append(url)
             continue
+        if current_url != url:
+            moved_urls[url] = current_url
 
         # A moved item may already be on the project under its current URL, possibly added earlier in this loop
         if current_url in existing_items:
@@ -223,6 +226,9 @@ def add_to_project(
             "members": _merge_member_values(current_value=None, usernames=member_usernames),
         }
 
+    if moved_urls:
+        _rewrite_moved_urls(directory=data_directory, moved_urls=moved_urls)
+
     if unresolved_urls:
         url_list = "\n".join(sorted(unresolved_urls))
         message = (
@@ -244,6 +250,24 @@ def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
                 if isinstance(value, str):
                     all_urls.add(value)
     return list(all_urls)
+
+
+def _rewrite_moved_urls(*, directory: pathlib.Path, moved_urls: dict[str, str]) -> None:
+    """Rewrite the history files under ``directory`` so each URL in ``moved_urls`` is recorded where it moved to."""
+    for info_file_path in directory.rglob(pattern="*.json"):
+        with info_file_path.open(mode="r") as file_stream:
+            info = json.load(file_stream)
+        if not isinstance(info, list) or not any(isinstance(value, str) and value in moved_urls for value in info):
+            continue
+
+        # A file listing an item under both its old and its current URL keeps a single entry for it
+        rewritten_info: list = []
+        for value in info:
+            rewritten_value = moved_urls.get(value, value) if isinstance(value, str) else value
+            if rewritten_value not in rewritten_info:
+                rewritten_info.append(rewritten_value)
+        with info_file_path.open(mode="w") as file_stream:
+            json.dump(obj=rewritten_info, fp=file_stream, indent=1)
 
 
 def _resolve_latest_version_data_directory(directory: pathlib.Path, /) -> pathlib.Path:

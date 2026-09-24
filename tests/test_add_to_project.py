@@ -36,11 +36,13 @@ from historia.project._add_to_project import (
 
 _TEST_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/5"
 
-# Fake item URLs have to stay under `owner/repo`, which the daily link checker skips, so a move here changes the number
-_RECORDED_ISSUE_URL = "https://github.com/owner/repo/issues/184"
-_CURRENT_ISSUE_URL = "https://github.com/owner/repo/issues/17"
-_RECORDED_PR_URL = "https://github.com/owner/repo/pull/12"
-_CURRENT_PR_URL = "https://github.com/owner/repo/pull/112"
+# The daily link checker skips fake item URLs under `owner/repo`, including `old-` and `new-` versions of either name
+_RECORDED_ISSUE_URL = "https://github.com/old-owner/repo/issues/184"
+_CURRENT_ISSUE_URL = "https://github.com/new-owner/repo/issues/184"
+_RECORDED_PR_URL = "https://github.com/old-owner/repo/pull/12"
+_CURRENT_PR_URL = "https://github.com/new-owner/repo/pull/12"
+_RECORDED_TRANSFERRED_ISSUE_URL = "https://github.com/owner/old-repo/issues/7"
+_CURRENT_TRANSFERRED_ISSUE_URL = "https://github.com/owner/new-repo/issues/41"
 _DELETED_ISSUE_URL = "https://github.com/owner/repo/issues/404"
 
 
@@ -821,7 +823,7 @@ def test_add_to_project_warns_about_recorded_urls_that_lead_nowhere(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
 ) -> None:
-    """URLs that neither GraphQL nor a REST redirect can place are skipped and listed in a warning."""
+    """URLs that neither GraphQL nor a REST redirect can place are skipped, listed in a warning, and left recorded."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
     (tmp_path / "urls.json").write_text(json.dumps([_RECORDED_ISSUE_URL, _DELETED_ISSUE_URL]))
     github = _FakeGitHub(
@@ -839,16 +841,18 @@ def test_add_to_project_warns_about_recorded_urls_that_lead_nowhere(
 
     assert str(caught_warnings[0].message).splitlines()[1:] == [_DELETED_ISSUE_URL]
     assert github.added_node_ids == []
+    assert json.loads((tmp_path / "urls.json").read_text()) == [_CURRENT_ISSUE_URL, _DELETED_ISSUE_URL]
 
 
 @pytest.mark.ai_generated
 @pytest.mark.parametrize(
     ("recorded_url", "current_url", "expected_rest_lookup"),
     [
-        (_RECORDED_ISSUE_URL, _CURRENT_ISSUE_URL, "owner/repo/issues/184"),
-        (_RECORDED_PR_URL, _CURRENT_PR_URL, "owner/repo/issues/12"),
+        (_RECORDED_ISSUE_URL, _CURRENT_ISSUE_URL, "old-owner/repo/issues/184"),
+        (_RECORDED_PR_URL, _CURRENT_PR_URL, "old-owner/repo/issues/12"),
+        (_RECORDED_TRANSFERRED_ISSUE_URL, _CURRENT_TRANSFERRED_ISSUE_URL, "owner/old-repo/issues/7"),
     ],
-    ids=["issue", "pull-request"],
+    ids=["issue-in-moved-repository", "pull-request-in-moved-repository", "transferred-issue"],
 )
 @pytest.mark.parametrize("already_in_project", [True, False], ids=["already-in-project", "not-yet-in-project"])
 def test_add_to_project_follows_moved_item_to_its_current_url(  # noqa: PLR0913
@@ -859,7 +863,7 @@ def test_add_to_project_follows_moved_item_to_its_current_url(  # noqa: PLR0913
     expected_rest_lookup: str,
     already_in_project: bool,
 ) -> None:
-    """A moved item is added under its current URL, or left alone when the project already has it there."""
+    """A moved item is added under its current URL unless the project has it there, and is recorded under it after."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
     (tmp_path / "urls.json").write_text(json.dumps([recorded_url]))
     github = _FakeGitHub(
@@ -879,6 +883,7 @@ def test_add_to_project_follows_moved_item_to_its_current_url(  # noqa: PLR0913
     assert github.rest_lookups == [expected_rest_lookup]
     assert github.item_lookups == ([recorded_url] if already_in_project else [recorded_url, current_url])
     assert github.added_node_ids == ([] if already_in_project else ["NODE_current"])
+    assert json.loads((tmp_path / "urls.json").read_text()) == [current_url]
 
 
 @pytest.mark.ai_generated
@@ -911,6 +916,7 @@ def test_add_to_project_adds_item_recorded_under_old_and_current_urls_once(
 
     assert github.added_node_ids == ["NODE_current"]
     assert github.members_writes == [("PVTI_NODE_current", "cody")]
+    assert json.loads((user_directory / "urls.json").read_text()) == [_CURRENT_ISSUE_URL]
 
 
 @pytest.mark.ai_generated
@@ -936,6 +942,43 @@ def test_add_to_project_merges_members_of_moved_item_into_its_current_url(
 
     assert github.added_node_ids == []
     assert github.members_writes == [("PVTI_NODE_current", "alex,cody")]
+    assert json.loads((user_directory / "urls.json").read_text()) == [_CURRENT_ISSUE_URL]
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_rewrites_every_record_of_a_moved_item(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Every history file recording a moved URL is rewritten in the dump format, and no other file is touched."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    other_url = "https://github.com/owner/repo/issues/1"
+    first_day = tmp_path / "year-2026" / "month-01" / "day-05"
+    second_day = tmp_path / "year-2026" / "month-02" / "day-09"
+    first_day.mkdir(parents=True)
+    second_day.mkdir(parents=True)
+    (first_day / "issues.json").write_text(json.dumps([_RECORDED_ISSUE_URL, other_url], indent=1))
+    (second_day / "issues.json").write_text(json.dumps([_RECORDED_ISSUE_URL], indent=1))
+    unrelated_text = json.dumps([other_url])
+    (second_day / "prs.json").write_text(unrelated_text)
+    legacy_text = json.dumps({"items": [{"html_url": _RECORDED_ISSUE_URL}]})
+    (tmp_path / "legacy.json").write_text(legacy_text)
+    github = _FakeGitHub(
+        items={_CURRENT_ISSUE_URL: "NODE_current", other_url: "NODE_other"},
+        moves={_RECORDED_ISSUE_URL: _CURRENT_ISSUE_URL},
+        project={_CURRENT_ISSUE_URL: None, other_url: None},
+    )
+
+    with (
+        unittest.mock.patch("requests.post", side_effect=github.post),
+        unittest.mock.patch("requests.get", side_effect=github.get),
+    ):
+        historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
+
+    assert (first_day / "issues.json").read_text() == json.dumps([_CURRENT_ISSUE_URL, other_url], indent=1)
+    assert (second_day / "issues.json").read_text() == json.dumps([_CURRENT_ISSUE_URL], indent=1)
+    assert (second_day / "prs.json").read_text() == unrelated_text
+    assert (tmp_path / "legacy.json").read_text() == legacy_text
 
 
 @pytest.mark.ai_generated

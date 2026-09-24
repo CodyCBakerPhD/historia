@@ -148,7 +148,7 @@ historia.project.add_to_project(
 :::
 ::::
 
-Items that have moved since they were recorded are followed to where they live now. This covers an issue transferred to another repository, and anything in a repository that was renamed or transferred. The history keeps each URL as it was recorded, while the project gets the current one. A recorded URL that leads nowhere, even after following redirects, is skipped and listed in a warning.
+Items that have moved since they were recorded are followed to where they live now. This covers an issue transferred to another repository, and anything in a repository that was renamed or transferred. The project gets the current URL, and the history files are rewritten to record it, so later runs find the item directly. A recorded URL that leads nowhere, even after following redirects, is left as it is, skipped, and listed in a warning.
 
 ---
 
