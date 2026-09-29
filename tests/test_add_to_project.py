@@ -584,6 +584,94 @@ def test_add_item_to_project_returns_none_on_403() -> None:
     assert item_id is None
 
 
+def _something_went_wrong_response() -> unittest.mock.MagicMock:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "errors": [
+            {
+                "message": (
+                    "Something went wrong while executing your query on 2026-09-29T00:15:40Z. "
+                    "Please include `F469:1E5255:A85622:22BFE56:6ABB0329` when reporting this issue."
+                ),
+            },
+        ],
+    }
+    return mock_response
+
+
+def _bad_gateway_response() -> unittest.mock.MagicMock:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 502
+    mock_response.text = "<html><head><title>502 Bad Gateway</title></head></html>"
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "<html>", 0)
+    return mock_response
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "transient_failure",
+    [
+        _something_went_wrong_response(),
+        _bad_gateway_response(),
+        requests.exceptions.ConnectionError("connection reset"),
+        requests.exceptions.ReadTimeout("read timed out"),
+    ],
+    ids=["something_went_wrong", "bad_gateway", "connection_error", "timeout"],
+)
+def test_add_item_to_project_retries_transient_failures(
+    transient_failure: unittest.mock.MagicMock | Exception,
+) -> None:
+    success_response = unittest.mock.MagicMock()
+    success_response.status_code = 200
+    success_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}}
+
+    headers = {"Authorization": "token fake-token"}
+    with (
+        unittest.mock.patch("requests.post", side_effect=[transient_failure, success_response]) as mock_post,
+        unittest.mock.patch("time.sleep") as mock_sleep,
+    ):
+        item_id = _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
+
+    assert item_id == "PVTI_item_id"
+    assert mock_post.call_count == 2
+    slept_seconds = [call.args[0] for call in mock_sleep.call_args_list]
+    assert slept_seconds == [2.0]
+
+
+@pytest.mark.ai_generated
+def test_add_item_to_project_raises_on_persistent_transient_failure() -> None:
+    headers = {"Authorization": "token fake-token"}
+    with (
+        unittest.mock.patch("requests.post", return_value=_something_went_wrong_response()) as mock_post,
+        unittest.mock.patch("time.sleep") as mock_sleep,
+        pytest.raises(RuntimeError, match="Failed to add item"),
+    ):
+        _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
+
+    assert mock_post.call_count == 5
+    slept_seconds = [call.args[0] for call in mock_sleep.call_args_list]
+    assert slept_seconds == [2.0, 4.0, 8.0, 16.0]
+
+
+@pytest.mark.ai_generated
+def test_add_item_to_project_does_not_retry_other_errors() -> None:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"errors": [{"type": "NOT_FOUND", "message": "Could not resolve to a node"}]}
+
+    headers = {"Authorization": "token fake-token"}
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response) as mock_post,
+        unittest.mock.patch("time.sleep") as mock_sleep,
+        pytest.raises(RuntimeError, match="Failed to add item"),
+    ):
+        _add_item_to_project(project_id="PVT_kwDOA", content_id="PR_node_id", headers=headers)
+
+    assert mock_post.call_count == 1
+    mock_sleep.assert_not_called()
+
+
 @pytest.mark.ai_generated
 def test_set_item_status_calls_mutation() -> None:
     mock_response = unittest.mock.MagicMock()
