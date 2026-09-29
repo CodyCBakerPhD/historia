@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import re
+import time
 import typing
 import warnings
 
@@ -10,6 +11,9 @@ import beartype
 import requests
 import tqdm
 
+_MAXIMUM_ATTEMPTS = 5
+_INITIAL_BACKOFF_SECONDS = 2.0
+_TRANSIENT_ERROR_MESSAGE_PREFIX = "Something went wrong while executing your query"
 _GITHUB_API_URL = "https://api.github.com"
 
 
@@ -536,6 +540,58 @@ def _set_item_dates_for_content(
     )
 
 
+def _post_graphql(*, query: str, variables: dict, headers: dict[str, str]) -> requests.Response:
+    """
+    Post a GraphQL query, retrying with exponential backoff on transient GitHub failures.
+
+    GitHub occasionally fails a single request for a moment: its edge answers with a 5xx page, the connection drops,
+    or the API answers 200 with only a generic "Something went wrong while executing your query" error. A repeat
+    of the same request usually succeeds, and every query and mutation posted here is safe to repeat. The last
+    response is returned regardless of its status so the caller can report it, and the last connection error is
+    re-raised.
+    """
+    backoff_seconds = _INITIAL_BACKOFF_SECONDS
+    for _ in range(_MAXIMUM_ATTEMPTS - 1):
+        try:
+            response: requests.Response | None = _post_graphql_once(query=query, variables=variables, headers=headers)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            response = None
+        if response is not None and not _is_transient_failure(response):
+            return response
+        time.sleep(backoff_seconds)
+        backoff_seconds *= 2
+    return _post_graphql_once(query=query, variables=variables, headers=headers)
+
+
+def _post_graphql_once(*, query: str, variables: dict, headers: dict[str, str]) -> requests.Response:
+    return requests.post(
+        url="https://api.github.com/graphql",
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+
+
+def _is_transient_failure(response: requests.Response, /) -> bool:
+    """Return ``True`` for a server error, or a 200 whose only errors are GitHub's generic internal failure."""
+    if response.status_code >= 500:
+        return True
+    if response.status_code != 200:
+        return False
+    try:
+        errors = response.json().get("errors")
+    except (requests.exceptions.JSONDecodeError, AttributeError):
+        return False
+    if not isinstance(errors, list) or len(errors) == 0:
+        return False
+    return all(
+        isinstance(error, dict)
+        and isinstance(error.get("message"), str)
+        and error["message"].startswith(_TRANSIENT_ERROR_MESSAGE_PREFIX)
+        for error in errors
+    )
+
+
 def _check_graphql_response(*, response: requests.Response, context: str) -> dict:
     """
     Validate a GraphQL API response and raise or warn on errors.
@@ -695,12 +751,7 @@ query GetProject($login: String!, $number: Int!) {
         variables = {"login": owner_login, "number": project_number}
         data_path = ["data", "organization", "projectV2"]
 
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": query, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_graphql(query=query, variables=variables, headers=headers)
     result = _check_graphql_response(response=response, context=f"Failed to retrieve project info for `{project_url}`.")
 
     project_data = result
@@ -777,12 +828,7 @@ query GetItem($url: URI!) {
 }
 """
     variables = {"url": url}
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": query, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_graphql(query=query, variables=variables, headers=headers)
     result = _check_graphql_response(response=response, context=f"Failed to retrieve item info for URL `{url}`.")
 
     resource = result["data"]["resource"]
@@ -869,12 +915,7 @@ mutation AddItem($projectId: ID!, $contentId: ID!) {
 }
 """
     variables = {"projectId": project_id, "contentId": content_id}
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": mutation, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_graphql(query=mutation, variables=variables, headers=headers)
     try:
         result = _check_graphql_response(
             response=response,
@@ -935,12 +976,7 @@ mutation SetStatus($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: Stri
         "fieldId": field_id,
         "optionId": option_id,
     }
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": mutation, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_graphql(query=mutation, variables=variables, headers=headers)
     try:
         _check_graphql_response(
             response=response,
@@ -998,12 +1034,7 @@ mutation SetDate($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
         "fieldId": field_id,
         "date": date,
     }
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": mutation, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_graphql(query=mutation, variables=variables, headers=headers)
     try:
         _check_graphql_response(
             response=response,
@@ -1052,12 +1083,7 @@ mutation SetText($projectId: ID!, $itemId: ID!, $fieldId: ID!, $text: String!) {
         "fieldId": field_id,
         "text": text,
     }
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": mutation, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_graphql(query=mutation, variables=variables, headers=headers)
     try:
         _check_graphql_response(
             response=response,
@@ -1319,12 +1345,7 @@ query GetItemUrls($login: String!, $number: Int!, $after: String) {
 
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
-        response = requests.post(
-            url="https://api.github.com/graphql",
-            json={"query": query, "variables": variables},
-            headers=headers,
-            timeout=30,
-        )
+        response = _post_graphql(query=query, variables=variables, headers=headers)
         result = _check_graphql_response(
             response=response,
             context=(
@@ -1422,12 +1443,7 @@ query GetItems($login: String!, $number: Int!, $after: String) {
 
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
-        response = requests.post(
-            url="https://api.github.com/graphql",
-            json={"query": query, "variables": variables},
-            headers=headers,
-            timeout=30,
-        )
+        response = _post_graphql(query=query, variables=variables, headers=headers)
         result = _check_graphql_response(
             response=response,
             context=f"Failed to list project items for project {project_number}.",
@@ -1534,12 +1550,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
 
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
-        response = requests.post(
-            url="https://api.github.com/graphql",
-            json={"query": query, "variables": variables},
-            headers=headers,
-            timeout=30,
-        )
+        response = _post_graphql(query=query, variables=variables, headers=headers)
         result = _check_graphql_response(
             response=response,
             context=f"Failed to list project member values for project {project_number}.",
@@ -1666,12 +1677,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
 
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
-        response = requests.post(
-            url="https://api.github.com/graphql",
-            json={"query": query, "variables": variables},
-            headers=headers,
-            timeout=30,
-        )
+        response = _post_graphql(query=query, variables=variables, headers=headers)
         result = _check_graphql_response(
             response=response,
             context=f"Failed to list project members for project {project_number}.",
@@ -1804,12 +1810,7 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
 
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
-        response = requests.post(
-            url="https://api.github.com/graphql",
-            json={"query": query, "variables": variables},
-            headers=headers,
-            timeout=30,
-        )
+        response = _post_graphql(query=query, variables=variables, headers=headers)
         result = _check_graphql_response(
             response=response,
             context=f"Failed to list project items with status for project {project_number}.",
@@ -1896,12 +1897,7 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
 
     variables = {"login": owner_login, "number": project_number}
 
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": query, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_graphql(query=query, variables=variables, headers=headers)
     result = _check_graphql_response(
         response=response,
         context=f"Failed to retrieve workflows for `{project_url}`.",
