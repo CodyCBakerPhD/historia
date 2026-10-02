@@ -1,18 +1,17 @@
 import json
 import pathlib
-import typing
 
 import beartype
 
 from ._fetch_info import fetch_info_for_date
-from ..._globals import CACHE_LAYOUT_VERSION, INFO_TYPES
+from ..._globals import CACHE_LAYOUT_VERSION, INFO_TYPES, InfoType
 
 
 @beartype.beartype
 def dump_specific_info(
     *,
     directory: pathlib.Path,
-    info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
+    info_type: InfoType,
     date: str,
     username: str,
     overwrite: bool = False,
@@ -24,8 +23,9 @@ def dump_specific_info(
     ----------
     directory : pathlib.Path
         The base directory to save the data to.
-    info_type : "prs_opened", "prs_assigned", "issues_opened", or "issues_assigned"
-        The type of information to fetch and save.
+    info_type : InfoType
+        The type of information to fetch and save. One of "prs_opened", "prs_assigned", "prs_review_requested",
+        "prs_reviewed", "issues_opened", or "issues_assigned".
     date : str
         The date to fetch information for, in the format "YYYY-MM-DD".
     username : str
