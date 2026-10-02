@@ -23,6 +23,7 @@ jobs:
             --timeout 30
             --max-retries 5
             --retry-wait-time 5
+            --accept '100..=103,200..=299,429,502..=504'
             --exclude '^https://github\.com/CodyCBakerPhD/historia/blob/[^/]+/src/.+#L\d+(-L\d+)?$'
             --exclude '^https://api\.github\.com/graphql$'
             --exclude '^https://api\.github\.com/(users|orgs)/(%7Bowner%7D|\{owner\})$'
