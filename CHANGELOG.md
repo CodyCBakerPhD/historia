@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## v0.13.0
+
 ### 🚀 Enhancement
 
 - Pull requests where review was requested from the user, or that the user reviewed, are now fetched as two new info types, `prs_review_requested` and `prs_reviewed`. A requested reviewer who was neither author nor assignee used to have no record of the pull request. Like the `assigned` types, each searches for candidates updated on or after the date. It keeps those with a review request to the user, or a review submitted by the user, on that date. Each candidate's last 100 timeline events are read, up from 20 for the `assigned` types, since every inline comment and bot review on a busy pull request counts as an event. ([#200](https://github.com/CodyCBakerPhD/historia/pull/200))
