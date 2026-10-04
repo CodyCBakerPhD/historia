@@ -2,11 +2,12 @@ import functools
 import os
 import re
 import time
-import typing
 import warnings
 
 import beartype
 import requests
+
+from ..._globals import InfoType
 
 _MAXIMUM_ATTEMPTS = 5
 _INITIAL_BACKOFF_SECONDS = 2.0
@@ -15,7 +16,7 @@ _INITIAL_BACKOFF_SECONDS = 2.0
 @beartype.beartype
 def fetch_info_for_date(
     *,
-    info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
+    info_type: InfoType,
     date: str,
     username: str,
 ) -> tuple[list[str], bool]:
@@ -25,11 +26,14 @@ def fetch_info_for_date(
     The `assigned` types instead match items with an assignment event to the user on that date, read from each
     item's timeline. GitHub search has no qualifier for the date of assignment, so the search only narrows the
     candidates to items the user is currently assigned to and that were updated on or after the date.
+    The `prs_review_requested` and `prs_reviewed` types work the same way, matching a review request to the user or
+    a review submitted by the user on that date.
 
     Parameters
     ----------
-    info_type : Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"]
-        The type of GitHub info to fetch.
+    info_type : InfoType
+        The type of GitHub info to fetch. One of "prs_opened", "prs_assigned", "prs_review_requested",
+        "prs_reviewed", "issues_opened", or "issues_assigned".
     date : str
         The date for which to fetch GitHub info, in ISO format (e.g., "2026-01-01").
     username : str
@@ -98,8 +102,58 @@ query AssignedPRs($first: Int!, $after: String) {
             node {
                 ... on PullRequest {
                     url
-                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 20) {
-                        nodes { ... on AssignedEvent { createdAt assignee { ... on User { login } } } }
+                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 100) {
+                        nodes { ... on AssignedEvent { createdAt actor: assignee { ... on User { login } } } }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+        ),
+        "prs_review_requested": (
+            """
+query ReviewRequestedPRs($first: Int!, $after: String) {
+    search(
+        query: "review-requested:{username} type:pr updated:>={date}"
+        type: ISSUE
+        first: $first
+        after: $after
+    ) {
+        pageInfo { hasNextPage endCursor }
+        edges {
+            node {
+                ... on PullRequest {
+                    url
+                    timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 100) {
+                        nodes {
+                            ... on ReviewRequestedEvent { createdAt actor: requestedReviewer { ... on User { login } } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+        ),
+        "prs_reviewed": (
+            """
+query ReviewedPRs($first: Int!, $after: String) {
+    search(
+        query: "reviewed-by:{username} type:pr updated:>={date}"
+        type: ISSUE
+        first: $first
+        after: $after
+    ) {
+        pageInfo { hasNextPage endCursor }
+        edges {
+            node {
+                ... on PullRequest {
+                    url
+                    timelineItems(itemTypes: [PULL_REQUEST_REVIEW], last: 100) {
+                        nodes { ... on PullRequestReview { createdAt: submittedAt actor: author { login } } }
                     }
                 }
             }
@@ -135,8 +189,8 @@ query AssignedIssues($first: Int!, $after: String) {
             node {
                 ... on Issue {
                     url
-                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 20) {
-                        nodes { ... on AssignedEvent { createdAt assignee { ... on User { login } } } }
+                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 100) {
+                        nodes { ... on AssignedEvent { createdAt actor: assignee { ... on User { login } } } }
                     }
                 }
             }
@@ -157,7 +211,7 @@ query AssignedIssues($first: Int!, $after: String) {
 
 def _fetch_info_for_date_graphql(
     *,
-    info_type: typing.Literal["prs_opened", "prs_assigned", "issues_opened", "issues_assigned"],
+    info_type: InfoType,
     date: str,
     username: str,
     token: str,
@@ -165,8 +219,8 @@ def _fetch_info_for_date_graphql(
     entities_to_graphql_query_mapping = _format_graphql_queries(date=date, username=username)
     query = entities_to_graphql_query_mapping[info_type]
 
-    if info_type in ("prs_assigned", "issues_assigned"):
-        urls, hit_rate_limit = _fetch_assigned_urls(query=query, date=date, username=username, token=token)
+    if info_type in ("prs_assigned", "prs_review_requested", "prs_reviewed", "issues_assigned"):
+        urls, hit_rate_limit = _fetch_event_urls(query=query, date=date, username=username, token=token)
         return urls, hit_rate_limit
 
     # 100 per page is required by the query and should be good enough for a single day
@@ -177,7 +231,7 @@ def _fetch_info_for_date_graphql(
     return urls, False
 
 
-def _fetch_assigned_urls(*, query: str, date: str, username: str, token: str) -> tuple[list[str], bool]:
+def _fetch_event_urls(*, query: str, date: str, username: str, token: str) -> tuple[list[str], bool]:
     urls: list[str] = []
     after_cursor = None
     while True:
@@ -185,16 +239,19 @@ def _fetch_assigned_urls(*, query: str, date: str, username: str, token: str) ->
         nodes, after_cursor, hit_rate_limit = _post_search_query(query=query, variables=variables, token=token)
         if hit_rate_limit:
             return [], hit_rate_limit
-        urls.extend(node["url"] for node in nodes if _was_assigned_on_date(node=node, date=date, username=username))
+        urls.extend(node["url"] for node in nodes if _has_event_on_date(node=node, date=date, username=username))
         if after_cursor is None:
             return urls, False
 
 
-def _was_assigned_on_date(*, node: dict, date: str, username: str) -> bool:
+def _has_event_on_date(*, node: dict, date: str, username: str) -> bool:
+    """Whether a timeline event on the date names the user, under the `createdAt` and `actor` aliases of each query."""
     for event in node["timelineItems"]["nodes"]:
-        assignee = event.get("assignee") or {}
-        login = assignee.get("login", "")
-        if login.lower() == username.lower() and event["createdAt"].startswith(date):
+        actor = event.get("actor") or {}
+        login = actor.get("login", "")
+        # A pending review the user has not yet submitted has no submission date
+        created_at = event.get("createdAt") or ""
+        if login.lower() == username.lower() and created_at.startswith(date):
             return True
     return False
 

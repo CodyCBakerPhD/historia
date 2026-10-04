@@ -197,6 +197,8 @@ def test_fetch_info_graphql_requires_token(monkeypatch: pytest.MonkeyPatch) -> N
     [
         ("prs_opened", "author:codycbakerphd type:pr created:2026-01-05..2026-01-05"),
         ("prs_assigned", "assignee:codycbakerphd type:pr updated:>=2026-01-05"),
+        ("prs_review_requested", "review-requested:codycbakerphd type:pr updated:>=2026-01-05"),
+        ("prs_reviewed", "reviewed-by:codycbakerphd type:pr updated:>=2026-01-05"),
         ("issues_opened", "author:codycbakerphd type:issue created:2026-01-05..2026-01-05"),
         ("issues_assigned", "assignee:codycbakerphd type:issue updated:>=2026-01-05"),
     ],
@@ -237,37 +239,40 @@ def _assigned_search_response(*, nodes: list[dict], has_next_page: bool = False)
 
 
 @pytest.mark.ai_generated
+@pytest.mark.parametrize("info_type", ["prs_assigned", "prs_review_requested", "prs_reviewed", "issues_assigned"])
 @pytest.mark.parametrize(
-    ("assigned_event", "expected_info"),
+    ("event", "expected_info"),
     [
         (
-            {"createdAt": "2026-01-05T17:25:36Z", "assignee": {"login": "codycbakerphd"}},
+            {"createdAt": "2026-01-05T17:25:36Z", "actor": {"login": "codycbakerphd"}},
             ["https://github.com/con/nwb2bids/issues/252"],
         ),
         (
-            {"createdAt": "2026-01-05T17:25:36Z", "assignee": {"login": "CodyCBakerPhD"}},
+            {"createdAt": "2026-01-05T17:25:36Z", "actor": {"login": "CodyCBakerPhD"}},
             ["https://github.com/con/nwb2bids/issues/252"],
         ),
-        ({"createdAt": "2026-01-04T23:59:59Z", "assignee": {"login": "codycbakerphd"}}, []),
-        ({"createdAt": "2026-01-05T17:25:36Z", "assignee": {"login": "someoneelse"}}, []),
-        ({"createdAt": "2026-01-05T17:25:36Z", "assignee": {}}, []),
+        ({"createdAt": "2026-01-04T23:59:59Z", "actor": {"login": "codycbakerphd"}}, []),
+        ({"createdAt": "2026-01-05T17:25:36Z", "actor": {"login": "someoneelse"}}, []),
+        ({"createdAt": "2026-01-05T17:25:36Z", "actor": {}}, []),
+        ({"createdAt": None, "actor": {"login": "codycbakerphd"}}, []),
     ],
 )
-def test_fetch_info_graphql_assigned_filters_by_assignment_event(
+def test_fetch_info_graphql_filters_by_timeline_event(
     monkeypatch: pytest.MonkeyPatch,
-    assigned_event: dict,
+    info_type: str,
+    event: dict,
     expected_info: list[str],
 ) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
     node = {
         "url": "https://github.com/con/nwb2bids/issues/252",
-        "timelineItems": {"nodes": [assigned_event]},
+        "timelineItems": {"nodes": [event]},
     }
     mock_response = _assigned_search_response(nodes=[node])
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
         test_info, hit_rate_limit = historia.data.github.fetch_info_for_date(
-            info_type="issues_assigned",
+            info_type=info_type,
             date="2026-01-05",
             username="codycbakerphd",
         )
@@ -279,7 +284,7 @@ def test_fetch_info_graphql_assigned_filters_by_assignment_event(
 @pytest.mark.ai_generated
 def test_fetch_info_graphql_assigned_paginates(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
-    assigned_event = {"createdAt": "2026-01-05T17:25:36Z", "assignee": {"login": "codycbakerphd"}}
+    assigned_event = {"createdAt": "2026-01-05T17:25:36Z", "actor": {"login": "codycbakerphd"}}
     first_page = _assigned_search_response(
         nodes=[{"url": "https://github.com/con/nwb2bids/pull/1", "timelineItems": {"nodes": [assigned_event]}}],
         has_next_page=True,
