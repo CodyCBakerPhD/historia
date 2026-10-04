@@ -102,7 +102,7 @@ query AssignedPRs($first: Int!, $after: String) {
             node {
                 ... on PullRequest {
                     url
-                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 20) {
+                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 100) {
                         nodes { ... on AssignedEvent { createdAt actor: assignee { ... on User { login } } } }
                     }
                 }
@@ -126,7 +126,7 @@ query ReviewRequestedPRs($first: Int!, $after: String) {
             node {
                 ... on PullRequest {
                     url
-                    timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 20) {
+                    timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 100) {
                         nodes {
                             ... on ReviewRequestedEvent { createdAt actor: requestedReviewer { ... on User { login } } }
                         }
@@ -152,7 +152,7 @@ query ReviewedPRs($first: Int!, $after: String) {
             node {
                 ... on PullRequest {
                     url
-                    timelineItems(itemTypes: [PULL_REQUEST_REVIEW], last: 20) {
+                    timelineItems(itemTypes: [PULL_REQUEST_REVIEW], last: 100) {
                         nodes { ... on PullRequestReview { createdAt: submittedAt actor: author { login } } }
                     }
                 }
@@ -189,7 +189,7 @@ query AssignedIssues($first: Int!, $after: String) {
             node {
                 ... on Issue {
                     url
-                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 20) {
+                    timelineItems(itemTypes: [ASSIGNED_EVENT], last: 100) {
                         nodes { ... on AssignedEvent { createdAt actor: assignee { ... on User { login } } } }
                     }
                 }
