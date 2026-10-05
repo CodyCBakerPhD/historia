@@ -229,14 +229,14 @@ jobs:
       contents: write
 
     steps:
-      - uses: CodyCBakerPhD/historia-action@v5
+      - uses: CodyCBakerPhD/historia-action@|historia_action_tag|
         with:
           username: [user]
           project-url: [project url]
           recency: "2"
           token: ${{ secrets.GH_PAT }}
 
-      - uses: CodyCBakerPhD/historia-action/project-update-dates@v5
+      - uses: CodyCBakerPhD/historia-action/project-update-dates@|historia_action_tag|
         with:
           url: [project url]
           recency: "2"
