@@ -45,7 +45,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Update work history data
-        uses: CodyCBakerPhD/historia-action/update-github@v2
+        uses: CodyCBakerPhD/historia-action/update-github@v5
         with:
           directory: history
           username: ${{ env.USERNAME }}
@@ -64,14 +64,23 @@ jobs:
           git push
 
       - name: Populate the GitHub project
-        uses: CodyCBakerPhD/historia-action/project-populate@v2
+        uses: CodyCBakerPhD/historia-action/project-populate@v5
         with:
           directory: history
           url: ${{ env.PROJECT_URL }}
           token: ${{ secrets.GH_PAT }}
 
+      # Populating rewrites the records of items that moved since they were recorded, such as an
+      # issue transferred to another repository. It only rewrites files that already exist, so
+      # their ownership was restored above.
+      - name: Commit and push rewritten records
+        run: |
+          git add .
+          git diff --quiet --cached || git commit --message "update"
+          git push
+
       - name: Update GitHub project dates
-        uses: CodyCBakerPhD/historia-action/project-update-dates@v2
+        uses: CodyCBakerPhD/historia-action/project-update-dates@v5
         with:
           url: ${{ env.PROJECT_URL }}
           recency: "2"
@@ -132,7 +141,7 @@ This workflow runs unattended, so a broken run can silently stop refreshing your
     needs: [ Update ]
     if: ${{ always() && failure() }}
     steps:
-      - uses: dawidd6/action-send-mail@v18
+      - uses: dawidd6/action-send-mail@v22
         with:
           server_address: smtp.gmail.com
           server_port: 465
