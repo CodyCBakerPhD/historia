@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.13.0"
+version = "0.13.1"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -96,6 +96,8 @@ line-length = 120
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    # Copyright headers are not added yet
+    "CPY001",
     # Docstring style: prefer the D213 / D211 conventions
     "D203",
     "D212",

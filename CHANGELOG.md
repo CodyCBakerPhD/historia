@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🏠 Internal
+
+- Updated the pre-commit hooks, ignoring ruff's newly stable CPY001 copyright-header rule for now. ([#203](https://github.com/CodyCBakerPhD/historia/pull/203))
+
 ## v0.13.0
 
 ### 🚀 Enhancement
