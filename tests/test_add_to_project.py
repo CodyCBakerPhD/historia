@@ -943,7 +943,7 @@ def test_add_to_project_warns_about_recorded_urls_that_lead_nowhere(
     ids=["issue-in-moved-repository", "pull-request-in-moved-repository", "transferred-issue"],
 )
 @pytest.mark.parametrize("already_in_project", [True, False], ids=["already-in-project", "not-yet-in-project"])
-def test_add_to_project_follows_moved_item_to_its_current_url(  # noqa: PLR0913
+def test_add_to_project_follows_moved_item_to_its_current_url(  # noqa: PLR0913, PLR0917
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
     recorded_url: str,
