@@ -2,6 +2,7 @@
 
 import os
 import shlex
+import time
 import unittest.mock
 from typing import Any
 
@@ -20,24 +21,50 @@ _TUTORIAL_PROJECT_MOCK_RETURN: dict[str, str] = {
     "id": "PVT_tutorial_test_id",
     "url": _TUTORIAL_PROJECT_URL,
 }
+_MAXIMUM_ATTEMPTS = 5
+_INITIAL_BACKOFF_SECONDS = 2.0
 
 _cli_runner = click.testing.CliRunner()
 
 
 def _graphql(*, query: str, variables: dict, headers: dict) -> dict:
     """Execute a GitHub GraphQL request and return the ``data`` payload."""
-    response = requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": query, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
+    response = _post_with_retries(query=query, variables=variables, headers=headers)
     response.raise_for_status()
     result = response.json()
     if "errors" in result:
         message = f"GraphQL errors: {result['errors']}"
         raise RuntimeError(message)
     return result["data"]
+
+
+def _post_with_retries(*, query: str, variables: dict, headers: dict) -> requests.Response:
+    """
+    Post a GraphQL query, retrying with exponential backoff on server errors and dropped connections.
+
+    GitHub occasionally answers with a 502 or 504 from its edge for a moment. A single such response here would
+    fail the setup of every example in the tutorial page, while a repeat of the same request usually succeeds.
+    """
+    backoff_seconds = _INITIAL_BACKOFF_SECONDS
+    for _ in range(_MAXIMUM_ATTEMPTS - 1):
+        try:
+            response: requests.Response | None = _post_once(query=query, variables=variables, headers=headers)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            response = None
+        if response is not None and response.status_code < 500:
+            return response
+        time.sleep(backoff_seconds)
+        backoff_seconds *= 2
+    return _post_once(query=query, variables=variables, headers=headers)
+
+
+def _post_once(*, query: str, variables: dict, headers: dict) -> requests.Response:
+    return requests.post(
+        url="https://api.github.com/graphql",
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
 
 
 def _get_project_node_id(*, headers: dict) -> str:
