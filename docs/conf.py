@@ -67,7 +67,7 @@ extensions = [
 myst_enable_extensions = ["colon_fence"]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "README.md", "reviews"]
 
 autosummary_generate = True
 autodoc_default_options = {
