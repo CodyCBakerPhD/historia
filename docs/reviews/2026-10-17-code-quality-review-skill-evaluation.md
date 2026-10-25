@@ -11,3 +11,5 @@ For "DC-6 — Three settings restate their tool's default" this should be a conf
 Does the skill suggest condensing test cases into params whenever possible? Instead of repeating the same test with slightly different conditions
 
 Why wasn't CL-1 prevented with mypy?
+
+research why "CL-9 — import warnings as _warnings_module serves no purpose" occurred at all
