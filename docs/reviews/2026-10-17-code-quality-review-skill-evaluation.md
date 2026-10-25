@@ -12,3 +12,5 @@ For "DC-6 — Three settings restate their tool's default" this should be a conf
 Does the skill suggest condensing test cases into params whenever possible? Instead of repeating the same test with slightly different conditions
 
 CL-17 suggested a global `.dockerignore` file when a specifically named one (`Dockerfile.dev.dockerignore`) would have been more appropriate
+
+Having a machine-readable JSON dump of the "Not changed (deliberately)" (or other structured records) would also be nice; whereby the 'md file' could be seen as the viewer of
