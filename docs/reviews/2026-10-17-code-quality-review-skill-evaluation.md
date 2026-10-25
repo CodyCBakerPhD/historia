@@ -10,4 +10,4 @@ For "DC-6 — Three settings restate their tool's default" this should be a conf
 
 Does the skill suggest condensing test cases into params whenever possible? Instead of repeating the same test with slightly different conditions
 
-Why wasn't CL-1 prevented with mypy? 
+Why wasn't CL-1 prevented with mypy?
