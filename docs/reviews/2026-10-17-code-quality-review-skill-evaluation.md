@@ -14,3 +14,5 @@ Does the skill suggest condensing test cases into params whenever possible? Inst
 CL-17 suggested a global `.dockerignore` file when a specifically named one (`Dockerfile.dev.dockerignore`) would have been more appropriate
 
 Having a machine-readable JSON dump of the "Not changed (deliberately)" (or other structured records) would also be nice; whereby the 'md file' could be seen as the viewer of
+
+The "Method & limits" section could have been called 'provenance' and should be minimized from most readers who do not care to know those low level records of how the scan ran
