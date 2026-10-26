@@ -6,6 +6,8 @@ Previous review: none
 
 This review covers the `historia` package (`src/historia`, 11 modules and about 3,500 lines), its test suite (about 4,000 lines), the Python under `docs/`, and the build, lint, CI and container configuration. `AGENTS.md`, `CHANGELOG.md`, the developer guide and the tutorial were read for the project's own rules and intent. No changes from this report have been applied. The only accompanying change excludes `docs/reviews/` from the Sphinx build so this file does not break the strict docs build.
 
+Revised on 2026-10-26 at the maintainer's request. DC-6 was withdrawn and moved to Not changed (deliberately), and CL-17 now proposes an ignore file for the dev Dockerfile only. Finding IDs were kept, so DC-6 is left as a placeholder.
+
 ## Summary
 
 **What is well built.** The public surface is narrow and pinned. `historia.project` and `historia.github` re-export exactly what they should, every `__init__.py` follows the AGENTS.md rules, and `tests/test_api_submodules.py:9-49` fails if anything leaks. The project module sends every GraphQL request through one retrying poster and one response validator (`src/historia/project/_add_to_project.py:543-639`). Its transient-failure predicate is narrow, and its docstrings explain why a retry is safe rather than narrating the loop. Moved and deleted items are handled with care (`:170-242`, `:259-274`), and `_FakeGitHub` (`tests/test_add_to_project.py:49-127`) tests that behavior by what was looked up, added and rewritten instead of by call order. Source code follows the project's own conventions almost without exception. An audit of 60 functions found the keyword-only and positional-only rules applied throughout, with module-style imports everywhere. `ruff` runs with `select = ["ALL"]`, every global ignore carries a reason, and RUF100 keeps inline `noqa` honest. CI is careful: least-privilege permissions on every job, trusted publishing to PyPI, mark expressions passed through an environment variable rather than interpolated into `run:` (`.github/workflows/testing.yml:32-35`), and a version check that mirrors the AGENTS.md rule exactly. All 123 test functions carry `ai_generated`, no assertion puts the expected value on the left, every patch targets the binding the code resolves at call time, and the retry tests pin the exact backoff schedule.
@@ -13,7 +15,7 @@ This review covers the `historia` package (`src/historia`, 11 modules and about 
 **Dominant themes.**
 
 - **The project module grew by copy and adapt.** `_add_to_project.py` is 2,031 lines. Seven queries are written once per owner type (DUP-1, about 170 lines). The token and header setup appears seven times (DUP-3), the retry loop twice in the package (DUP-2), and the end-date rule twice (DUP-4). Three functions walk the history files (DUP-5). Data passes between helpers as a six-tuple and as dict bags whose types are erased and then restored with 11 casts, which also hides two guards that can never fire (CON-1, CON-2, DC-1).
-- **Tooling configuration has drifted from what it governs.** Two pre-commit hooks can never run, one because it points at the deleted `action/` directory and one because of a file-extension typo that left the Read the Docs config unvalidated (DC-4, CL-12). Several settings restate defaults or match nothing (DC-6, DC-7, DC-8, DC-9, DC-11, DC-12). `hatch-vcs` is installed by every build and never used (DC-10). black targets Python 3.12 for a 3.10 package (CL-14), and ruff's `exclude` silently drops its default excludes (CL-15).
+- **Tooling configuration has drifted from what it governs.** Two pre-commit hooks can never run, one because it points at the deleted `action/` directory and one because of a file-extension typo that left the Read the Docs config unvalidated (DC-4, CL-12). Several settings have no effect (DC-7, DC-8, DC-9, DC-11, DC-12). `hatch-vcs` is installed by every build and never used (DC-10). black targets Python 3.12 for a 3.10 package (CL-14), and ruff's `exclude` silently drops its default excludes (CL-15).
 - **The tests follow the rules but repeat their scaffolding.** About 80 mocked responses are hand-built (DUP-12), and several groups of tests differ only in literals (DUP-10, DUP-11, DUP-13, DUP-14). A few tests check less than they claim: two assert nothing, and the in-memory GitHub fake answers unmodeled operations with success (CL-8, CL-10, CL-18).
 - **Docstrings and comments have drifted.** A public docstring documents a return value that does not exist (CL-1), several say the opposite of the code beside them (CL-2), and the comments that narrate code predate the AGENTS.md rule against them (CL-3).
 
@@ -25,11 +27,11 @@ No security-sensitive findings were found, so nothing is withheld.
 
 | Category | High confidence | Medium | Low | Total |
 |---|---|---|---|---|
-| Dead code (DC) | 11 | 2 | 0 | 13 |
+| Dead code (DC) | 11 | 1 | 0 | 12 |
 | Duplication (DUP) | 14 | 0 | 0 | 14 |
 | Consolidation (CON) | 2 | 0 | 0 | 2 |
 | Cleanup (CL) | 15 | 3 | 0 | 18 |
-| **Total** | **42** | **5** | **0** | **47** |
+| **Total** | **42** | **4** | **0** | **46** |
 
 There are 22 Needs verification items. Confidence ratings are about the safety of the change, not about whether the finding is real.
 
@@ -81,13 +83,9 @@ None. This is the first review of this repository.
 - **Confidence it's safe**: **High**. codespell over all tracked files from a hook environment with `tomli` and from one without it gave byte-identical output and exit code 0.
 - **Verification**: `pre-commit run codespell --all-files`
 
-#### DC-6 — Three settings restate their tool's default
+#### DC-6 — Withdrawn
 
-- **Location**: `.pre-commit-config.yaml:4-6`, `pyproject.toml:123`, `pyproject.toml:154`
-- **Issue**: `default_install_hook_types: [pre-commit]` is pre-commit's default. `fixable = ["ALL"]` is ruff's default. `known-first-party = ["historia"]` is what ruff already infers, because its default `src` resolves to the project root and `src/`.
-- **Proposed change**: Delete `.pre-commit-config.yaml` lines 4-6 and `pyproject.toml` lines 123 and 154. Keep `relative-imports-order` at line 153, which is load-bearing (removing it adds an I001 in `src/historia/data/github/_dump.py`). The `pyproject.toml` edits need a version bump because `version_check.yml` watches that file, so batch them with the other `pyproject.toml` items.
-- **Confidence it's safe**: **Medium**. `ruff check --show-settings` differs only in `linter.isort.known_modules`, isort output over the tree is identical, and `pre-commit install` writes the same hook either way. Medium because an explicit `known-first-party` is a defensible pin against a future change to ruff's default.
-- **Verification**: `ruff check --no-cache --show-settings src/historia/_cli.py` before and after (only `known_modules` differs), then `ruff check --no-cache .`
+The maintainer sets tool defaults explicitly on purpose. The three settings this item covered are listed under Not changed (deliberately).
 
 #### DC-7 — `[tool.black]` `include` and `extend-exclude` never change which files black formats
 
@@ -412,8 +410,8 @@ DUP-2 and DUP-3 both want a home for shared GitHub plumbing. This report propose
 #### CL-17 — The dev image bakes the whole checkout into a layer it never uses
 
 - **Location**: `containers/Dockerfile.dev:6-7`, `.github/workflows/build_and_upload_docker_image_dev.yml:28-35`
-- **Issue**: `ADD ./ historia` with `context: .` and no `.dockerignore` copies `.git`, `docs/` (the logo alone is 1.9 MB), `tests/` and anything untracked into `/historia`. The install is not editable, so that layer is unused at runtime. Hatchling needs only `pyproject.toml`, `README.md`, `LICENSE.txt` and `src/`.
-- **Proposed change**: Add a root `.dockerignore` that allows only what the build needs: `*`, `!pyproject.toml`, `!README.md`, `!LICENSE.txt`, `!src`, `**/__pycache__`. Leave both Dockerfiles unchanged, because adding `WORKDIR` would move where a relative `--directory` writes. Containers and config only.
+- **Issue**: `ADD ./ historia` with `context: .` and no ignore file copies `.git`, `docs/` (the logo alone is 1.9 MB), `tests/` and anything untracked into `/historia`. The install is not editable, so that layer is unused at runtime. Hatchling needs only `pyproject.toml`, `README.md`, `LICENSE.txt` and `src/`.
+- **Proposed change**: Add `containers/Dockerfile.dev.dockerignore` next to the Dockerfile it serves. BuildKit reads an ignore file named after the Dockerfile in place of a root `.dockerignore`, and both Docker workflows build with Buildx. Its patterns are still relative to the build context, which is the repository root. Allow only what the build needs: `*`, `!pyproject.toml`, `!README.md`, `!LICENSE.txt`, `!src`, `**/__pycache__`. `Dockerfile.latest` installs from PyPI and copies nothing from the context, so it needs no ignore file. Leave both Dockerfiles unchanged, because adding `WORKDIR` would move where a relative `--directory` writes. Containers and config only.
 - **Confidence it's safe**: **Medium**. A wheel built from just those four paths is byte-identical to one built from the full tree. No Docker daemon was available to rebuild the image here.
 - **Verification**: `docker build -f containers/Dockerfile.dev -t historia:check . && docker run --rm --entrypoint sh historia:check -c 'ls -A /historia; historia --version'` (expect only the four paths and the same version), plus a build of `containers/Dockerfile.latest`
 
@@ -587,8 +585,8 @@ Each item below describes behavior that a fix would change, or a question only a
 
 Each group can land as one PR. AGENTS.md and `version_check.yml` require a version bump and a CHANGELOG entry for any PR that touches `src/` or `pyproject.toml`, so the groups keep those edits together and leave the rest bump-free.
 
-1. **Tooling with no version bump.** DC-4, DC-5, the `.pre-commit-config.yaml` half of DC-6, DC-11, DC-12, DC-13, CL-12, CL-13, CL-16 and CL-17. These touch only `.pre-commit-config.yaml`, `docs/conf.py`, workflows, `.gitignore` and a new `.dockerignore`. Verify with `pre-commit run --all-files`, a strict docs build (`HISTORIA_ACTION_TAG=v0 python -m sphinx -W -E -b html docs <out>`), and `git check-ignore -v` for CL-16.
-2. **`pyproject.toml` lint and build settings, one bump.** The `pyproject.toml` half of DC-6, DC-7, DC-8, DC-9, DC-10, CL-14 and CL-15, with a `### 🏠 Internal` entry (DC-10 can also be listed under `### 🔩 Dependency Updates`). Verify with `ruff check --no-cache .`, `pre-commit run --all-files`, and a `sha256sum` comparison of isolated wheels built before and after.
+1. **Tooling with no version bump.** DC-4, DC-5, DC-11, DC-12, DC-13, CL-12, CL-13, CL-16 and CL-17. These touch only `.pre-commit-config.yaml`, `docs/conf.py`, workflows, `.gitignore` and a new `containers/Dockerfile.dev.dockerignore`. Verify with `pre-commit run --all-files`, a strict docs build (`HISTORIA_ACTION_TAG=v0 python -m sphinx -W -E -b html docs <out>`), and `git check-ignore -v` for CL-16.
+2. **`pyproject.toml` lint and build settings, one bump.** DC-7, DC-8, DC-9, DC-10, CL-14 and CL-15, with a `### 🏠 Internal` entry (DC-10 can also be listed under `### 🔩 Dependency Updates`). Verify with `ruff check --no-cache .`, `pre-commit run --all-files`, and a `sha256sum` comparison of isolated wheels built before and after.
 3. **Tests only, no bump.** First DC-2, DC-3, the `tests/` part of CL-3, CL-5 to CL-11, CL-18, and DUP-13. Then DUP-10, DUP-11 and DUP-14. DUP-12 goes last, because the others delete or merge sites it rewrites. CL-8 strengthens two tests before the source refactors in group 5 rely on them. Verify after each step with `python -m pytest -m "not remote"` and `--collect-only` counts. The baseline is 217 passed. Expect 216 after DUP-13, and 214 if CL-8's deletion alternative is also chosen. Also run `ruff check tests docs` and `black --check tests docs`.
 4. **Source docstrings, comments and names, one bump.** CL-1 (unless NV-2 is decided first), CL-2, the `src/` part of CL-3, and CL-4, with a `### 📝 Documentation` entry. Verify that only docstrings and comments changed by comparing the AST with docstrings stripped, then run the suite.
 5. **Source structure, one bump per PR.** Land CON-1, then CON-2 with DC-1, then DUP-4, DUP-5 and DUP-6. Then DUP-1, followed by DUP-2 and DUP-3 together, since both create `src/historia/_github.py`. The CLI items DUP-7, DUP-8 and DUP-9 can land in any order after that. Verify each with `python -m pytest -m "not remote"`, `ruff check src`, `pre-commit run mypy --all-files`, and for the CLI items a `diff` of every command's `--help` output before and after.
@@ -612,6 +610,7 @@ These looked like findings and are not, either because they are load-bearing, be
 - **`update members` replacing rather than merging Members.** It recomputes from GitHub like `update dates` does, `populate --members` re-merges the history usernames, and merging would make a removed assignee impossible to drop.
 - **Detecting closing workflows by the "auto-close" substring.** CHANGELOG v0.10.11 chose it and tests pin it. Only the `first: 20` cap is reported, in NV-7.
 - **The `NOT_FOUND` tolerance applying only to date updates.** #105 scoped it to `update dates` on purpose.
+- **Settings that restate their tool's default** (withdrawn DC-6). These are `default_install_hook_types: [pre-commit]` (`.pre-commit-config.yaml:4-6`), `fixable = ["ALL"]` (`pyproject.toml:123`) and `known-first-party = ["historia"]` (`pyproject.toml:154`). The maintainer states defaults explicitly on purpose. An explicit value is easier to read and does not change silently if a tool changes its default.
 - **Lint and type-check fixtures that look redundant.** Every inline `noqa` is still needed (RUF100 is on). Every global and per-file ruff ignore except those in DC-8 and DC-9 still fires. `relative-imports-order` is load-bearing. The `typing.cast` calls at `_add_to_project.py:163` and `:188` and in `tests/test_add_to_project.py:418` and `:425` are needed by mypy. The long `datetime.datetime.now(tz=...).astimezone().date()` is the DTZ011-compliant spelling.
 - **Signatures imposed by frameworks.** Click invokes callbacks with keywords, so `_historia_project_update_members_cli(*, project_url)` must stay keyword-only. Sphinx calls `_substitute_historia_action_tag` positionally, so it cannot be keyword-only. Single-parameter framework callbacks in `docs/` could take `/`, but the project does not shape callbacks to the rule elsewhere.
 - **CLI flag names differing from keyword names** (`--recency` for `past_number_of_days` and so on). AGENTS.md asks for exactly that.
