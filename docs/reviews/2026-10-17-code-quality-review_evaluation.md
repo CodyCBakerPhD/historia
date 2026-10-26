@@ -1,4 +1,4 @@
-# Code quality review — historia — 2026-10-17 (Evaluation)
+# Code quality review — historia — 2026-10-17 (skill evaluation)
 
 Should stylize the report in a more condensed / readable way; there could be more tables, checklists, and overall just less text blocks. Could define a jinja template or something for the skill to inject various text into
 
