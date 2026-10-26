@@ -1,6 +1,6 @@
 # Code quality review — historia — 2026-10-17 (skill evaluation)
 
-Should stylize the report in a more condensed / readable way; there could be more tables, checklists, and overall just less text blocks. Could define a jinja template or something for the skill to inject various text into
+Should stylize the report in a more condensed / readable way; there could be more tables, checklists, and overall just less text blocks. Could define a jinja template or something for the skill to inject various text into (including main title)
 
 NV tests should come along with minimal code snippets to make it easy to tell or not from a users level of permission / knowledge
 
