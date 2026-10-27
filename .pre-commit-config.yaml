@@ -23,13 +23,10 @@ repos:
   rev: 0.38.2
   hooks:
     - id: check-dependabot
-    - id: check-github-actions
-      args: ["--verbose"]
-      files: ^action/.+/action\.yml$
     - id: check-github-workflows
       args: ["--verbose"]
     - id: check-readthedocs
-      files: docs/.readthedocs.yml
+      files: ^docs/\.readthedocs\.yaml$
 
 - repo: https://github.com/psf/black-pre-commit-mirror
   rev: 26.10.0
@@ -39,15 +36,13 @@ repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.16.10
   hooks:
-  - id: ruff
+  - id: ruff-check
     args: [ --fix ]
 
 - repo: https://github.com/codespell-project/codespell
   rev: v2.4.3
   hooks:
   - id: codespell
-    additional_dependencies:
-    - tomli
 
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: v2.4.0
