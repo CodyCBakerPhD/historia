@@ -84,12 +84,19 @@ html_scaled_image_link = False
 html_show_sourcelink = False
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+html_favicon = "assets/historia-favicon.svg"
 html_sidebars: dict[str, list[str]] = {
     "installation/index": [],
     "tutorial/index": [],
     "development/index": [],
 }
 html_theme_options = {
+    "logo": {
+        "image_light": "assets/historia-icon-transparent.svg",
+        "image_dark": "assets/historia-icon-dark-transparent.svg",
+        "text": "historia",
+        "alt_text": "Historia - Home",
+    },
     "icon_links": [
         {
             "name": "GitHub",
