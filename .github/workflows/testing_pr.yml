@@ -16,6 +16,10 @@ jobs:
     # GitHub does not expose repository secrets to workflows triggered by pull requests from forks, so the remote
     # tests would run without a token and fail with 401. Skip them there; the daily scheduled run covers them on main.
     if: github.event.pull_request.head.repo.full_name == github.repository
+    # Every remote run shares one token, and overlapping runs trip GitHub's secondary rate limit.
+    concurrency:
+      group: remote-tests
+      cancel-in-progress: false
     permissions:
       contents: read
     uses: ./.github/workflows/testing.yml

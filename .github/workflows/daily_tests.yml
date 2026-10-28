@@ -15,6 +15,10 @@ jobs:
       marks: "not remote"
 
   DailyTestsRemote:
+    # Shares the `remote-tests` group with the PR runs so they never overlap on the one token.
+    concurrency:
+      group: remote-tests
+      cancel-in-progress: false
     permissions:
       contents: read
     uses: ./.github/workflows/testing.yml
