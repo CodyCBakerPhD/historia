@@ -3,6 +3,7 @@
 import os
 import shlex
 import time
+import traceback
 import unittest.mock
 from typing import Any
 
@@ -152,7 +153,11 @@ def _bash_evaluator(example: sybil.Example) -> str | None:
             args = shlex.split(line[len("historia ") :])
             result = _cli_runner.invoke(historia.historia_cli, args)
             if result.exit_code != 0:
-                return f"CLI command failed (exit code {result.exit_code}):\n{result.output}"
+                message = f"CLI command failed (exit code {result.exit_code}):\n{result.output}"
+                # Click's test runner catches an uncaught exception and keeps it off the output
+                if result.exception is not None and not isinstance(result.exception, SystemExit):
+                    message += "\n" + "".join(traceback.format_exception(result.exception))
+                return message
     return None
 
 

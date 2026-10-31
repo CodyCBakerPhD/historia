@@ -1,5 +1,8 @@
 <p align="center">
-  <img alt="Historia logo" src="https://raw.githubusercontent.com/CodyCBakerPhD/historia/main/docs/assets/historia-logo.png" width="320">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/CodyCBakerPhD/historia/main/docs/assets/historia-logo-dark-transparent.svg">
+    <img alt="Historia logo" src="https://raw.githubusercontent.com/CodyCBakerPhD/historia/main/docs/assets/historia-logo-transparent.svg" width="320">
+  </picture>
 </p>
 
 <h1 align="center">Historia</h1>

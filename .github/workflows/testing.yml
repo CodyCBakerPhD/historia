@@ -11,6 +11,12 @@ on:
 env:
   GITHUB_TOKEN: ${{ secrets._GITHUB_API_KEY }}
 
+# Every run that reaches GitHub shares one token, and overlapping runs trip GitHub's secondary rate limit.
+# The group lives here rather than on the calling jobs, where a finished run was reported as cancelled.
+concurrency:
+  group: ${{ inputs.marks == 'not remote' && format('offline-tests-{0}', github.run_id) || 'remote-tests' }}
+  cancel-in-progress: false
+
 jobs:
   Testing:
     runs-on: ubuntu-latest
