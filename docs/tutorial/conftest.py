@@ -206,6 +206,7 @@ def _tutorial_teardown(namespace: dict[str, Any]) -> None:
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Mark the tutorial examples as remote, since they call the live GitHub API."""
     for item in items:
         if item.path.suffix == ".md" and item.path.parent.name == "tutorial":
             item.add_marker(pytest.mark.remote)

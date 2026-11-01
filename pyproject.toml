@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -9,7 +9,7 @@ packages = ["src/historia"]
 
 [project]
 name = "historia"
-version = "0.13.1"
+version = "0.13.2"
 authors = [
   { name="Cody Baker", email="cody.c.baker.phd@gmail.com" },
 ]
@@ -68,27 +68,10 @@ docs = [
 
 [tool.black]
 line-length = 120
-target-version = ['py312']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  \.toml
-  |\.yml
-  |\.txt
-  |\.sh
-  |\.git
-  |\.ini
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
+target-version = ['py310']
 
 [tool.ruff]
-exclude = [
+extend-exclude = [
   "*/__init__.py",
 ]
 line-length = 120
@@ -101,8 +84,6 @@ ignore = [
     # Docstring style: prefer the D213 / D211 conventions
     "D203",
     "D212",
-    # Commands deliberately use `print` or `.echo` instead of logging
-    "T201",
     # Common HTTP status codes (200, 403, ...) and other small integer
     # literals are clearer inline than as named module-level constants
     "PLR2004",
@@ -110,9 +91,6 @@ ignore = [
     "C901",
     "PLR0912",
     "PLR0915",
-    # Long, descriptive messages constructed at the raise site are preferred
-    # over per-call-site exception subclasses for one-off internal errors
-    "TRY003",
     # Fine to use Unicode characters
     "RUF003",
     # `tests/` and `docs/` are deliberately not Python packages
@@ -138,9 +116,6 @@ fixable = ["ALL"]
     "D103",
     "FBT001",
 ]
-# Tutorial conftest accesses private CLI members (SLF001) and omits per-function
-# docstrings for Sybil setup/teardown/evaluator helpers (D103)
-"docs/tutorial/conftest.py" = ["SLF001", "D103"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "docs/tutorial"]

@@ -2,9 +2,16 @@
 
 ## Upcoming
 
+### 🔩 Dependency Updates
+
+- Dropped the unused `hatch-vcs` build requirement. The version is set statically in `pyproject.toml`, so every build downloaded `hatch-vcs` and `setuptools-scm` without using them. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
+
 ### 🏠 Internal
 
 - Updated the pre-commit hooks, ignoring ruff's newly stable CPY001 copyright-header rule for now. ([#203](https://github.com/CodyCBakerPhD/historia/pull/203))
+- Removed lint and format settings that had no effect. These were black's `include` and `extend-exclude`, the ruff ignores for `T201` and `TRY003`, and the tutorial conftest's per-file ruff ignores, which became unnecessary once its pytest hook gained a docstring. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
+- Black now targets Python 3.10, the oldest version the package supports, instead of 3.12. This also stops the "Python 3.11 cannot parse code formatted for Python 3.12" warning on every pre-commit run. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
+- Ruff's `exclude` is now `extend-exclude`, so it keeps ruff's default excludes and a plain `ruff check .` no longer lints local virtual environments or build output. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
 
 ## v0.13.0
 
