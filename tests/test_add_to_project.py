@@ -3,7 +3,7 @@ import json
 import pathlib
 import typing
 import unittest.mock
-import warnings as _warnings_module
+import warnings
 
 import pytest
 import requests
@@ -28,10 +28,6 @@ from historia.project._add_to_project import (
     _set_item_date,
     _set_item_status,
     _set_item_text,
-    get_project_closing_workflows,
-    transition_status,
-    update_project_item_dates,
-    update_project_item_members,
 )
 
 _TEST_PROJECT_URL = "https://github.com/users/CodyCBakerPhD/projects/5"
@@ -99,10 +95,13 @@ class _FakeGitHub:
         elif operation == "AddItem":
             self.added_node_ids.append(variables["contentId"])
             data = {"addProjectV2ItemById": {"item": {"id": f"PVTI_{variables['contentId']}"}}}
-        else:
+        elif operation in ("SetStatus", "SetText"):
             if operation == "SetText":
                 self.members_writes.append((variables["itemId"], variables["text"]))
             data = {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": variables["itemId"]}}}
+        else:
+            message = f"_FakeGitHub does not model the {operation} operation"
+            raise AssertionError(message)
 
         response = unittest.mock.MagicMock()
         response.status_code = 200
@@ -546,10 +545,14 @@ def test_get_project_info_returns_none_for_missing_date_fields() -> None:
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
-        _, _, _, _, _, _ = _get_project_info(
+        _, _, _, start_date_field_id, end_date_field_id, members_field_id = _get_project_info(
             project_url="https://github.com/users/testuser/projects/1",
             headers=headers,
         )
+
+    assert start_date_field_id is None
+    assert end_date_field_id is None
+    assert members_field_id is None
 
 
 @pytest.mark.ai_generated
@@ -899,11 +902,15 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
         set_status_response,
     ]
 
-    with unittest.mock.patch("requests.post", side_effect=response_sequence):
+    with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
         historia.project.add_to_project(
             directory=tmp_path,
             project_url="https://github.com/users/testuser/projects/1",
         )
+
+    assert mock_post.call_count == 5
+    status_variables = mock_post.call_args_list[4].kwargs["json"]["variables"]
+    assert status_variables["optionId"] == "opt_done"
 
 
 @pytest.mark.ai_generated
@@ -963,9 +970,9 @@ def test_add_to_project_follows_moved_item_to_its_current_url(  # noqa: PLR0913,
     with (
         unittest.mock.patch("requests.post", side_effect=github.post),
         unittest.mock.patch("requests.get", side_effect=github.get),
-        _warnings_module.catch_warnings(),
+        warnings.catch_warnings(),
     ):
-        _warnings_module.simplefilter("error")
+        warnings.simplefilter("error")
         historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
 
     assert github.rest_lookups == [expected_rest_lookup]
@@ -1408,8 +1415,6 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
             project_url="https://github.com/users/testuser/projects/1",
         )
 
-    # 7 calls total: project_info, list_project_item_content_urls, item_info,
-    # add_item, set_status, set_start_date, set_end_date
     assert mock_post.call_count == 7
     # Check start date call (6th call, index 5)
     start_date_call = mock_post.call_args_list[5]
@@ -1522,7 +1527,7 @@ def test_update_project_item_dates_raises_without_token(monkeypatch: pytest.Monk
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
     with pytest.raises(ValueError, match="GITHUB_TOKEN"):
-        update_project_item_dates(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.update_project_item_dates(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1555,7 +1560,7 @@ def test_update_project_item_dates_warns_when_no_date_fields(monkeypatch: pytest
         unittest.mock.patch("requests.post", return_value=project_info_response),
         pytest.warns(UserWarning, match="no 'Start date' or 'End date' fields"),
     ):
-        update_project_item_dates(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.update_project_item_dates(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1633,12 +1638,11 @@ def test_update_project_item_dates_updates_items(monkeypatch: pytest.MonkeyPatch
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        update_project_item_dates(
+        historia.project.update_project_item_dates(
             project_url="https://github.com/users/testuser/projects/1",
             end_date_placeholder_days=30,
         )
 
-    # 6 total calls
     assert mock_post.call_count == 6
 
     # Verify item1 (closed) dates
@@ -1770,7 +1774,7 @@ def test_update_project_item_members_raises_without_token(monkeypatch: pytest.Mo
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
     with pytest.raises(ValueError, match="GITHUB_TOKEN"):
-        update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1802,7 +1806,7 @@ def test_update_project_item_members_warns_when_no_members_field(monkeypatch: py
         unittest.mock.patch("requests.post", return_value=project_info_response),
         pytest.warns(UserWarning, match="has no 'Members' field"),
     ):
-        update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1886,7 +1890,7 @@ def test_update_project_item_members_updates_items(monkeypatch: pytest.MonkeyPat
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
+        historia.project.update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
 
     assert mock_post.call_count == 4
 
@@ -1899,7 +1903,6 @@ def test_update_project_item_members_updates_items(monkeypatch: pytest.MonkeyPat
     assert pr_members["itemId"] == "PVTI_pr"
     assert pr_members["fieldId"] == "PVTF_members"
     assert pr_members["text"] == "cody,zeus"
-    assert {issue_members["itemId"], pr_members["itemId"]} == {"PVTI_issue", "PVTI_pr"}
 
 
 @pytest.mark.ai_generated
@@ -2208,7 +2211,6 @@ def test_add_to_project_skips_items_already_in_project(
     assert tqdm_kwargs["unit"] == "items"
     assert tqdm_kwargs["dynamic_ncols"] is True
 
-    # 5 calls: project_info, list_urls, item_info (for new_pr only), add_item, set_status
     assert mock_post.call_count == 5
 
     # Verify the item_info call was for new_pr_url, not existing_pr_url
@@ -2618,7 +2620,7 @@ def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyP
     ]
 
     with unittest.mock.patch("requests.post", side_effect=response_sequence) as mock_post:
-        transition_status(
+        historia.project.transition_status(
             project_url="https://github.com/users/testuser/projects/1",
             current_status="In Progress",
             new_status="DONE",
@@ -2734,7 +2736,7 @@ def test_get_project_closing_workflows_public_raises_without_token(
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
     with pytest.raises(ValueError, match="GITHUB_TOKEN"):
-        get_project_closing_workflows("https://github.com/users/testuser/projects/1")
+        historia.project.get_project_closing_workflows("https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -2761,6 +2763,6 @@ def test_get_project_closing_workflows_public_returns_list(
     }
 
     with unittest.mock.patch("requests.post", return_value=response):
-        result = get_project_closing_workflows("https://github.com/users/testuser/projects/1")
+        result = historia.project.get_project_closing_workflows("https://github.com/users/testuser/projects/1")
 
     assert result == ["Auto-close issue"]

@@ -2,7 +2,7 @@ import unittest.mock
 
 import pytest
 
-from historia.project._create_project import create_project_page
+import historia
 
 _CREATE_PROJECT_RESPONSE = {
     "data": {
@@ -41,7 +41,7 @@ def test_create_project_page_defaults_to_private(monkeypatch: pytest.MonkeyPatch
         unittest.mock.patch("requests.get", return_value=_OWNER_LOOKUP_RESPONSE),
         unittest.mock.patch("requests.post", side_effect=responses) as mock_post,
     ):
-        project = create_project_page(owner="octocat", title="Work History")
+        project = historia.project.create_project_page(owner="octocat", title="Work History")
 
     assert project == {"id": "PVT_kwDOA", "url": "https://github.com/users/octocat/projects/1"}
     # Only the create-project mutation plus the two date-field mutations; no visibility mutation.
@@ -63,7 +63,7 @@ def test_create_project_page_sets_visibility_when_public(monkeypatch: pytest.Mon
         unittest.mock.patch("requests.get", return_value=_OWNER_LOOKUP_RESPONSE),
         unittest.mock.patch("requests.post", side_effect=responses) as mock_post,
     ):
-        project = create_project_page(owner="octocat", title="Work History", public=True)
+        project = historia.project.create_project_page(owner="octocat", title="Work History", public=True)
 
     assert project == {"id": "PVT_kwDOA", "url": "https://github.com/users/octocat/projects/1"}
     assert mock_post.call_count == 4
@@ -87,4 +87,4 @@ def test_create_project_page_raises_when_visibility_mutation_fails(monkeypatch: 
         unittest.mock.patch("requests.post", side_effect=responses),
         pytest.raises(RuntimeError, match="visibility"),
     ):
-        create_project_page(owner="octocat", title="Work History", public=True)
+        historia.project.create_project_page(owner="octocat", title="Work History", public=True)

@@ -1,7 +1,6 @@
 import pytest
 
 import historia
-import historia._cli
 import historia.data
 import historia.project
 

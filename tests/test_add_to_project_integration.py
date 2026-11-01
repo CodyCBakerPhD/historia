@@ -2,7 +2,7 @@ import json
 import os
 import pathlib
 import time
-import warnings as _warnings_module
+import warnings
 
 import pytest
 import requests
@@ -23,7 +23,7 @@ def _make_headers() -> dict[str, str]:
     return {"Authorization": f"token {os.environ['GITHUB_TOKEN']}"}
 
 
-def _list_project_items_with_urls(headers: dict[str, str]) -> dict[str, str]:
+def _list_project_items_with_urls(headers: dict[str, str], /) -> dict[str, str]:
     """
     Return a mapping of {content_url: item_id} for ALL items in the test project.
 
@@ -77,7 +77,7 @@ query($login: String!, $number: Int!, $after: String) {
     return all_items
 
 
-def _delete_project_item(project_id: str, item_id: str, headers: dict[str, str]) -> None:
+def _delete_project_item(*, project_id: str, item_id: str, headers: dict[str, str]) -> None:
     """Delete a single item from the test project."""
     mutation = """
 mutation($projectId: ID!, $itemId: ID!) {
@@ -110,13 +110,13 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     # Resolve the project node ID (needed for cleanup mutations).
     try:
         project_id, _, _, _, _, _ = _get_project_info(project_url=_TEST_PROJECT_URL, headers=headers)
-    except (PermissionError, RuntimeError) as exc:
+    except RuntimeError as exc:
         pytest.skip(str(exc))
 
     # Pre-clean: remove the test PR from the project if it is already present
     # (e.g. from a previous run where cleanup was skipped).
     try:
-        items_with_urls = _list_project_items_with_urls(headers=headers)
+        items_with_urls = _list_project_items_with_urls(headers)
     except PermissionError as exc:
         pytest.skip(str(exc))
     if _KNOWN_CLOSED_PR_URL in items_with_urls:
@@ -130,8 +130,8 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     (tmp_path / "urls.json").write_text(json.dumps([_KNOWN_CLOSED_PR_URL]))
 
     # Capture warnings so they appear in the failure message if the assertion fails.
-    with _warnings_module.catch_warnings(record=True) as caught_warnings:
-        _warnings_module.simplefilter("always")
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
         historia.project.add_to_project(directory=tmp_path, project_url=_TEST_PROJECT_URL)
     warning_messages = [str(w.message) for w in caught_warnings]
 
@@ -139,7 +139,7 @@ def test_add_to_project_integration(tmp_path: pathlib.Path) -> None:
     added_item_id = None
     items_after: dict[str, str] = {}
     for _ in range(6):
-        items_after = _list_project_items_with_urls(headers=headers)
+        items_after = _list_project_items_with_urls(headers)
         added_item_id = items_after.get(_KNOWN_CLOSED_PR_URL)
         if added_item_id is not None:
             break

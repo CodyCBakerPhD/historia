@@ -1,6 +1,6 @@
+import collections.abc
 import importlib.metadata
 import pathlib
-from collections.abc import Callable
 
 import click.testing
 import pytest
@@ -55,6 +55,7 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
     called_args: dict[str, pathlib.Path | str | int | None] = {}
 
     def _fake_update(
+        *,
         directory: pathlib.Path,
         username: str,
         past_number_of_days: int,
@@ -85,6 +86,7 @@ def test_data_update_command_passes_start_date(monkeypatch: pytest.MonkeyPatch, 
     called_args: dict[str, pathlib.Path | str | int | None] = {}
 
     def _fake_update(
+        *,
         directory: pathlib.Path,
         username: str,
         past_number_of_days: int,
@@ -133,7 +135,7 @@ def test_data_update_help_commands(command: str, expected_present: bool) -> None
 def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, str | bool] = {}
 
-    def _fake_create(owner: str, title: str, public: bool) -> dict[str, str]:
+    def _fake_create(*, owner: str, title: str, public: bool) -> dict[str, str]:
         called_args["owner"] = owner
         called_args["title"] = title
         called_args["public"] = public
@@ -158,7 +160,7 @@ def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) 
 def test_project_create_command_passes_public_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, object] = {}
 
-    def _fake_create(owner: str, title: str, public: bool) -> dict[str, str]:  # noqa: ARG001
+    def _fake_create(*, owner: str, title: str, public: bool) -> dict[str, str]:  # noqa: ARG001
         called_args["public"] = public
         return {"id": "PVT_123", "url": "https://github.com/users/octocat/projects/1"}
 
@@ -176,7 +178,7 @@ def test_project_create_command_passes_public_flag(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.ai_generated
 def test_project_create_command_shows_failure_message_when_none_returned(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _fake_create(owner: str, title: str, public: bool) -> None:
+    def _fake_create(*, owner: str, title: str, public: bool) -> None:
         pass
 
     monkeypatch.setattr(historia._cli, "create_project_page", _fake_create)
@@ -199,6 +201,7 @@ def test_project_populate_command_invokes_add_to_project(
     called_args: dict[str, pathlib.Path | str | int | bool | None] = {}
 
     def _fake_add_to_project(
+        *,
         directory: pathlib.Path,
         project_url: str,
         status: str | None,
@@ -362,6 +365,7 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
     called_args: dict[str, str | int | None] = {}
 
     def _fake_update_project_item_dates(
+        *,
         project_url: str,
         end_date_placeholder_days: int,
         past_number_of_days: int | None,
@@ -397,6 +401,7 @@ def test_project_update_dates_command_forwards_recency(monkeypatch: pytest.Monke
     called_args: dict[str, str | int | None] = {}
 
     def _fake_update_project_item_dates(
+        *,
         project_url: str,
         end_date_placeholder_days: int,
         past_number_of_days: int | None,
@@ -429,7 +434,7 @@ def test_project_update_dates_command_forwards_recency(monkeypatch: pytest.Monke
 def test_project_update_members_command_invokes_update_item_members(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, str] = {}
 
-    def _fake_update_project_item_members(project_url: str) -> None:
+    def _fake_update_project_item_members(*, project_url: str) -> None:
         called_args["project_url"] = project_url
 
     monkeypatch.setattr(historia._cli, "update_project_item_members", _fake_update_project_item_members)
@@ -454,7 +459,7 @@ def test_project_update_members_command_invokes_update_item_members(monkeypatch:
 def test_project_transition_command_invokes_transition_status(monkeypatch: pytest.MonkeyPatch) -> None:
     called_args: dict[str, str] = {}
 
-    def _fake_transition_status(project_url: str, current_status: str, new_status: str) -> None:
+    def _fake_transition_status(*, project_url: str, current_status: str, new_status: str) -> None:
         called_args["project_url"] = project_url
         called_args["current_status"] = current_status
         called_args["new_status"] = new_status
@@ -685,7 +690,7 @@ def test_project_command_shows_error_on_exception(
     tmp_path: pathlib.Path,
     exception_type: type[Exception],
     attr_name: str,
-    make_cli_args: Callable[[pathlib.Path], list[str]],
+    make_cli_args: collections.abc.Callable[[pathlib.Path], list[str]],
 ) -> None:
     def _fake(*_args: object, **_kwargs: object) -> None:
         error_message = "something went wrong"
