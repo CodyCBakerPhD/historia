@@ -16,3 +16,7 @@ CL-17 suggested a global `.dockerignore` file when a specifically named one (`Do
 Having a machine-readable JSON dump of the "Not changed (deliberately)" (or other structured records) would also be nice; whereby the 'md file' could be seen as the viewer of
 
 The "Method & limits" section could have been called 'provenance' and should be minimized from most readers who do not care to know those low level records of how the scan ran
+
+The skill should check that docstrings are linted against the project's docstring convention, not just that they exist. Here `select = ["ALL"]` ran the pydocstyle formatting rules, but `[tool.ruff.lint.pydocstyle] convention = "numpy"` was never set, and nothing checked that a docstring's sections match the code. That gap is how CL-1 (a documented `bool` return that never existed) got in. The report found CL-1 by running ruff's preview DOC202 by hand, yet never proposed turning that check on, and it dismissed the missing `Raises` sections on public functions as a style choice. The missing lint configuration should be its own finding, with a count of what turning it on would flag.
+ - measured on this repo after round 4: the numpy convention (keeping D213) adds 0 violations, and the DOC201/DOC202/DOC402/DOC403/DOC501/DOC502 rules with one-line docstrings exempt flag 16 gaps (13 missing `Raises`, 3 missing `Returns`), 6 of them on public functions
+ - suggest either ruff's DOC rules (preview, enabled by exact code with `explicit-preview-rules = true`) or numpydoc's own `numpydoc-validation` pre-commit hook, which is stable
