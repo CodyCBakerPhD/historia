@@ -44,7 +44,6 @@ repos:
   hooks:
   - id: numpydoc-validation
     files: ^src/
-    exclude: __init__\.py$
 
 - repo: https://github.com/codespell-project/codespell
   rev: v2.4.3

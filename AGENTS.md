@@ -36,5 +36,5 @@
 ## Module and API conventions
 
 - Never expose private names (those with a leading underscore) in any module's `__all__`.
-- Never include code other than imports, `__all__`, simple import errors, or magic `__dir__` overrides in any `__init__.py` file.
+- Never include code other than imports, `__all__`, simple import errors, or magic `__dir__` overrides in any `__init__.py` file. A module docstring is not code and is welcome there, since `help()` and `?` show it for the package.
 - Do not add compatibility aliases when renaming functions. Update all call sites to the canonical name instead.
