@@ -9,7 +9,7 @@
 ### 📝 Documentation
 
 - Fixed docstrings and comments that contradicted the code. `_parse_project_url` handles three URL formats, not two. The `_get_project_info` summary now names the Members field. The `Raises` section of `_check_graphql_response` now says that a 403 raises as well as warns. The `public` default of `create_project_page` is written like the other defaults. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
-- Added the `Raises` and `Returns` sections that the new docstring checks found missing, and a docstring for every source module. `historia --help` and `historia project --help` now describe each command group. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
+- Added the `Raises` and `Returns` sections that the new docstring checks found missing, and a docstring for every source module. Every command and command group now has a description, which `--help` shows. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 
 ### 🔩 Dependency Updates
 

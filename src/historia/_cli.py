@@ -62,6 +62,7 @@ def _historia_data_update_github_cli(
     past_number_of_days: int,
     start_date: str | None,
 ) -> None:
+    """Fetch and save a user's GitHub issues and pull requests by day."""
     directory_path = pathlib.Path(directory)
 
     data.github.update(
@@ -90,6 +91,7 @@ def _historia_project_cli() -> None:
     help="Make the project publicly visible. Projects are created private by default.",
 )
 def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> None:
+    """Create a GitHub Project with Start date and End date fields."""
     project = create_project_page(owner=owner, title=title, public=public)
     if project:
         message = f"Project created successfully!\nID: {project['id']}\nURL: {project['url']}"
@@ -172,6 +174,7 @@ def _historia_project_populate_cli(  # noqa: PLR0913
     assign_members: bool,
     auto_accept: bool,
 ) -> None:
+    """Add the saved issues and pull requests to a GitHub Project."""
     try:
         closing_workflows = get_project_closing_workflows(project_url)
         if closing_workflows:
@@ -247,6 +250,7 @@ def _historia_project_update_dates_cli(
     end_date_placeholder_days: int,
     past_number_of_days: int | None,
 ) -> None:
+    """Recompute the Start and End dates of items in the project."""
     try:
         update_project_item_dates(
             project_url=project_url,
@@ -272,6 +276,7 @@ def _historia_project_update_dates_cli(
     ),
 )
 def _historia_project_update_members_cli(*, project_url: str) -> None:
+    """Refresh the Members field of items in the project."""
     try:
         update_project_item_members(project_url=project_url)
     except (ValueError, RuntimeError) as exception:
@@ -325,6 +330,7 @@ def _historia_project_transition_cli(
     new_status: str,
     auto_accept: bool,
 ) -> None:
+    """Move every project item with the given status to a new status."""
     try:
         closing_workflows = get_project_closing_workflows(project_url)
         if closing_workflows:
