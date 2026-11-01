@@ -4,8 +4,8 @@ import os
 import shlex
 import time
 import traceback
+import typing
 import unittest.mock
-from typing import Any
 
 import click.testing
 import pytest
@@ -68,7 +68,7 @@ def _post_once(*, query: str, variables: dict, headers: dict) -> requests.Respon
     )
 
 
-def _get_project_node_id(*, headers: dict) -> str:
+def _get_project_node_id(headers: dict, /) -> str:
     """Return the node ID of the tutorial project."""
     data = _graphql(
         query="""
@@ -161,7 +161,7 @@ def _bash_evaluator(example: sybil.Example) -> str | None:
     return None
 
 
-def _tutorial_setup(namespace: dict[str, Any]) -> None:
+def _tutorial_setup(namespace: dict[str, typing.Any]) -> None:
     """Patch only the project creation step; all other calls use the live network."""
     namespace["project_owner"] = _TUTORIAL_GITHUB_OWNER
     namespace["project_url"] = _TUTORIAL_PROJECT_URL
@@ -182,7 +182,7 @@ def _tutorial_setup(namespace: dict[str, Any]) -> None:
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token:
         headers = {"Authorization": f"token {github_token}"}
-        project_node_id = _get_project_node_id(headers=headers)
+        project_node_id = _get_project_node_id(headers)
         namespace["_project_node_id"] = project_node_id
         namespace["_pre_test_item_ids"] = _list_project_item_ids(
             project_node_id=project_node_id,
@@ -191,7 +191,7 @@ def _tutorial_setup(namespace: dict[str, Any]) -> None:
         namespace["_github_headers"] = headers
 
 
-def _tutorial_teardown(namespace: dict[str, Any]) -> None:
+def _tutorial_teardown(namespace: dict[str, typing.Any]) -> None:
     """Stop all patches and remove any project items added during the test run."""
     for patcher in namespace.get("_patchers", []):
         patcher.stop()

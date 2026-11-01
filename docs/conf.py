@@ -1,13 +1,13 @@
+import datetime
 import os
+import pathlib
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
-from pathlib import Path
 
-from sphinx.application import Sphinx
+import sphinx.application
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
@@ -40,19 +40,23 @@ def _latest_historia_action_tag() -> str:
 HISTORIA_ACTION_TAG = _latest_historia_action_tag()
 
 
-def _substitute_historia_action_tag(app: Sphinx, docname: str, source: list[str]) -> None:  # noqa: ARG001
+def _substitute_historia_action_tag(
+    app: sphinx.application.Sphinx,  # noqa: ARG001
+    docname: str,  # noqa: ARG001
+    source: list[str],
+) -> None:
     # MyST substitutions skip code blocks, which is exactly where the workflow examples name the tag.
     source[0] = source[0].replace(HISTORIA_ACTION_TAG_PLACEHOLDER, HISTORIA_ACTION_TAG)
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: sphinx.application.Sphinx) -> None:
     """Register the substitution of the latest `historia-action` tag into every page."""
     app.connect("source-read", _substitute_historia_action_tag)
 
 
 project = "historia"
 author = "Cody Baker"
-copyright = f"{datetime.now(tz=timezone.utc).astimezone().year}, {author}"
+copyright = f"{datetime.datetime.now(tz=datetime.timezone.utc).astimezone().year}, {author}"
 
 extensions = [
     "sphinx.ext.autodoc",
