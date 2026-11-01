@@ -51,7 +51,21 @@ def test_subgroup_help_shows_commands(group: str, expected_commands: list[str]) 
 
 
 @pytest.mark.ai_generated
-def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+@pytest.mark.parametrize(
+    ("extra_args", "expected_past_number_of_days", "expected_start_date"),
+    [
+        (["--recency", "3"], 3, None),
+        (["--recency", "2", "--start", "2026-01-05"], 2, "2026-01-05"),
+    ],
+    ids=["recency", "start"],
+)
+def test_data_update_command_invokes_update(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    extra_args: list[str],
+    expected_past_number_of_days: int,
+    expected_start_date: str | None,
+) -> None:
     called_args: dict[str, pathlib.Path | str | int | None] = {}
 
     def _fake_update(
@@ -71,53 +85,14 @@ def test_data_update_command_invokes_update(monkeypatch: pytest.MonkeyPatch, tmp
 
     result = runner.invoke(
         historia.historia_cli,
-        ["update", "github", "--directory", str(tmp_path), "--username", "octocat", "--recency", "3"],
+        ["update", "github", "--directory", str(tmp_path), "--username", "octocat", *extra_args],
     )
 
     assert result.exit_code == 0
     assert called_args["directory"] == tmp_path
     assert called_args["username"] == "octocat"
-    assert called_args["past_number_of_days"] == 3
-    assert called_args["start_date"] is None
-
-
-@pytest.mark.ai_generated
-def test_data_update_command_passes_start_date(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
-    called_args: dict[str, pathlib.Path | str | int | None] = {}
-
-    def _fake_update(
-        *,
-        directory: pathlib.Path,
-        username: str,
-        past_number_of_days: int,
-        start_date: str | None,
-    ) -> None:
-        called_args["directory"] = directory
-        called_args["username"] = username
-        called_args["past_number_of_days"] = past_number_of_days
-        called_args["start_date"] = start_date
-
-    monkeypatch.setattr(historia._cli.data.github, "update", _fake_update)
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "update",
-            "github",
-            "--directory",
-            str(tmp_path),
-            "--username",
-            "octocat",
-            "--recency",
-            "2",
-            "--start",
-            "2026-01-05",
-        ],
-    )
-
-    assert result.exit_code == 0
-    assert called_args["start_date"] == "2026-01-05"
+    assert called_args["past_number_of_days"] == expected_past_number_of_days
+    assert called_args["start_date"] == expected_start_date
 
 
 @pytest.mark.ai_generated
@@ -132,7 +107,16 @@ def test_data_update_help_commands(command: str, expected_present: bool) -> None
 
 
 @pytest.mark.ai_generated
-def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("extra_args", "expected_public"),
+    [([], False), (["--public"], True)],
+    ids=["private", "public"],
+)
+def test_project_create_command_invokes_create(
+    monkeypatch: pytest.MonkeyPatch,
+    extra_args: list[str],
+    expected_public: bool,
+) -> None:
     called_args: dict[str, str | bool] = {}
 
     def _fake_create(*, owner: str, title: str, public: bool) -> dict[str, str]:
@@ -146,34 +130,14 @@ def test_project_create_command_invokes_create(monkeypatch: pytest.MonkeyPatch) 
 
     result = runner.invoke(
         historia.historia_cli,
-        ["project", "create", "--owner", "octocat", "--title", "Work Board"],
+        ["project", "create", "--owner", "octocat", "--title", "Work Board", *extra_args],
     )
 
     assert result.exit_code == 0
     assert called_args["owner"] == "octocat"
     assert called_args["title"] == "Work Board"
-    assert called_args["public"] is False
+    assert called_args["public"] is expected_public
     assert "Project created successfully!" in result.output
-
-
-@pytest.mark.ai_generated
-def test_project_create_command_passes_public_flag(monkeypatch: pytest.MonkeyPatch) -> None:
-    called_args: dict[str, object] = {}
-
-    def _fake_create(*, owner: str, title: str, public: bool) -> dict[str, str]:  # noqa: ARG001
-        called_args["public"] = public
-        return {"id": "PVT_123", "url": "https://github.com/users/octocat/projects/1"}
-
-    monkeypatch.setattr(historia._cli, "create_project_page", _fake_create)
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        ["project", "create", "--owner", "octocat", "--title", "Work Board", "--public"],
-    )
-
-    assert result.exit_code == 0
-    assert called_args["public"] is True
 
 
 @pytest.mark.ai_generated
@@ -243,17 +207,58 @@ def test_project_populate_command_invokes_add_to_project(
     assert called_args["assign_members"] is True
 
 
+def _populate_with_done_status_args(tmp_path: pathlib.Path, /) -> list[str]:
+    return [
+        "project",
+        "populate",
+        "--directory",
+        str(tmp_path),
+        "--url",
+        "https://github.com/users/octocat/projects/1",
+        "--status",
+        "Done",
+    ]
+
+
+def _transition_to_done_args(_tmp_path: pathlib.Path, /) -> list[str]:
+    return [
+        "project",
+        "transition",
+        "--url",
+        "https://github.com/users/octocat/projects/1",
+        "--status",
+        "In Progress",
+        "--new",
+        "Done",
+    ]
+
+
 @pytest.mark.ai_generated
-def test_project_populate_warns_and_prompts_when_closing_workflows_exist(
+@pytest.mark.parametrize(
+    ("attr_name", "make_cli_args", "expected_texts"),
+    [
+        (
+            "add_to_project",
+            _populate_with_done_status_args,
+            ["Auto-close issue", "Warning", "specified status 'Done'"],
+        ),
+        ("transition_status", _transition_to_done_args, ["Auto-close issue", "Warning"]),
+    ],
+    ids=["populate", "transition"],
+)
+def test_project_command_warns_and_prompts_when_closing_workflows_exist(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
+    attr_name: str,
+    make_cli_args: collections.abc.Callable[[pathlib.Path], list[str]],
+    expected_texts: list[str],
 ) -> None:
     called: list[bool] = []
 
-    def _fake_add_to_project(**_kwargs: object) -> None:
+    def _fake(**_kwargs: object) -> None:
         called.append(True)
 
-    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(historia._cli, attr_name, _fake)
     monkeypatch.setattr(
         historia._cli,
         "get_project_closing_workflows",
@@ -261,39 +266,35 @@ def test_project_populate_warns_and_prompts_when_closing_workflows_exist(
     )
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "populate",
-            "--directory",
-            str(tmp_path),
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--status",
-            "Done",
-        ],
-        input="y\n",
-    )
+    result = runner.invoke(historia.historia_cli, make_cli_args(tmp_path), input="y\n")
 
     assert result.exit_code == 0
     assert called == [True]
-    assert "Auto-close issue" in result.output
-    assert "Warning" in result.output
-    assert "specified status 'Done'" in result.output
+    for expected_text in expected_texts:
+        assert expected_text in result.output
 
 
 @pytest.mark.ai_generated
-def test_project_populate_aborts_when_closing_workflows_exist_and_user_declines(
+@pytest.mark.parametrize(
+    ("attr_name", "make_cli_args"),
+    [
+        ("add_to_project", _populate_with_done_status_args),
+        ("transition_status", _transition_to_done_args),
+    ],
+    ids=["populate", "transition"],
+)
+def test_project_command_aborts_when_closing_workflows_exist_and_user_declines(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
+    attr_name: str,
+    make_cli_args: collections.abc.Callable[[pathlib.Path], list[str]],
 ) -> None:
     called: list[bool] = []
 
-    def _fake_add_to_project(**_kwargs: object) -> None:
+    def _fake(**_kwargs: object) -> None:
         called.append(True)
 
-    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(historia._cli, attr_name, _fake)
     monkeypatch.setattr(
         historia._cli,
         "get_project_closing_workflows",
@@ -301,36 +302,34 @@ def test_project_populate_aborts_when_closing_workflows_exist_and_user_declines(
     )
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "populate",
-            "--directory",
-            str(tmp_path),
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--status",
-            "Done",
-        ],
-        input="n\n",
-    )
+    result = runner.invoke(historia.historia_cli, make_cli_args(tmp_path), input="n\n")
 
     assert result.exit_code == 0
     assert called == []
 
 
 @pytest.mark.ai_generated
-def test_project_populate_auto_accepts_when_yes_flag_and_closing_workflows_exist(
+@pytest.mark.parametrize(
+    ("attr_name", "make_cli_args", "prompt_text"),
+    [
+        ("add_to_project", _populate_with_done_status_args, "Do you want to proceed with populating this project?"),
+        ("transition_status", _transition_to_done_args, "Do you want to proceed"),
+    ],
+    ids=["populate", "transition"],
+)
+def test_project_command_auto_accepts_when_yes_flag_and_closing_workflows_exist(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
+    attr_name: str,
+    make_cli_args: collections.abc.Callable[[pathlib.Path], list[str]],
+    prompt_text: str,
 ) -> None:
     called: list[bool] = []
 
-    def _fake_add_to_project(**_kwargs: object) -> None:
+    def _fake(**_kwargs: object) -> None:
         called.append(True)
 
-    monkeypatch.setattr(historia._cli, "add_to_project", _fake_add_to_project)
+    monkeypatch.setattr(historia._cli, attr_name, _fake)
     monkeypatch.setattr(
         historia._cli,
         "get_project_closing_workflows",
@@ -338,30 +337,30 @@ def test_project_populate_auto_accepts_when_yes_flag_and_closing_workflows_exist
     )
     runner = click.testing.CliRunner()
 
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "populate",
-            "--directory",
-            str(tmp_path),
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--status",
-            "Done",
-            "--yes",
-        ],
-    )
+    result = runner.invoke(historia.historia_cli, [*make_cli_args(tmp_path), "--yes"])
 
     assert result.exit_code == 0
     assert called == [True]
     assert "Warning" in result.output
     assert "Auto-close issue" in result.output
-    assert "Do you want to proceed with populating this project?" not in result.output
+    assert prompt_text not in result.output
 
 
 @pytest.mark.ai_generated
-def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("extra_args", "expected_end_date_placeholder_days", "expected_past_number_of_days"),
+    [
+        (["--placeholder", "200"], 200, None),
+        (["--recency", "2"], 180, 2),
+    ],
+    ids=["placeholder", "recency"],
+)
+def test_project_update_dates_command_invokes_update_item_dates(
+    monkeypatch: pytest.MonkeyPatch,
+    extra_args: list[str],
+    expected_end_date_placeholder_days: int,
+    expected_past_number_of_days: int | None,
+) -> None:
     called_args: dict[str, str | int | None] = {}
 
     def _fake_update_project_item_dates(
@@ -379,55 +378,13 @@ def test_project_update_dates_command_invokes_update_item_dates(monkeypatch: pyt
 
     result = runner.invoke(
         historia.historia_cli,
-        [
-            "project",
-            "update",
-            "dates",
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--placeholder",
-            "200",
-        ],
+        ["project", "update", "dates", "--url", "https://github.com/users/octocat/projects/1", *extra_args],
     )
 
     assert result.exit_code == 0
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
-    assert called_args["end_date_placeholder_days"] == 200
-    assert called_args["past_number_of_days"] is None
-
-
-@pytest.mark.ai_generated
-def test_project_update_dates_command_forwards_recency(monkeypatch: pytest.MonkeyPatch) -> None:
-    called_args: dict[str, str | int | None] = {}
-
-    def _fake_update_project_item_dates(
-        *,
-        project_url: str,
-        end_date_placeholder_days: int,
-        past_number_of_days: int | None,
-    ) -> None:
-        called_args["project_url"] = project_url
-        called_args["end_date_placeholder_days"] = end_date_placeholder_days
-        called_args["past_number_of_days"] = past_number_of_days
-
-    monkeypatch.setattr(historia._cli, "update_project_item_dates", _fake_update_project_item_dates)
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "update",
-            "dates",
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--recency",
-            "2",
-        ],
-    )
-
-    assert result.exit_code == 0
-    assert called_args["past_number_of_days"] == 2
+    assert called_args["end_date_placeholder_days"] == expected_end_date_placeholder_days
+    assert called_args["past_number_of_days"] == expected_past_number_of_days
 
 
 @pytest.mark.ai_generated
@@ -486,119 +443,6 @@ def test_project_transition_command_invokes_transition_status(monkeypatch: pytes
     assert called_args["project_url"] == "https://github.com/users/octocat/projects/1"
     assert called_args["current_status"] == "DONE"
     assert called_args["new_status"] == "History"
-
-
-@pytest.mark.ai_generated
-def test_project_transition_warns_and_prompts_when_closing_workflows_exist(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    called: list[bool] = []
-
-    def _fake_transition_status(**_kwargs: object) -> None:
-        called.append(True)
-
-    monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
-    monkeypatch.setattr(
-        historia._cli,
-        "get_project_closing_workflows",
-        lambda _url: ["Auto-close issue"],
-    )
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "transition",
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--status",
-            "In Progress",
-            "--new",
-            "Done",
-        ],
-        input="y\n",
-    )
-
-    assert result.exit_code == 0
-    assert called == [True]
-    assert "Auto-close issue" in result.output
-    assert "Warning" in result.output
-
-
-@pytest.mark.ai_generated
-def test_project_transition_aborts_when_closing_workflows_exist_and_user_declines(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    called: list[bool] = []
-
-    def _fake_transition_status(**_kwargs: object) -> None:
-        called.append(True)
-
-    monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
-    monkeypatch.setattr(
-        historia._cli,
-        "get_project_closing_workflows",
-        lambda _url: ["Auto-close issue"],
-    )
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "transition",
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--status",
-            "In Progress",
-            "--new",
-            "Done",
-        ],
-        input="n\n",
-    )
-
-    assert result.exit_code == 0
-    assert called == []
-
-
-@pytest.mark.ai_generated
-def test_project_transition_auto_accepts_when_yes_flag_and_closing_workflows_exist(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    called: list[bool] = []
-
-    def _fake_transition_status(**_kwargs: object) -> None:
-        called.append(True)
-
-    monkeypatch.setattr(historia._cli, "transition_status", _fake_transition_status)
-    monkeypatch.setattr(
-        historia._cli,
-        "get_project_closing_workflows",
-        lambda _url: ["Auto-close issue"],
-    )
-    runner = click.testing.CliRunner()
-
-    result = runner.invoke(
-        historia.historia_cli,
-        [
-            "project",
-            "transition",
-            "--url",
-            "https://github.com/users/octocat/projects/1",
-            "--status",
-            "In Progress",
-            "--new",
-            "Done",
-            "--yes",
-        ],
-    )
-
-    assert result.exit_code == 0
-    assert called == [True]
-    assert "Warning" in result.output
-    assert "Auto-close issue" in result.output
-    assert "Do you want to proceed" not in result.output
 
 
 @pytest.mark.ai_generated
