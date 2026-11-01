@@ -21,7 +21,7 @@ def _parse_project_url(project_url: str, /) -> tuple[str, str, int]:
     """
     Parse owner type, owner login, and project number from a GitHub Project URL.
 
-    Handles two URL formats:
+    Handles three URL formats:
 
     - ``https://github.com/users/{login}/projects/{number}``
     - ``https://github.com/orgs/{login}/projects/{number}``
@@ -110,7 +110,6 @@ def add_to_project(
 
     data_directory = _resolve_latest_version_data_directory(directory)
 
-    # Collect all unique URLs from JSON files in the directory
     url_to_members = _collect_url_member_usernames(data_directory) if assign_members else {}
     all_urls = list(url_to_members) if assign_members else _collect_unique_urls(data_directory)
 
@@ -118,7 +117,6 @@ def add_to_project(
         warnings.warn(message=f"No URLs found in directory `{data_directory}`.", stacklevel=2)
         return
 
-    # Resolve the project node ID and get Status / date field info
     project_id, status_field_id, status_options, start_date_field_id, end_date_field_id, members_field_id = (
         _get_project_info(
             project_url=project_url,
@@ -126,7 +124,6 @@ def add_to_project(
         )
     )
 
-    # Parse owner type, login, and number from URL
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     validated_members_field_id: str | None = None
@@ -197,7 +194,6 @@ def add_to_project(
                 continue
         item_node_id, item_type, item_state, created_at, closed_at = item_info
 
-        # Add the item to the project
         item_id = _add_item_to_project(project_id=project_id, content_id=item_node_id, headers=headers)
         if item_id is None:
             continue
@@ -611,7 +607,8 @@ def _check_graphql_response(*, response: requests.Response, context: str) -> dic
     Raises
     ------
     RuntimeError
-        If the response indicates a non-403 error.
+        If the response is not valid JSON, has a non-200 status, or carries GraphQL errors.
+        A 403 is also emitted as a warning before raising.
 
     """
     status = response.status_code
@@ -666,7 +663,7 @@ def _get_project_info(
     headers: dict[str, str],
 ) -> tuple[str, str, dict[str, str], str | None, str | None, str | None]:
     """
-    Retrieve project node ID, Status field ID, Status option name-to-ID mapping, and Start/End date field IDs.
+    Retrieve the project node ID and the IDs of its Status (with options), Start date, End date, and Members fields.
 
     Parameters
     ----------
@@ -685,11 +682,6 @@ def _get_project_info(
         is the ID of the project's "Members" field (or None if not present).
 
     """
-    # Parse owner type, owner login, and project number from URL
-    # Expected formats:
-    #   https://github.com/users/{login}/projects/{number}
-    #   https://github.com/orgs/{login}/projects/{number}
-    #   https://github.com/{login}/projects/{number}
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     if owner_type == "users":
@@ -760,7 +752,6 @@ query GetProject($login: String!, $number: Int!) {
 
     project_id = project_data["id"]
 
-    # Find the Status, Start date, and End date fields
     status_field_id = None
     status_options: dict[str, str] = {}
     start_date_field_id = None
@@ -839,7 +830,6 @@ query GetItem($url: URI!) {
     created_at: str = resource["createdAt"]
     closed_at: str | None = resource.get("closedAt")
 
-    # Determine the type based on the URL path
     item_type = "PullRequest" if "/pull/" in url else "Issue"
 
     return node_id, item_type, item_state, created_at, closed_at
@@ -1163,10 +1153,8 @@ def update_project_item_dates(
         )
         return
 
-    # Parse owner type, login, and number from URL for the items query
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    # Collect all project items with their content dates (paginated)
     all_items = _list_project_items_with_dates(
         owner_type=owner_type,
         owner_login=owner_login,
@@ -2002,10 +1990,8 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         )
         raise ValueError(message)
 
-    # Parse owner type, login, and number from URL
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    # Fetch all items with their current status
     all_items = _list_project_items_with_status(
         owner_type=owner_type,
         owner_login=owner_login,

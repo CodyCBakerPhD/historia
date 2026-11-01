@@ -2,6 +2,14 @@
 
 ## Upcoming
 
+### 🚀 Enhancement
+
+- `dump_info_for_date` now returns whether the GitHub API rate limit was hit, as its docstring already said. It used to return `None`. `update` likewise returns whether any day hit the rate limit. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
+
+### 📝 Documentation
+
+- Fixed docstrings and comments that contradicted the code. `_parse_project_url` handles three URL formats, not two. The `_get_project_info` summary now names the Members field. The `Raises` section of `_check_graphql_response` now says that a 403 raises as well as warns. The `public` default of `create_project_page` is written like the other defaults. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
+
 ### 🔩 Dependency Updates
 
 - Dropped the unused `hatch-vcs` build requirement. The version is set statically in `pyproject.toml`, so every build downloaded `hatch-vcs` and `setuptools-scm` without using them. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
@@ -12,6 +20,7 @@
 - Removed lint and format settings that had no effect. These were black's `include` and `extend-exclude`, the ruff ignores for `T201` and `TRY003`, and the tutorial conftest's per-file ruff ignores, which became unnecessary once its pytest hook gained a docstring. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
 - Black now targets Python 3.10, the oldest version the package supports, instead of 3.12. This also stops the "Python 3.11 cannot parse code formatted for Python 3.12" warning on every pre-commit run. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
 - Ruff's `exclude` is now `extend-exclude`, so it keeps ruff's default excludes and a plain `ruff check .` no longer lints local virtual environments or build output. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
+- Removed source comments that restated the line below them, and renamed the `entity` locals in `_format_graphql_queries` to `info_type`, as the rest of the package calls them. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 
 ## v0.13.0
 

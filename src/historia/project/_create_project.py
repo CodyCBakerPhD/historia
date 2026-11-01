@@ -16,7 +16,7 @@ def create_project_page(*, owner: str, title: str, public: bool = False) -> dict
         The GitHub user or organization login under which to create the project.
     title : str
         The title of the new GitHub Project.
-    public : bool, default: False
+    public : bool, default=False
         Whether the project should be publicly visible. GitHub's project-creation API always
         creates projects as private; when `public` is True, a follow-up mutation flips visibility
         immediately after creation.
@@ -39,7 +39,6 @@ def create_project_page(*, owner: str, title: str, public: bool = False) -> dict
     # Resolve the owner's global node ID (works for both users and organizations)
     owner_id = _get_owner_node_id(owner=owner, headers=headers)
 
-    # Create the GitHub Project v2 via the GraphQL API
     mutation = """
 mutation CreateProject($ownerId: ID!, $title: String!) {
     createProjectV2(input: {ownerId: $ownerId, title: $title}) {
@@ -176,7 +175,6 @@ def _get_owner_node_id(*, owner: str, headers: dict[str, str]) -> str:
         The global node ID of the owner.
 
     """
-    # Try user endpoint first, then organization endpoint
     for endpoint in (f"https://api.github.com/users/{owner}", f"https://api.github.com/orgs/{owner}"):
         response = requests.get(url=endpoint, headers=headers, timeout=30)
         if response.status_code == 200:

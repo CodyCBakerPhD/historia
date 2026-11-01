@@ -219,3 +219,96 @@ def test_update_iterates_over_expected_dates(
     )
 
     assert fetched_dates == ["2026-01-05", "2026-01-04", "2026-01-03"]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("rate_limited_info_type", "expected_hit_rate_limit", "expected_fetched_info_types"),
+    [
+        pytest.param(
+            None,
+            False,
+            [
+                "prs_opened",
+                "prs_assigned",
+                "prs_review_requested",
+                "prs_reviewed",
+                "issues_opened",
+                "issues_assigned",
+            ],
+            id="no-rate-limit",
+        ),
+        pytest.param("prs_assigned", True, ["prs_opened", "prs_assigned"], id="rate-limited"),
+    ],
+)
+def test_dump_info_for_date_returns_whether_rate_limit_was_hit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    rate_limited_info_type: str | None,
+    expected_hit_rate_limit: bool,
+    expected_fetched_info_types: list[str],
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    fetched_info_types: list[str] = []
+
+    def _mock_fetch_info_for_date(
+        *,
+        info_type: str,
+        date: str,  # noqa: ARG001
+        username: str,  # noqa: ARG001
+    ) -> tuple[list[str], bool]:
+        fetched_info_types.append(info_type)
+        return ([], info_type == rate_limited_info_type)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+
+    hit_rate_limit = historia.data.github.dump_info_for_date(
+        directory=tmp_path,
+        date="2026-01-05",
+        username="codycbakerphd",
+    )
+
+    assert hit_rate_limit is expected_hit_rate_limit
+    assert fetched_info_types == expected_fetched_info_types
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("rate_limited_date", "expected_hit_rate_limit"),
+    [
+        pytest.param(None, False, id="no-rate-limit"),
+        pytest.param("2026-01-04", True, id="rate-limited"),
+    ],
+)
+def test_update_returns_whether_rate_limit_was_hit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    rate_limited_date: str | None,
+    expected_hit_rate_limit: bool,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    fetched_dates: list[str] = []
+
+    def _mock_fetch_info_for_date(
+        *,
+        info_type: str,
+        date: str,
+        username: str,  # noqa: ARG001
+    ) -> tuple[list[str], bool]:
+        if info_type == "prs_opened":
+            fetched_dates.append(date)
+        return ([], date == rate_limited_date)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+
+    hit_rate_limit = historia.data.github.update(
+        directory=tmp_path,
+        username="codycbakerphd",
+        past_number_of_days=2,
+        start_date="2026-01-05",
+    )
+
+    assert hit_rate_limit is expected_hit_rate_limit
+    assert fetched_dates == ["2026-01-05", "2026-01-04", "2026-01-03"]

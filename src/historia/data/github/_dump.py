@@ -76,9 +76,11 @@ def dump_info_for_date(
     date: str,
     username: str,
     overwrite: bool = False,
-) -> None:
+) -> bool:
     """
     Fetch and save all GitHub info types for a given date.
+
+    Stops at the first info type that hits the GitHub API rate limit.
 
     Parameters
     ----------
@@ -99,6 +101,7 @@ def dump_info_for_date(
         Whether the GitHub API rate limit was hit during the query.
 
     """
+    hit_rate_limit = False
     for info_type in INFO_TYPES:
         hit_rate_limit = dump_specific_info(
             directory=directory,
@@ -109,3 +112,5 @@ def dump_info_for_date(
         )
         if hit_rate_limit:
             break
+
+    return hit_rate_limit
