@@ -1,7 +1,6 @@
 *.idea
 /**/__pycache__/
-uv*
-.DS_Store
+/uv*
 *.DS_Store
 coverage.xml
 .coverage
