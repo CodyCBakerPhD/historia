@@ -1,3 +1,5 @@
+"""Refresh the cache for the most recent days."""
+
 import datetime
 import pathlib
 

@@ -98,7 +98,16 @@ ignore = [
     # We use relative imports within the package (see developer guide)
     "TID252",
 ]
+# The docstring-to-code checks (pydoclint) are still preview rules, so preview is on but only
+# rules named by their exact code are selected from it. DOC502 is left off so that a docstring
+# may document an exception raised by a helper the function calls.
+preview = true
+explicit-preview-rules = true
+extend-select = ["DOC201", "DOC202", "DOC402", "DOC403", "DOC501"]
 fixable = ["ALL"]
+
+[tool.ruff.lint.pydoclint]
+ignore-one-line-docstrings = true
 
 [tool.ruff.lint.per-file-ignores]
 # `docs/conf.py` is the Sphinx configuration entry point: `copyright` is the
@@ -127,6 +136,20 @@ markers = [
 [tool.ruff.lint.isort]
 relative-imports-order = "closest-to-furthest"
 known-first-party = ["historia"]
+
+[tool.numpydoc_validation]
+checks = [
+    "all",
+    # Examples, See Also, and an extended summary are not expected on every object
+    "EX01",
+    "SA01",
+    "ES01",
+    # Docstrings end with a blank line before the closing quotes, which ruff's D413 asks for
+    "GL02",
+    "GL03",
+]
+# Names with a leading underscore are not part of the documented API
+exclude = ['\._\w+$']
 
 [tool.mypy]
 python_version = "3.10"

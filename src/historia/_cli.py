@@ -1,3 +1,5 @@
+"""Command-line interface for historia."""
+
 import importlib.metadata
 import pathlib
 
@@ -21,13 +23,13 @@ from .project import (
     prog_name="historia",
 )
 def historia_cli() -> None:
-    pass
+    """Collect GitHub activity for use in project dashboards."""
 
 
 # historia update
 @historia_cli.group(name="update")
 def historia_data_update_cli() -> None:
-    pass
+    """Fetch and save recent activity from a data source."""
 
 
 # historia update github
@@ -73,7 +75,7 @@ def _historia_data_update_github_cli(
 # historia project
 @historia_cli.group(name="project")
 def _historia_project_cli() -> None:
-    pass
+    """Create and maintain a GitHub Project from the saved activity."""
 
 
 # historia project create
@@ -199,7 +201,7 @@ def _historia_project_populate_cli(  # noqa: PLR0913
 # historia project update
 @_historia_project_cli.group(name="update")
 def _historia_project_update_cli() -> None:
-    pass
+    """Refresh fields on items already in the project."""
 
 
 # historia project update dates

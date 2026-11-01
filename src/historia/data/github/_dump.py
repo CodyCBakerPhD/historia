@@ -1,3 +1,5 @@
+"""Save fetched GitHub activity to the on-disk cache."""
+
 import json
 import pathlib
 

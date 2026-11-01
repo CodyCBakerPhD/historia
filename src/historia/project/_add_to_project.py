@@ -1,3 +1,5 @@
+"""Add saved GitHub activity to a GitHub Project and keep its fields up to date."""
+
 import datetime
 import json
 import os
@@ -99,6 +101,12 @@ def add_to_project(
     assign_members : bool, optional
         When ``True``, update the project's custom ``Members`` text field using usernames
         inferred from ``username-*`` directory names in the data tree.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if ``assign_members`` is ``True``
+        and the project has no ``Members`` field.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")
@@ -342,6 +350,11 @@ def _infer_username_from_data_path(*, directory: pathlib.Path, info_file_path: p
     If no non-empty ``username-*`` segment exists in the file path relative to ``directory``,
     this falls back to ``directory.name``.
 
+    Returns
+    -------
+    str
+        The inferred username.
+
     """
     relative_parts = info_file_path.relative_to(directory).parts
     for part in relative_parts:
@@ -545,6 +558,12 @@ def _post_graphql(*, query: str, variables: dict, headers: dict[str, str]) -> re
     of the same request usually succeeds, and every query and mutation posted here is safe to repeat. The last
     response is returned regardless of its status so the caller can report it, and the last connection error is
     re-raised.
+
+    Returns
+    -------
+    requests.Response
+        The last response received, whatever its status.
+
     """
     backoff_seconds = _INITIAL_BACKOFF_SECONDS
     for _ in range(_MAXIMUM_ATTEMPTS - 1):
@@ -680,6 +699,11 @@ def _get_project_info(
         start_date_field_id / end_date_field_id are the IDs of the project's "Start date"
         and "End date" date fields respectively (or None if not present). ``members_field_id``
         is the ID of the project's "Members" field (or None if not present).
+
+    Raises
+    ------
+    ValueError
+        If the project has no ``Status`` field.
 
     """
     owner_type, owner_login, project_number = _parse_project_url(project_url)
@@ -894,6 +918,11 @@ def _add_item_to_project(*, project_id: str, content_id: str, headers: dict[str,
     str or None
         The project item ID if successful, or None if rate-limited.
 
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails with any status other than 403.
+
     """
     mutation = """
 mutation AddItem($projectId: ID!, $contentId: ID!) {
@@ -942,6 +971,11 @@ def _set_item_status(
         The option ID for the desired status value.
     headers : dict[str, str]
         HTTP headers including the Authorization token.
+
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails with any status other than 403.
 
     """
     mutation = """
@@ -1000,6 +1034,11 @@ def _set_item_date(
         The date value in ISO format (``YYYY-MM-DD``).
     headers : dict[str, str]
         HTTP headers including the Authorization token.
+
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails with any status other than 403, unless the item is missing from the project.
 
     """
     mutation = """
@@ -1129,6 +1168,11 @@ def update_project_item_dates(
         Every item is considered when this is not specified, which is what a first run or a
         backfill of a project whose items predate this field needs.
 
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -1213,6 +1257,11 @@ def update_project_item_members(*, project_url: str) -> None:
         The URL of the GitHub Project v2,
         e.g., ``https://github.com/users/username/projects/1``
         or ``https://github.com/orgs/orgname/projects/1``.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")

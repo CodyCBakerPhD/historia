@@ -1,3 +1,5 @@
+"""Shared constants for the package."""
+
 import typing
 
 # Increment this only when the on-disk cache layout changes incompatibly.

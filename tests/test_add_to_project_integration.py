@@ -28,6 +28,17 @@ def _list_project_items_with_urls(headers: dict[str, str], /) -> dict[str, str]:
     Return a mapping of {content_url: item_id} for ALL items in the test project.
 
     Uses cursor-based pagination to retrieve items beyond the first page.
+
+    Returns
+    -------
+    dict[str, str]
+        The project item ID of each item, keyed by the URL of its issue or pull request.
+
+    Raises
+    ------
+    PermissionError
+        If the token lacks project permissions, which GitHub reports as a 403.
+
     """
     query = """
 query($login: String!, $number: Int!, $after: String) {

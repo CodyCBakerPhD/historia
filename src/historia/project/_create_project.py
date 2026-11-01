@@ -1,3 +1,5 @@
+"""Create a GitHub Project set up for historia."""
+
 import os
 import warnings
 
@@ -27,6 +29,13 @@ def create_project_page(*, owner: str, title: str, public: bool = False) -> dict
         A dictionary containing the ``"id"`` and ``"url"`` of the created project.
         Returns an empty dictionary if the GitHub API rate limit was hit (HTTP 403);
         a warning is also issued in that case.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set.
+    RuntimeError
+        If the project-creation mutation fails with any status other than 403.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")
@@ -92,6 +101,11 @@ def _create_date_field(*, project_id: str, field_name: str, headers: dict[str, s
     headers : dict[str, str]
         HTTP headers including the Authorization token.
 
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails or returns GraphQL errors.
+
     """
     mutation = """
 mutation CreateField($projectId: ID!, $name: String!) {
@@ -133,6 +147,11 @@ def _set_project_visibility(*, project_id: str, public: bool, headers: dict[str,
     headers : dict[str, str]
         HTTP headers including the Authorization token.
 
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails or returns GraphQL errors.
+
     """
     mutation = """
 mutation UpdateProjectVisibility($projectId: ID!, $public: Boolean!) {
@@ -173,6 +192,11 @@ def _get_owner_node_id(*, owner: str, headers: dict[str, str]) -> str:
     -------
     str
         The global node ID of the owner.
+
+    Raises
+    ------
+    ValueError
+        If neither the users nor the organizations endpoint resolves ``owner``.
 
     """
     for endpoint in (f"https://api.github.com/users/{owner}", f"https://api.github.com/orgs/{owner}"):

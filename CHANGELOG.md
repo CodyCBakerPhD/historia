@@ -9,6 +9,7 @@
 ### 📝 Documentation
 
 - Fixed docstrings and comments that contradicted the code. `_parse_project_url` handles three URL formats, not two. The `_get_project_info` summary now names the Members field. The `Raises` section of `_check_graphql_response` now says that a 403 raises as well as warns. The `public` default of `create_project_page` is written like the other defaults. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
+- Added the `Raises` and `Returns` sections that the new docstring checks found missing, and a docstring for every source module. `historia --help` and `historia project --help` now describe each command group. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 
 ### 🔩 Dependency Updates
 
@@ -21,6 +22,7 @@
 - Black now targets Python 3.10, the oldest version the package supports, instead of 3.12. This also stops the "Python 3.11 cannot parse code formatted for Python 3.12" warning on every pre-commit run. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
 - Ruff's `exclude` is now `extend-exclude`, so it keeps ruff's default excludes and a plain `ruff check .` no longer lints local virtual environments or build output. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
 - Removed source comments that restated the line below them, and renamed the `entity` locals in `_format_graphql_queries` to `info_type`, as the rest of the package calls them. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
+- Docstrings are now checked against the code they document. Ruff's DOC rules flag a missing or extra `Returns` or `Raises` section, and numpydoc's validation hook checks public names against the numpy docstring standard. Ruff alone never flagged a public function with no docstring, because every source module's name starts with an underscore. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 
 ## v0.13.0
 

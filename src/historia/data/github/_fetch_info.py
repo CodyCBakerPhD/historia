@@ -1,3 +1,5 @@
+"""Fetch GitHub activity for a user and date through the GraphQL API."""
+
 import functools
 import os
 import re
@@ -45,6 +47,11 @@ def fetch_info_for_date(
         A list of GitHub issue or pull request URLs for the specified date and user.
     bool
         Whether or not the GitHub API rate limit was hit during the query.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if ``date`` is not in ISO format.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")
@@ -263,6 +270,12 @@ def _post_with_retries(*, query: str, variables: dict, token: str) -> requests.R
     GitHub occasionally answers with a 502 or 503 from its edge for a moment. Those carry an HTML body rather than
     a GraphQL payload, and a repeat of the same request usually succeeds. The last response is returned regardless
     of its status so the caller can report it, and the last connection error is re-raised.
+
+    Returns
+    -------
+    requests.Response
+        The last response received, whatever its status.
+
     """
     backoff_seconds = _INITIAL_BACKOFF_SECONDS
     for _ in range(_MAXIMUM_ATTEMPTS - 1):

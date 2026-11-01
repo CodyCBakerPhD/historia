@@ -64,7 +64,8 @@ This project uses [pre-commit](https://pre-commit.com/) to enforce code quality 
 The configured hooks are:
 
 - **black** — code formatting
-- **ruff** — linting and import sorting (with auto-fix)
+- **ruff** — linting and import sorting (with auto-fix), including checks that docstrings match the code they document
+- **numpydoc** — validates public docstrings against the numpy docstring standard
 - **codespell** — spell checking
 - **mypy** — static type checking
 
