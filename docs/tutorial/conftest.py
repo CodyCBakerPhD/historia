@@ -45,6 +45,12 @@ def _post_with_retries(*, query: str, variables: dict, headers: dict) -> request
 
     GitHub occasionally answers with a 502 or 504 from its edge for a moment. A single such response here would
     fail the setup of every example in the tutorial page, while a repeat of the same request usually succeeds.
+
+    Returns
+    -------
+    requests.Response
+        The last response received, whatever its status.
+
     """
     backoff_seconds = _INITIAL_BACKOFF_SECONDS
     for _ in range(_MAXIMUM_ATTEMPTS - 1):
@@ -142,6 +148,12 @@ def _bash_evaluator(example: sybil.Example) -> str | None:
     ``$PROJECT_OWNER`` and ``$PROJECT_URL`` are expanded to their tutorial values
     before the command is parsed, mirroring how a user would set those variables
     in their shell before running the examples.
+
+    Returns
+    -------
+    str or None
+        The output of the first ``historia`` command that fails, or ``None`` when every command succeeds.
+
     """
     for raw_line in str(example.parsed).strip().splitlines():
         line = raw_line.strip()

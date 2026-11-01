@@ -1,3 +1,5 @@
+"""Add saved GitHub activity to a GitHub Project and keep its fields up to date."""
+
 import datetime
 import json
 import os
@@ -21,7 +23,7 @@ def _parse_project_url(project_url: str, /) -> tuple[str, str, int]:
     """
     Parse owner type, owner login, and project number from a GitHub Project URL.
 
-    Handles two URL formats:
+    Handles three URL formats:
 
     - ``https://github.com/users/{login}/projects/{number}``
     - ``https://github.com/orgs/{login}/projects/{number}``
@@ -100,6 +102,12 @@ def add_to_project(
         When ``True``, update the project's custom ``Members`` text field using usernames
         inferred from ``username-*`` directory names in the data tree.
 
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if ``assign_members`` is ``True``
+        and the project has no ``Members`` field.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -110,7 +118,6 @@ def add_to_project(
 
     data_directory = _resolve_latest_version_data_directory(directory)
 
-    # Collect all unique URLs from JSON files in the directory
     url_to_members = _collect_url_member_usernames(data_directory) if assign_members else {}
     all_urls = list(url_to_members) if assign_members else _collect_unique_urls(data_directory)
 
@@ -118,7 +125,6 @@ def add_to_project(
         warnings.warn(message=f"No URLs found in directory `{data_directory}`.", stacklevel=2)
         return
 
-    # Resolve the project node ID and get Status / date field info
     project_id, status_field_id, status_options, start_date_field_id, end_date_field_id, members_field_id = (
         _get_project_info(
             project_url=project_url,
@@ -126,7 +132,6 @@ def add_to_project(
         )
     )
 
-    # Parse owner type, login, and number from URL
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     validated_members_field_id: str | None = None
@@ -197,7 +202,6 @@ def add_to_project(
                 continue
         item_node_id, item_type, item_state, created_at, closed_at = item_info
 
-        # Add the item to the project
         item_id = _add_item_to_project(project_id=project_id, content_id=item_node_id, headers=headers)
         if item_id is None:
             continue
@@ -345,6 +349,11 @@ def _infer_username_from_data_path(*, directory: pathlib.Path, info_file_path: p
 
     If no non-empty ``username-*`` segment exists in the file path relative to ``directory``,
     this falls back to ``directory.name``.
+
+    Returns
+    -------
+    str
+        The inferred username.
 
     """
     relative_parts = info_file_path.relative_to(directory).parts
@@ -549,6 +558,12 @@ def _post_graphql(*, query: str, variables: dict, headers: dict[str, str]) -> re
     of the same request usually succeeds, and every query and mutation posted here is safe to repeat. The last
     response is returned regardless of its status so the caller can report it, and the last connection error is
     re-raised.
+
+    Returns
+    -------
+    requests.Response
+        The last response received, whatever its status.
+
     """
     backoff_seconds = _INITIAL_BACKOFF_SECONDS
     for _ in range(_MAXIMUM_ATTEMPTS - 1):
@@ -611,7 +626,8 @@ def _check_graphql_response(*, response: requests.Response, context: str) -> dic
     Raises
     ------
     RuntimeError
-        If the response indicates a non-403 error.
+        If the response is not valid JSON, has a non-200 status, or carries GraphQL errors.
+        A 403 is also emitted as a warning before raising.
 
     """
     status = response.status_code
@@ -666,7 +682,7 @@ def _get_project_info(
     headers: dict[str, str],
 ) -> tuple[str, str, dict[str, str], str | None, str | None, str | None]:
     """
-    Retrieve project node ID, Status field ID, Status option name-to-ID mapping, and Start/End date field IDs.
+    Retrieve the project node ID and the IDs of its Status (with options), Start date, End date, and Members fields.
 
     Parameters
     ----------
@@ -684,12 +700,12 @@ def _get_project_info(
         and "End date" date fields respectively (or None if not present). ``members_field_id``
         is the ID of the project's "Members" field (or None if not present).
 
+    Raises
+    ------
+    ValueError
+        If the project has no ``Status`` field.
+
     """
-    # Parse owner type, owner login, and project number from URL
-    # Expected formats:
-    #   https://github.com/users/{login}/projects/{number}
-    #   https://github.com/orgs/{login}/projects/{number}
-    #   https://github.com/{login}/projects/{number}
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     if owner_type == "users":
@@ -760,7 +776,6 @@ query GetProject($login: String!, $number: Int!) {
 
     project_id = project_data["id"]
 
-    # Find the Status, Start date, and End date fields
     status_field_id = None
     status_options: dict[str, str] = {}
     start_date_field_id = None
@@ -839,7 +854,6 @@ query GetItem($url: URI!) {
     created_at: str = resource["createdAt"]
     closed_at: str | None = resource.get("closedAt")
 
-    # Determine the type based on the URL path
     item_type = "PullRequest" if "/pull/" in url else "Issue"
 
     return node_id, item_type, item_state, created_at, closed_at
@@ -904,6 +918,11 @@ def _add_item_to_project(*, project_id: str, content_id: str, headers: dict[str,
     str or None
         The project item ID if successful, or None if rate-limited.
 
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails with any status other than 403.
+
     """
     mutation = """
 mutation AddItem($projectId: ID!, $contentId: ID!) {
@@ -952,6 +971,11 @@ def _set_item_status(
         The option ID for the desired status value.
     headers : dict[str, str]
         HTTP headers including the Authorization token.
+
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails with any status other than 403.
 
     """
     mutation = """
@@ -1010,6 +1034,11 @@ def _set_item_date(
         The date value in ISO format (``YYYY-MM-DD``).
     headers : dict[str, str]
         HTTP headers including the Authorization token.
+
+    Raises
+    ------
+    RuntimeError
+        If the mutation fails with any status other than 403, unless the item is missing from the project.
 
     """
     mutation = """
@@ -1139,6 +1168,11 @@ def update_project_item_dates(
         Every item is considered when this is not specified, which is what a first run or a
         backfill of a project whose items predate this field needs.
 
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -1163,10 +1197,8 @@ def update_project_item_dates(
         )
         return
 
-    # Parse owner type, login, and number from URL for the items query
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    # Collect all project items with their content dates (paginated)
     all_items = _list_project_items_with_dates(
         owner_type=owner_type,
         owner_login=owner_login,
@@ -1225,6 +1257,11 @@ def update_project_item_members(*, project_url: str) -> None:
         The URL of the GitHub Project v2,
         e.g., ``https://github.com/users/username/projects/1``
         or ``https://github.com/orgs/orgname/projects/1``.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set.
 
     """
     github_token = os.getenv("GITHUB_TOKEN")
@@ -2002,10 +2039,8 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         )
         raise ValueError(message)
 
-    # Parse owner type, login, and number from URL
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    # Fetch all items with their current status
     all_items = _list_project_items_with_status(
         owner_type=owner_type,
         owner_login=owner_login,

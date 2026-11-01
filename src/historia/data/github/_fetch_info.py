@@ -1,3 +1,5 @@
+"""Fetch GitHub activity for a user and date through the GraphQL API."""
+
 import functools
 import os
 import re
@@ -46,6 +48,11 @@ def fetch_info_for_date(
     bool
         Whether or not the GitHub API rate limit was hit during the query.
 
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if ``date`` is not in ISO format.
+
     """
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
@@ -70,7 +77,7 @@ def fetch_info_for_date(
 
 @functools.cache
 def _format_graphql_queries(*, date: str, username: str) -> dict[str, str]:
-    entities_to_graphql_query_template = {
+    info_type_to_query_template = {
         "prs_opened": """
 query OpenPRs($first: Int!) {
     search(
@@ -201,12 +208,12 @@ query AssignedIssues($first: Int!, $after: String) {
         ),
     }
 
-    entities_to_graphql_query_mapping = {}
-    for entity, query_template in entities_to_graphql_query_template.items():
+    info_type_to_query = {}
+    for info_type, query_template in info_type_to_query_template.items():
         query = query_template.replace("{username}", username).replace("{date}", date)
-        entities_to_graphql_query_mapping[entity] = query
+        info_type_to_query[info_type] = query
 
-    return entities_to_graphql_query_mapping
+    return info_type_to_query
 
 
 def _fetch_info_for_date_graphql(
@@ -216,14 +223,14 @@ def _fetch_info_for_date_graphql(
     username: str,
     token: str,
 ) -> tuple[list[str], bool]:
-    entities_to_graphql_query_mapping = _format_graphql_queries(date=date, username=username)
-    query = entities_to_graphql_query_mapping[info_type]
+    info_type_to_query = _format_graphql_queries(date=date, username=username)
+    query = info_type_to_query[info_type]
 
     if info_type in ("prs_assigned", "prs_review_requested", "prs_reviewed", "issues_assigned"):
         urls, hit_rate_limit = _fetch_event_urls(query=query, date=date, username=username, token=token)
         return urls, hit_rate_limit
 
-    # 100 per page is required by the query and should be good enough for a single day
+    # The query requires a page size. 100 should be enough for a single day
     nodes, _, hit_rate_limit = _post_search_query(query=query, variables={"first": 100}, token=token)
     if hit_rate_limit:
         return [], hit_rate_limit
@@ -263,6 +270,12 @@ def _post_with_retries(*, query: str, variables: dict, token: str) -> requests.R
     GitHub occasionally answers with a 502 or 503 from its edge for a moment. Those carry an HTML body rather than
     a GraphQL payload, and a repeat of the same request usually succeeds. The last response is returned regardless
     of its status so the caller can report it, and the last connection error is re-raised.
+
+    Returns
+    -------
+    requests.Response
+        The last response received, whatever its status.
+
     """
     backoff_seconds = _INITIAL_BACKOFF_SECONDS
     for _ in range(_MAXIMUM_ATTEMPTS - 1):

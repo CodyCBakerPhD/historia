@@ -1,3 +1,5 @@
+"""Refresh the cache for the most recent days."""
+
 import datetime
 import pathlib
 
@@ -14,7 +16,7 @@ def update(
     username: str,
     past_number_of_days: int,
     start_date: str | None = None,
-) -> None:
+) -> bool:
     """
     Fetch and save GitHub info for the most recent ``past_number_of_days`` days.
 
@@ -31,6 +33,11 @@ def update(
         Defaults to today's date in the local timezone.
         Primarily intended to make the iteration deterministic for testing.
 
+    Returns
+    -------
+    bool
+        Whether the GitHub API rate limit was hit on any of the days.
+
     """
     if start_date is None:
         anchor = datetime.datetime.now(tz=datetime.timezone.utc).astimezone().date()
@@ -43,8 +50,11 @@ def update(
         unit="days",
         dynamic_ncols=True,
     ) as progress_bar:
+        hit_rate_limit = False
         for day in progress_bar:
             date = (anchor - datetime.timedelta(days=day)).strftime("%Y-%m-%d")
             progress_bar.set_postfix(date=date)
             overwrite = day < 2
-            dump_info_for_date(directory=directory, date=date, username=username, overwrite=overwrite)
+            hit_rate_limit |= dump_info_for_date(directory=directory, date=date, username=username, overwrite=overwrite)
+
+    return hit_rate_limit
