@@ -43,6 +43,22 @@ _CURRENT_TRANSFERRED_ISSUE_URL = "https://github.com/owner/new-repo/issues/41"
 _DELETED_ISSUE_URL = "https://github.com/owner/repo/issues/404"
 
 
+def _json_response(*, payload: object, status_code: int = 200) -> unittest.mock.MagicMock:
+    response = unittest.mock.MagicMock()
+    response.status_code = status_code
+    response.json.return_value = payload
+    return response
+
+
+def _project_info_payload(*, project_id: str, fields: list[dict], owner_key: str = "user") -> dict:
+    return {"data": {owner_key: {"projectV2": {"id": project_id, "fields": {"nodes": fields}}}}}
+
+
+def _project_items_payload(*, nodes: list[dict], owner_key: str = "user") -> dict:
+    page_info = {"hasNextPage": False, "endCursor": None}
+    return {"data": {owner_key: {"projectV2": {"items": {"nodes": nodes, "pageInfo": page_info}}}}}
+
+
 class _FakeGitHub:
     """
     Answer the requests made by ``add_to_project`` from an in-memory model of GitHub.
@@ -104,18 +120,13 @@ class _FakeGitHub:
             message = f"_FakeGitHub does not model the {operation} operation"
             raise AssertionError(message)
 
-        response = unittest.mock.MagicMock()
-        response.status_code = 200
-        response.json.return_value = {"data": data}
-        return response
+        return _json_response(payload={"data": data})
 
     def get(self, *, url: str, **_kwargs: object) -> unittest.mock.MagicMock:
         requested_path = url.partition("/repos/")[2]
         self.rest_lookups.append(requested_path)
 
-        response = unittest.mock.MagicMock()
-        response.status_code = 404
-        response.json.return_value = {"message": "Not Found"}
+        response = _json_response(payload={"message": "Not Found"}, status_code=404)
         for recorded_url in [*self.moves, *self.items]:
             # The issues endpoint serves pull requests too
             if recorded_url.removeprefix("https://github.com/").replace("/pull/", "/issues/") != requested_path:
@@ -330,9 +341,7 @@ def test_merge_member_values(
 
 @pytest.mark.ai_generated
 def test_check_graphql_response_returns_result_on_success() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"data": {"foo": "bar"}}
+    mock_response = _json_response(payload={"data": {"foo": "bar"}})
 
     result = _check_graphql_response(response=mock_response, context="test")
 
@@ -341,9 +350,7 @@ def test_check_graphql_response_returns_result_on_success() -> None:
 
 @pytest.mark.ai_generated
 def test_check_graphql_response_warns_on_403() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 403
-    mock_response.json.return_value = {"message": "Forbidden"}
+    mock_response = _json_response(payload={"message": "Forbidden"}, status_code=403)
 
     with pytest.warns(UserWarning, match="Status code 403"), pytest.raises(RuntimeError):
         _check_graphql_response(response=mock_response, context="test 403")
@@ -351,9 +358,7 @@ def test_check_graphql_response_warns_on_403() -> None:
 
 @pytest.mark.ai_generated
 def test_check_graphql_response_raises_on_errors_key() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"errors": [{"message": "some error"}]}
+    mock_response = _json_response(payload={"errors": [{"message": "some error"}]})
 
     with pytest.raises(RuntimeError):
         _check_graphql_response(response=mock_response, context="test errors")
@@ -429,32 +434,24 @@ def test_parse_project_url_rejects_keyword_call() -> None:
 
 @pytest.mark.ai_generated
 def test_get_project_info_parses_user_url() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_kwDOA",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_id",
-                                "name": "Status",
-                                "options": [
-                                    {"id": "opt1", "name": "Todo"},
-                                    {"id": "opt2", "name": "In Progress"},
-                                    {"id": "opt3", "name": "Done"},
-                                ],
-                            },
-                            {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
-                            {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ],
-                    },
+    mock_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_kwDOA",
+            fields=[
+                {
+                    "id": "PVTSSF_id",
+                    "name": "Status",
+                    "options": [
+                        {"id": "opt1", "name": "Todo"},
+                        {"id": "opt2", "name": "In Progress"},
+                        {"id": "opt3", "name": "Done"},
+                    ],
                 },
-            },
-        },
-    }
+                {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
+                {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
+            ],
+        ),
+    )
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -478,28 +475,20 @@ def test_get_project_info_parses_user_url() -> None:
 @pytest.mark.ai_generated
 def test_get_project_info_parses_short_user_url() -> None:
     """Short URL format `https://github.com/{login}/projects/{number}` should work."""
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_kwDOB",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_id2",
-                                "name": "Status",
-                                "options": [
-                                    {"id": "opt1", "name": "Todo"},
-                                ],
-                            },
-                        ],
-                    },
+    mock_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_kwDOB",
+            fields=[
+                {
+                    "id": "PVTSSF_id2",
+                    "name": "Status",
+                    "options": [
+                        {"id": "opt1", "name": "Todo"},
+                    ],
                 },
-            },
-        },
-    }
+            ],
+        ),
+    )
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -523,26 +512,18 @@ def test_get_project_info_parses_short_user_url() -> None:
 @pytest.mark.ai_generated
 def test_get_project_info_returns_none_for_missing_date_fields() -> None:
     """When the project has no Start date / End date fields, their IDs are None."""
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_kwDOA",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_id",
-                                "name": "Status",
-                                "options": [{"id": "opt1", "name": "Todo"}],
-                            },
-                        ],
-                    },
+    mock_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_kwDOA",
+            fields=[
+                {
+                    "id": "PVTSSF_id",
+                    "name": "Status",
+                    "options": [{"id": "opt1", "name": "Todo"}],
                 },
-            },
-        },
-    }
+            ],
+        ),
+    )
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -558,18 +539,7 @@ def test_get_project_info_returns_none_for_missing_date_fields() -> None:
 
 @pytest.mark.ai_generated
 def test_get_project_info_raises_when_no_status_field() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_kwDOA",
-                    "fields": {"nodes": []},
-                },
-            },
-        },
-    }
+    mock_response = _json_response(payload=_project_info_payload(project_id="PVT_kwDOA", fields=[]))
 
     headers = {"Authorization": "token fake-token"}
     with (
@@ -584,9 +554,7 @@ def test_get_project_info_raises_when_no_status_field() -> None:
 
 @pytest.mark.ai_generated
 def test_get_item_info_returns_none_when_resource_is_null() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"data": {"resource": None}}
+    mock_response = _json_response(payload={"data": {"resource": None}})
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -597,18 +565,18 @@ def test_get_item_info_returns_none_when_resource_is_null() -> None:
 
 @pytest.mark.ai_generated
 def test_get_item_info_classifies_pull_request() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "PR_node_id",
-                "state": "CLOSED",
-                "createdAt": "2023-01-10T12:00:00Z",
-                "closedAt": "2023-02-01T09:00:00Z",
+    mock_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "PR_node_id",
+                    "state": "CLOSED",
+                    "createdAt": "2023-01-10T12:00:00Z",
+                    "closedAt": "2023-02-01T09:00:00Z",
+                },
             },
         },
-    }
+    )
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -626,18 +594,18 @@ def test_get_item_info_classifies_pull_request() -> None:
 
 @pytest.mark.ai_generated
 def test_get_item_info_classifies_issue() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "ISSUE_node_id",
-                "state": "OPEN",
-                "createdAt": "2023-03-05T08:00:00Z",
-                "closedAt": None,
+    mock_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "ISSUE_node_id",
+                    "state": "OPEN",
+                    "createdAt": "2023-03-05T08:00:00Z",
+                    "closedAt": None,
+                },
             },
         },
-    }
+    )
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -655,9 +623,7 @@ def test_get_item_info_classifies_issue() -> None:
 
 @pytest.mark.ai_generated
 def test_add_item_to_project_returns_item_id() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}}
+    mock_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}})
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response):
@@ -668,9 +634,7 @@ def test_add_item_to_project_returns_item_id() -> None:
 
 @pytest.mark.ai_generated
 def test_add_item_to_project_returns_none_on_403() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 403
-    mock_response.json.return_value = {"message": "Forbidden"}
+    mock_response = _json_response(payload={"message": "Forbidden"}, status_code=403)
 
     headers = {"Authorization": "token fake-token"}
     with (
@@ -683,19 +647,18 @@ def test_add_item_to_project_returns_none_on_403() -> None:
 
 
 def _something_went_wrong_response() -> unittest.mock.MagicMock:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "errors": [
-            {
-                "message": (
-                    "Something went wrong while executing your query on 2026-09-29T00:15:40Z. "
-                    "Please include `F469:1E5255:A85622:22BFE56:6ABB0329` when reporting this issue."
-                ),
-            },
-        ],
-    }
-    return mock_response
+    return _json_response(
+        payload={
+            "errors": [
+                {
+                    "message": (
+                        "Something went wrong while executing your query on 2026-09-29T00:15:40Z. "
+                        "Please include `F469:1E5255:A85622:22BFE56:6ABB0329` when reporting this issue."
+                    ),
+                },
+            ],
+        },
+    )
 
 
 def _bad_gateway_response() -> unittest.mock.MagicMock:
@@ -720,9 +683,7 @@ def _bad_gateway_response() -> unittest.mock.MagicMock:
 def test_add_item_to_project_retries_transient_failures(
     transient_failure: unittest.mock.MagicMock | Exception,
 ) -> None:
-    success_response = unittest.mock.MagicMock()
-    success_response.status_code = 200
-    success_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}}
+    success_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_item_id"}}}})
 
     headers = {"Authorization": "token fake-token"}
     with (
@@ -754,9 +715,9 @@ def test_add_item_to_project_raises_on_persistent_transient_failure() -> None:
 
 @pytest.mark.ai_generated
 def test_add_item_to_project_does_not_retry_other_errors() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"errors": [{"type": "NOT_FOUND", "message": "Could not resolve to a node"}]}
+    mock_response = _json_response(
+        payload={"errors": [{"type": "NOT_FOUND", "message": "Could not resolve to a node"}]},
+    )
 
     headers = {"Authorization": "token fake-token"}
     with (
@@ -786,11 +747,11 @@ def test_set_item_field_calls_mutation(
     value_variable: str,
     value: str,
 ) -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}},
-    }
+    mock_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}},
+        },
+    )
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
@@ -819,68 +780,45 @@ def test_add_to_project_end_to_end(monkeypatch: pytest.MonkeyPatch, tmp_path: pa
     pr_url = "https://github.com/owner/repo/pull/1"
     (tmp_path / "urls.json").write_text(json.dumps([pr_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [
-                                    {"id": "opt_done", "name": "Done"},
-                                    {"id": "opt_progress", "name": "In Progress"},
-                                    {"id": "opt_todo", "name": "Todo"},
-                                ],
-                            },
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [
+                        {"id": "opt_done", "name": "Done"},
+                        {"id": "opt_progress", "name": "In Progress"},
+                        {"id": "opt_todo", "name": "Todo"},
+                    ],
+                },
+            ],
+        ),
+    )
+
+    item_info_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "PR_node_id",
+                    "state": "CLOSED",
+                    "createdAt": "2023-01-10T12:00:00Z",
+                    "closedAt": "2023-02-01T09:00:00Z",
                 },
             },
         },
-    }
+    )
 
-    item_info_response = unittest.mock.MagicMock()
-    item_info_response.status_code = 200
-    item_info_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "PR_node_id",
-                "state": "CLOSED",
-                "createdAt": "2023-01-10T12:00:00Z",
-                "closedAt": "2023-02-01T09:00:00Z",
-            },
+    add_item_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}})
+
+    set_status_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
         },
-    }
+    )
 
-    add_item_response = unittest.mock.MagicMock()
-    add_item_response.status_code = 200
-    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
-
-    set_status_response = unittest.mock.MagicMock()
-    set_status_response.status_code = 200
-    set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
-    }
-
-    empty_project_response = unittest.mock.MagicMock()
-    empty_project_response.status_code = 200
-    empty_project_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
+    empty_project_response = _json_response(payload=_project_items_payload(nodes=[]))
 
     response_sequence = [
         project_info_response,
@@ -1073,68 +1011,45 @@ def test_add_to_project_status_override(monkeypatch: pytest.MonkeyPatch, tmp_pat
     issue_url = "https://github.com/owner/repo/issues/10"
     (tmp_path / "urls.json").write_text(json.dumps([issue_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [
-                                    {"id": "opt_done", "name": "Done"},
-                                    {"id": "opt_progress", "name": "In Progress"},
-                                    {"id": "opt_todo", "name": "Todo"},
-                                ],
-                            },
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [
+                        {"id": "opt_done", "name": "Done"},
+                        {"id": "opt_progress", "name": "In Progress"},
+                        {"id": "opt_todo", "name": "Todo"},
+                    ],
+                },
+            ],
+        ),
+    )
+
+    item_info_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "ISSUE_node_id",
+                    "state": "OPEN",
+                    "createdAt": "2023-03-05T08:00:00Z",
+                    "closedAt": None,
                 },
             },
         },
-    }
+    )
 
-    item_info_response = unittest.mock.MagicMock()
-    item_info_response.status_code = 200
-    item_info_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "ISSUE_node_id",
-                "state": "OPEN",
-                "createdAt": "2023-03-05T08:00:00Z",
-                "closedAt": None,
-            },
+    add_item_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}})
+
+    set_status_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
         },
-    }
+    )
 
-    add_item_response = unittest.mock.MagicMock()
-    add_item_response.status_code = 200
-    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
-
-    set_status_response = unittest.mock.MagicMock()
-    set_status_response.status_code = 200
-    set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
-    }
-
-    empty_project_response = unittest.mock.MagicMock()
-    empty_project_response.status_code = 200
-    empty_project_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
+    empty_project_response = _json_response(payload=_project_items_payload(nodes=[]))
 
     response_sequence = [
         project_info_response,
@@ -1168,58 +1083,35 @@ def test_add_to_project_status_override_unknown_status_warns(
     pr_url = "https://github.com/owner/repo/pull/1"
     (tmp_path / "urls.json").write_text(json.dumps([pr_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+            ],
+        ),
+    )
+
+    item_info_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "PR_node_id",
+                    "state": "OPEN",
+                    "createdAt": "2023-04-01T10:00:00Z",
+                    "closedAt": None,
                 },
             },
         },
-    }
+    )
 
-    item_info_response = unittest.mock.MagicMock()
-    item_info_response.status_code = 200
-    item_info_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "PR_node_id",
-                "state": "OPEN",
-                "createdAt": "2023-04-01T10:00:00Z",
-                "closedAt": None,
-            },
-        },
-    }
+    add_item_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}})
 
-    add_item_response = unittest.mock.MagicMock()
-    add_item_response.status_code = 200
-    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
-
-    empty_project_response = unittest.mock.MagicMock()
-    empty_project_response.status_code = 200
-    empty_project_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
+    empty_project_response = _json_response(payload=_project_items_payload(nodes=[]))
 
     response_sequence = [project_info_response, empty_project_response, item_info_response, add_item_response]
 
@@ -1236,17 +1128,17 @@ def test_add_to_project_status_override_unknown_status_warns(
 
 @pytest.mark.ai_generated
 def test_set_item_date_skips_missing_project_item() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": None},
-        "errors": [
-            {
-                "type": "NOT_FOUND",
-                "message": "Could not resolve to a node with the global id of 'PVTI_item_id'.",
-            },
-        ],
-    }
+    mock_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": None},
+            "errors": [
+                {
+                    "type": "NOT_FOUND",
+                    "message": "Could not resolve to a node with the global id of 'PVTI_item_id'.",
+                },
+            ],
+        },
+    )
 
     headers = {"Authorization": "token fake-token"}
     with (
@@ -1264,17 +1156,17 @@ def test_set_item_date_skips_missing_project_item() -> None:
 
 @pytest.mark.ai_generated
 def test_set_item_date_raises_for_non_missing_item_errors() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": None},
-        "errors": [
-            {
-                "type": "SOMETHING_ELSE",
-                "message": "Some other GraphQL error.",
-            },
-        ],
-    }
+    mock_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": None},
+            "errors": [
+                {
+                    "type": "SOMETHING_ELSE",
+                    "message": "Some other GraphQL error.",
+                },
+            ],
+        },
+    )
 
     headers = {"Authorization": "token fake-token"}
     with (
@@ -1298,66 +1190,43 @@ def test_add_to_project_sets_dates_when_fields_present(monkeypatch: pytest.Monke
     pr_url = "https://github.com/owner/repo/pull/1"
     (tmp_path / "urls.json").write_text(json.dumps([pr_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                            {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
-                            {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+                {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
+                {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
+            ],
+        ),
+    )
+
+    item_info_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "PR_node_id",
+                    "state": "CLOSED",
+                    "createdAt": "2023-01-10T12:00:00Z",
+                    "closedAt": "2023-02-01T09:00:00Z",
                 },
             },
         },
-    }
+    )
 
-    item_info_response = unittest.mock.MagicMock()
-    item_info_response.status_code = 200
-    item_info_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "PR_node_id",
-                "state": "CLOSED",
-                "createdAt": "2023-01-10T12:00:00Z",
-                "closedAt": "2023-02-01T09:00:00Z",
-            },
+    add_item_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}})
+
+    set_field_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
         },
-    }
+    )
 
-    add_item_response = unittest.mock.MagicMock()
-    add_item_response.status_code = 200
-    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
-
-    set_field_response = unittest.mock.MagicMock()
-    set_field_response.status_code = 200
-    set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
-    }
-
-    empty_project_response = unittest.mock.MagicMock()
-    empty_project_response.status_code = 200
-    empty_project_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
+    empty_project_response = _json_response(payload=_project_items_payload(nodes=[]))
 
     # project_info, list_project_item_content_urls, item_info, add_item, set_status, set_start_date, set_end_date
     response_sequence = [
@@ -1400,65 +1269,42 @@ def test_add_to_project_uses_placeholder_end_date_for_open_item(
     issue_url = "https://github.com/owner/repo/issues/5"
     (tmp_path / "urls.json").write_text(json.dumps([issue_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_todo", "name": "Todo"}],
-                            },
-                            {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_todo", "name": "Todo"}],
+                },
+                {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
+            ],
+        ),
+    )
+
+    item_info_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "ISSUE_node_id",
+                    "state": "OPEN",
+                    "createdAt": "2023-06-01T00:00:00Z",
+                    "closedAt": None,
                 },
             },
         },
-    }
+    )
 
-    item_info_response = unittest.mock.MagicMock()
-    item_info_response.status_code = 200
-    item_info_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "ISSUE_node_id",
-                "state": "OPEN",
-                "createdAt": "2023-06-01T00:00:00Z",
-                "closedAt": None,
-            },
+    add_item_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}})
+
+    set_field_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
         },
-    }
+    )
 
-    add_item_response = unittest.mock.MagicMock()
-    add_item_response.status_code = 200
-    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
-
-    set_field_response = unittest.mock.MagicMock()
-    set_field_response.status_code = 200
-    set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
-    }
-
-    empty_project_response = unittest.mock.MagicMock()
-    empty_project_response.status_code = 200
-    empty_project_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
+    empty_project_response = _json_response(payload=_project_items_payload(nodes=[]))
 
     response_sequence = [
         project_info_response,
@@ -1508,26 +1354,18 @@ def test_update_project_items_warns_when_field_is_missing(
     """When the project lacks the fields an update writes, a warning is emitted and no updates are made."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
                 },
-            },
-        },
-    }
+            ],
+        ),
+    )
 
     with (
         unittest.mock.patch("requests.post", return_value=project_info_response),
@@ -1541,64 +1379,47 @@ def test_update_project_item_dates_updates_items(monkeypatch: pytest.MonkeyPatch
     """update_project_item_dates sets dates on all items already in the project."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                            {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
-                            {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ],
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+                {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
+                {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
+            ],
+        ),
+    )
+
+    list_items_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_closed",
+                    "content": {
+                        "createdAt": "2023-01-10T12:00:00Z",
+                        "closedAt": "2023-02-01T09:00:00Z",
                     },
                 },
-            },
-        },
-    }
-
-    list_items_response = unittest.mock.MagicMock()
-    list_items_response.status_code = 200
-    list_items_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {
-                                "id": "PVTI_closed",
-                                "content": {
-                                    "createdAt": "2023-01-10T12:00:00Z",
-                                    "closedAt": "2023-02-01T09:00:00Z",
-                                },
-                            },
-                            {
-                                "id": "PVTI_open",
-                                "content": {
-                                    "createdAt": "2023-03-05T08:00:00Z",
-                                    "closedAt": None,
-                                },
-                            },
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                {
+                    "id": "PVTI_open",
+                    "content": {
+                        "createdAt": "2023-03-05T08:00:00Z",
+                        "closedAt": None,
                     },
                 },
-            },
-        },
-    }
+            ],
+        ),
+    )
 
-    set_field_response = unittest.mock.MagicMock()
-    set_field_response.status_code = 200
-    set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_closed"}}},
-    }
+    set_field_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_closed"}}},
+        },
+    )
 
     # project_info, list_items, then 4 date sets (2 items × 2 fields each)
     response_sequence = [
@@ -1663,68 +1484,51 @@ def test_update_project_item_dates_respects_recency(
     still_long_ago = (today - datetime.timedelta(days=300)).isoformat()
     yesterday = (today - datetime.timedelta(days=1)).isoformat()
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                            {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
-                            {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
-                        ],
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+                {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
+                {"id": "PVTF_end", "name": "End date", "dataType": "DATE"},
+            ],
+        ),
+    )
+
+    list_items_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_stale",
+                    "content": {
+                        "createdAt": f"{long_ago}T12:00:00Z",
+                        "closedAt": f"{still_long_ago}T12:00:00Z",
                     },
                 },
-            },
-        },
-    }
-
-    list_items_response = unittest.mock.MagicMock()
-    list_items_response.status_code = 200
-    list_items_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {
-                                "id": "PVTI_stale",
-                                "content": {
-                                    "createdAt": f"{long_ago}T12:00:00Z",
-                                    "closedAt": f"{still_long_ago}T12:00:00Z",
-                                },
-                            },
-                            {
-                                "id": "PVTI_recently_created",
-                                "content": {"createdAt": f"{yesterday}T12:00:00Z", "closedAt": None},
-                            },
-                            {
-                                "id": "PVTI_recently_closed",
-                                "content": {
-                                    "createdAt": f"{long_ago}T12:00:00Z",
-                                    "closedAt": f"{yesterday}T12:00:00Z",
-                                },
-                            },
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                {
+                    "id": "PVTI_recently_created",
+                    "content": {"createdAt": f"{yesterday}T12:00:00Z", "closedAt": None},
+                },
+                {
+                    "id": "PVTI_recently_closed",
+                    "content": {
+                        "createdAt": f"{long_ago}T12:00:00Z",
+                        "closedAt": f"{yesterday}T12:00:00Z",
                     },
                 },
-            },
-        },
-    }
+            ],
+        ),
+    )
 
-    set_field_response = unittest.mock.MagicMock()
-    set_field_response.status_code = 200
-    set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_stale"}}},
-    }
+    set_field_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_stale"}}},
+        },
+    )
 
     response_sequence = [project_info_response, list_items_response]
     response_sequence += [set_field_response] * (2 * len(expected_item_ids))
@@ -1754,74 +1558,57 @@ def test_update_project_item_members_raises_without_token(monkeypatch: pytest.Mo
 def test_update_project_item_members_updates_items(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                            {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
-                        ],
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+                {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+            ],
+        ),
+    )
+
+    list_items_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_issue",
+                    "content": {
+                        "assignees": {"nodes": [{"login": "alex"}, {"login": "cody"}]},
                     },
                 },
-            },
-        },
-    }
-
-    list_items_response = unittest.mock.MagicMock()
-    list_items_response.status_code = 200
-    list_items_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {
-                                "id": "PVTI_issue",
-                                "content": {
-                                    "assignees": {"nodes": [{"login": "alex"}, {"login": "cody"}]},
-                                },
-                            },
-                            {
-                                "id": "PVTI_pr",
-                                "content": {
-                                    "assignees": {"nodes": [{"login": "cody"}]},
-                                    "reviewRequests": {
-                                        "nodes": [
-                                            {"requestedReviewer": {"login": "zeus"}},
-                                            {"requestedReviewer": {"name": "infra-team"}},
-                                        ],
-                                    },
-                                },
-                            },
-                            {
-                                "id": "PVTI_none",
-                                "content": {
-                                    "assignees": {"nodes": []},
-                                    "reviewRequests": {"nodes": []},
-                                },
-                            },
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                {
+                    "id": "PVTI_pr",
+                    "content": {
+                        "assignees": {"nodes": [{"login": "cody"}]},
+                        "reviewRequests": {
+                            "nodes": [
+                                {"requestedReviewer": {"login": "zeus"}},
+                                {"requestedReviewer": {"name": "infra-team"}},
+                            ],
+                        },
                     },
                 },
-            },
-        },
-    }
+                {
+                    "id": "PVTI_none",
+                    "content": {
+                        "assignees": {"nodes": []},
+                        "reviewRequests": {"nodes": []},
+                    },
+                },
+            ],
+        ),
+    )
 
-    set_members_response = unittest.mock.MagicMock()
-    set_members_response.status_code = 200
-    set_members_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_issue"}}},
-    }
+    set_members_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_issue"}}},
+        },
+    )
 
     response_sequence = [
         project_info_response,
@@ -1848,29 +1635,20 @@ def test_update_project_item_members_updates_items(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.ai_generated
 def test_list_project_items_with_dates_returns_items() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {
-                                "id": "PVTI_1",
-                                "content": {
-                                    "createdAt": "2023-01-01T00:00:00Z",
-                                    "closedAt": "2023-06-01T00:00:00Z",
-                                },
-                            },
-                            {"id": "PVTI_no_content", "content": None},
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+    mock_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_1",
+                    "content": {
+                        "createdAt": "2023-01-01T00:00:00Z",
+                        "closedAt": "2023-06-01T00:00:00Z",
                     },
                 },
-            },
-        },
-    }
+                {"id": "PVTI_no_content", "content": None},
+            ],
+        ),
+    )
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
         items = _list_project_items_with_dates(
@@ -1888,36 +1666,27 @@ def test_list_project_items_with_dates_returns_items() -> None:
 
 @pytest.mark.ai_generated
 def test_list_project_items_with_member_usernames_returns_items() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {
-                                "id": "PVTI_1",
-                                "content": {
-                                    "assignees": {"nodes": [{"login": "alex"}]},
-                                    "reviewRequests": {"nodes": [{"requestedReviewer": {"login": "cody"}}]},
-                                },
-                            },
-                            {
-                                "id": "PVTI_empty",
-                                "content": {
-                                    "assignees": {"nodes": []},
-                                    "reviewRequests": {"nodes": []},
-                                },
-                            },
-                            {"id": "PVTI_no_content", "content": None},
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+    mock_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_1",
+                    "content": {
+                        "assignees": {"nodes": [{"login": "alex"}]},
+                        "reviewRequests": {"nodes": [{"requestedReviewer": {"login": "cody"}}]},
                     },
                 },
-            },
-        },
-    }
+                {
+                    "id": "PVTI_empty",
+                    "content": {
+                        "assignees": {"nodes": []},
+                        "reviewRequests": {"nodes": []},
+                    },
+                },
+                {"id": "PVTI_no_content", "content": None},
+            ],
+        ),
+    )
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
         items = _list_project_items_with_member_usernames(
@@ -1953,20 +1722,7 @@ def test_list_project_items_with_member_usernames_returns_items() -> None:
 )
 def test_list_project_item_content_urls_returns_urls(nodes: list[dict], expected_urls: set[str]) -> None:
     """_list_project_item_content_urls returns the set of content URLs already in the project, if any."""
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": nodes,
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
+    mock_response = _json_response(payload=_project_items_payload(nodes=nodes))
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
         urls = _list_project_item_content_urls(
@@ -1981,35 +1737,26 @@ def test_list_project_item_content_urls_returns_urls(nodes: list[dict], expected
 
 @pytest.mark.ai_generated
 def test_list_project_items_with_member_values_returns_items() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
+    mock_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_1",
+                    "content": {"url": "https://github.com/owner/repo/pull/1"},
+                    "fieldValues": {
                         "nodes": [
-                            {
-                                "id": "PVTI_1",
-                                "content": {"url": "https://github.com/owner/repo/pull/1"},
-                                "fieldValues": {
-                                    "nodes": [
-                                        {"text": "cody", "field": {"id": "PVTF_members"}},
-                                    ],
-                                },
-                            },
-                            {
-                                "id": "PVTI_2",
-                                "content": {"url": "https://github.com/owner/repo/issues/2"},
-                                "fieldValues": {"nodes": []},
-                            },
+                            {"text": "cody", "field": {"id": "PVTF_members"}},
                         ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
                     },
                 },
-            },
-        },
-    }
+                {
+                    "id": "PVTI_2",
+                    "content": {"url": "https://github.com/owner/repo/issues/2"},
+                    "fieldValues": {"nodes": []},
+                },
+            ],
+        ),
+    )
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
         items = _list_project_items_with_member_values(
@@ -2047,66 +1794,49 @@ def test_add_to_project_skips_items_already_in_project(
     new_pr_url = "https://github.com/owner/repo/pull/2"
     (tmp_path / "urls.json").write_text(json.dumps([existing_pr_url, new_pr_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            owner_key: {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+            ],
+            owner_key=owner_key,
+        ),
+    )
+
+    list_urls_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {"content": {"url": existing_pr_url}},
+            ],
+            owner_key=owner_key,
+        ),
+    )
+
+    item_info_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "PR2_node_id",
+                    "state": "CLOSED",
+                    "createdAt": "2023-05-01T00:00:00Z",
+                    "closedAt": "2023-06-01T00:00:00Z",
                 },
             },
         },
-    }
+    )
 
-    list_urls_response = unittest.mock.MagicMock()
-    list_urls_response.status_code = 200
-    list_urls_response.json.return_value = {
-        "data": {
-            owner_key: {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {"content": {"url": existing_pr_url}},
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
+    add_item_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}})
+
+    set_status_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
         },
-    }
-
-    item_info_response = unittest.mock.MagicMock()
-    item_info_response.status_code = 200
-    item_info_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "PR2_node_id",
-                "state": "CLOSED",
-                "createdAt": "2023-05-01T00:00:00Z",
-                "closedAt": "2023-06-01T00:00:00Z",
-            },
-        },
-    }
-
-    add_item_response = unittest.mock.MagicMock()
-    add_item_response.status_code = 200
-    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
-
-    set_status_response = unittest.mock.MagicMock()
-    set_status_response.status_code = 200
-    set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
-    }
+    )
 
     # Only new_pr_url should be processed: project_info, list_urls, item_info, add_item, set_status
     response_sequence = [
@@ -2157,65 +1887,42 @@ def test_add_to_project_members_mode_sets_members_for_new_item(
     new_pr_url = "https://github.com/owner/repo/pull/2"
     (user_directory / "urls.json").write_text(json.dumps([new_pr_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                            {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+                {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+            ],
+        ),
+    )
+
+    list_members_response = _json_response(payload=_project_items_payload(nodes=[]))
+
+    item_info_response = _json_response(
+        payload={
+            "data": {
+                "resource": {
+                    "id": "PR2_node_id",
+                    "state": "CLOSED",
+                    "createdAt": "2023-05-01T00:00:00Z",
+                    "closedAt": "2023-06-01T00:00:00Z",
                 },
             },
         },
-    }
+    )
 
-    list_members_response = unittest.mock.MagicMock()
-    list_members_response.status_code = 200
-    list_members_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
+    add_item_response = _json_response(payload={"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}})
+
+    set_field_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
         },
-    }
-
-    item_info_response = unittest.mock.MagicMock()
-    item_info_response.status_code = 200
-    item_info_response.json.return_value = {
-        "data": {
-            "resource": {
-                "id": "PR2_node_id",
-                "state": "CLOSED",
-                "createdAt": "2023-05-01T00:00:00Z",
-                "closedAt": "2023-06-01T00:00:00Z",
-            },
-        },
-    }
-
-    add_item_response = unittest.mock.MagicMock()
-    add_item_response.status_code = 200
-    add_item_response.json.return_value = {"data": {"addProjectV2ItemById": {"item": {"id": "PVTI_new"}}}}
-
-    set_field_response = unittest.mock.MagicMock()
-    set_field_response.status_code = 200
-    set_field_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_new"}}},
-    }
+    )
 
     response_sequence = [
         project_info_response,
@@ -2253,61 +1960,44 @@ def test_add_to_project_members_mode_updates_existing_item(
     existing_pr_url = "https://github.com/owner/repo/pull/1"
     (user_directory / "urls.json").write_text(json.dumps([existing_pr_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
+                },
+                {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+            ],
+        ),
+    )
+
+    list_members_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_existing",
+                    "content": {"url": existing_pr_url},
+                    "fieldValues": {
                         "nodes": [
                             {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
+                                "text": "cody",
+                                "field": {"id": "PVTF_members"},
                             },
-                            {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
                         ],
                     },
                 },
-            },
-        },
-    }
+            ],
+        ),
+    )
 
-    list_members_response = unittest.mock.MagicMock()
-    list_members_response.status_code = 200
-    list_members_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {
-                                "id": "PVTI_existing",
-                                "content": {"url": existing_pr_url},
-                                "fieldValues": {
-                                    "nodes": [
-                                        {
-                                            "text": "cody",
-                                            "field": {"id": "PVTF_members"},
-                                        },
-                                    ],
-                                },
-                            },
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
+    set_members_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_existing"}}},
         },
-    }
-
-    set_members_response = unittest.mock.MagicMock()
-    set_members_response.status_code = 200
-    set_members_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_existing"}}},
-    }
+    )
 
     response_sequence = [
         project_info_response,
@@ -2342,55 +2032,38 @@ def test_members_mode_skips_unchanged_member_updates(
     existing_pr_url = "https://github.com/owner/repo/pull/1"
     (user_directory / "urls.json").write_text(json.dumps([existing_pr_url]))
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                            {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
-                        ],
-                    },
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [{"id": "opt_done", "name": "Done"}],
                 },
-            },
-        },
-    }
+                {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+            ],
+        ),
+    )
 
-    list_members_response = unittest.mock.MagicMock()
-    list_members_response.status_code = 200
-    list_members_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
+    list_members_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_existing",
+                    "content": {"url": existing_pr_url},
+                    "fieldValues": {
                         "nodes": [
                             {
-                                "id": "PVTI_existing",
-                                "content": {"url": existing_pr_url},
-                                "fieldValues": {
-                                    "nodes": [
-                                        {
-                                            "text": "alex",
-                                            "field": {"id": "PVTF_members"},
-                                        },
-                                    ],
-                                },
+                                "text": "alex",
+                                "field": {"id": "PVTF_members"},
                             },
                         ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
                     },
                 },
-            },
-        },
-    }
+            ],
+        ),
+    )
 
     response_sequence = [
         project_info_response,
@@ -2411,47 +2084,38 @@ def test_members_mode_skips_unchanged_member_updates(
 @pytest.mark.ai_generated
 def test_list_project_items_with_status_returns_items() -> None:
     """_list_project_items_with_status returns item IDs with their status option IDs."""
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
+    mock_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_done",
+                    "fieldValues": {
                         "nodes": [
                             {
-                                "id": "PVTI_done",
-                                "fieldValues": {
-                                    "nodes": [
-                                        {
-                                            "optionId": "opt_done",
-                                            "field": {"id": "PVTSSF_status"},
-                                        },
-                                    ],
-                                },
-                            },
-                            {
-                                "id": "PVTI_progress",
-                                "fieldValues": {
-                                    "nodes": [
-                                        {
-                                            "optionId": "opt_progress",
-                                            "field": {"id": "PVTSSF_status"},
-                                        },
-                                    ],
-                                },
-                            },
-                            {
-                                "id": "PVTI_no_status",
-                                "fieldValues": {"nodes": []},
+                                "optionId": "opt_done",
+                                "field": {"id": "PVTSSF_status"},
                             },
                         ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
                     },
                 },
-            },
-        },
-    }
+                {
+                    "id": "PVTI_progress",
+                    "fieldValues": {
+                        "nodes": [
+                            {
+                                "optionId": "opt_progress",
+                                "field": {"id": "PVTSSF_status"},
+                            },
+                        ],
+                    },
+                },
+                {
+                    "id": "PVTI_no_status",
+                    "fieldValues": {"nodes": []},
+                },
+            ],
+        ),
+    )
 
     with unittest.mock.patch("requests.post", return_value=mock_response):
         items = _list_project_items_with_status(
@@ -2472,68 +2136,51 @@ def test_list_project_items_with_status_returns_items() -> None:
 def test_transition_status_moves_only_matching_items(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [
-                                    {"id": "opt_done", "name": "DONE"},
-                                    {"id": "opt_history", "name": "History"},
-                                    {"id": "opt_progress", "name": "In Progress"},
-                                ],
-                            },
-                        ],
+    project_info_response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {
+                    "id": "PVTSSF_status",
+                    "name": "Status",
+                    "options": [
+                        {"id": "opt_done", "name": "DONE"},
+                        {"id": "opt_history", "name": "History"},
+                        {"id": "opt_progress", "name": "In Progress"},
+                    ],
+                },
+            ],
+        ),
+    )
+
+    list_items_response = _json_response(
+        payload=_project_items_payload(
+            nodes=[
+                {
+                    "id": "PVTI_progress_1",
+                    "fieldValues": {
+                        "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}],
                     },
                 },
-            },
-        },
-    }
-
-    list_items_response = unittest.mock.MagicMock()
-    list_items_response.status_code = 200
-    list_items_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [
-                            {
-                                "id": "PVTI_progress_1",
-                                "fieldValues": {
-                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}],
-                                },
-                            },
-                            {
-                                "id": "PVTI_progress_2",
-                                "fieldValues": {
-                                    "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}],
-                                },
-                            },
-                            {
-                                "id": "PVTI_done",
-                                "fieldValues": {"nodes": [{"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}]},
-                            },
-                        ],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                {
+                    "id": "PVTI_progress_2",
+                    "fieldValues": {
+                        "nodes": [{"optionId": "opt_progress", "field": {"id": "PVTSSF_status"}}],
                     },
                 },
-            },
-        },
-    }
+                {
+                    "id": "PVTI_done",
+                    "fieldValues": {"nodes": [{"optionId": "opt_done", "field": {"id": "PVTSSF_status"}}]},
+                },
+            ],
+        ),
+    )
 
-    set_status_response = unittest.mock.MagicMock()
-    set_status_response.status_code = 200
-    set_status_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_progress_1"}}},
-    }
+    set_status_response = _json_response(
+        payload={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_progress_1"}}},
+        },
+    )
 
     response_sequence = [
         project_info_response,
@@ -2600,19 +2247,19 @@ def test_get_project_closing_workflows_filters_correctly(
     workflow_nodes: list[dict],
     expected: list[str],
 ) -> None:
-    response = unittest.mock.MagicMock()
-    response.status_code = 200
-    response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "workflows": {
-                        "nodes": workflow_nodes,
+    response = _json_response(
+        payload={
+            "data": {
+                "user": {
+                    "projectV2": {
+                        "workflows": {
+                            "nodes": workflow_nodes,
+                        },
                     },
                 },
             },
         },
-    }
+    )
 
     with unittest.mock.patch("requests.post", return_value=response):
         result = _get_project_closing_workflows(
@@ -2625,21 +2272,21 @@ def test_get_project_closing_workflows_filters_correctly(
 
 @pytest.mark.ai_generated
 def test_get_project_closing_workflows_org_project() -> None:
-    response = unittest.mock.MagicMock()
-    response.status_code = 200
-    response.json.return_value = {
-        "data": {
-            "organization": {
-                "projectV2": {
-                    "workflows": {
-                        "nodes": [
-                            {"name": "Auto-close issue", "enabled": True},
-                        ],
+    response = _json_response(
+        payload={
+            "data": {
+                "organization": {
+                    "projectV2": {
+                        "workflows": {
+                            "nodes": [
+                                {"name": "Auto-close issue", "enabled": True},
+                            ],
+                        },
                     },
                 },
             },
         },
-    }
+    )
 
     with unittest.mock.patch("requests.post", return_value=response) as mock_post:
         result = _get_project_closing_workflows(
@@ -2668,22 +2315,22 @@ def test_get_project_closing_workflows_public_returns_list(
 ) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
-    response = unittest.mock.MagicMock()
-    response.status_code = 200
-    response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "workflows": {
-                        "nodes": [
-                            {"name": "Auto-close issue", "enabled": True},
-                            {"name": "Item closed", "enabled": True},
-                        ],
+    response = _json_response(
+        payload={
+            "data": {
+                "user": {
+                    "projectV2": {
+                        "workflows": {
+                            "nodes": [
+                                {"name": "Auto-close issue", "enabled": True},
+                                {"name": "Item closed", "enabled": True},
+                            ],
+                        },
                     },
                 },
             },
         },
-    }
+    )
 
     with unittest.mock.patch("requests.post", return_value=response):
         result = historia.project.get_project_closing_workflows("https://github.com/users/testuser/projects/1")
