@@ -1,3 +1,4 @@
+import collections.abc
 import datetime
 import json
 import pathlib
@@ -770,7 +771,21 @@ def test_add_item_to_project_does_not_retry_other_errors() -> None:
 
 
 @pytest.mark.ai_generated
-def test_set_item_status_calls_mutation() -> None:
+@pytest.mark.parametrize(
+    ("setter", "field_id", "value_keyword", "value_variable", "value"),
+    [
+        pytest.param(_set_item_status, "PVTSSF_id", "option_id", "optionId", "opt_done", id="status"),
+        pytest.param(_set_item_text, "PVTF_members", "text", "text", "cody", id="text"),
+        pytest.param(_set_item_date, "PVTF_date", "date", "date", "2023-01-15", id="date"),
+    ],
+)
+def test_set_item_field_calls_mutation(
+    setter: collections.abc.Callable[..., None],
+    field_id: str,
+    value_keyword: str,
+    value_variable: str,
+    value: str,
+) -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
@@ -779,12 +794,12 @@ def test_set_item_status_calls_mutation() -> None:
 
     headers = {"Authorization": "token fake-token"}
     with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
-        _set_item_status(
+        setter(
             project_id="PVT_kwDOA",
             item_id="PVTI_item_id",
-            field_id="PVTSSF_id",
-            option_id="opt_done",
+            field_id=field_id,
             headers=headers,
+            **{value_keyword: value},
         )
 
     mock_post.assert_called_once()
@@ -792,35 +807,8 @@ def test_set_item_status_calls_mutation() -> None:
     variables = call_kwargs["json"]["variables"]
     assert variables["projectId"] == "PVT_kwDOA"
     assert variables["itemId"] == "PVTI_item_id"
-    assert variables["fieldId"] == "PVTSSF_id"
-    assert variables["optionId"] == "opt_done"
-
-
-@pytest.mark.ai_generated
-def test_set_item_text_calls_mutation() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}},
-    }
-
-    headers = {"Authorization": "token fake-token"}
-    with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
-        _set_item_text(
-            project_id="PVT_kwDOA",
-            item_id="PVTI_item_id",
-            field_id="PVTF_members",
-            text="cody",
-            headers=headers,
-        )
-
-    mock_post.assert_called_once()
-    call_kwargs = mock_post.call_args.kwargs
-    variables = call_kwargs["json"]["variables"]
-    assert variables["projectId"] == "PVT_kwDOA"
-    assert variables["itemId"] == "PVTI_item_id"
-    assert variables["fieldId"] == "PVTF_members"
-    assert variables["text"] == "cody"
+    assert variables["fieldId"] == field_id
+    assert variables[value_variable] == value
 
 
 @pytest.mark.ai_generated
@@ -1247,33 +1235,6 @@ def test_add_to_project_status_override_unknown_status_warns(
 
 
 @pytest.mark.ai_generated
-def test_set_item_date_calls_mutation() -> None:
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_item_id"}}},
-    }
-
-    headers = {"Authorization": "token fake-token"}
-    with unittest.mock.patch("requests.post", return_value=mock_response) as mock_post:
-        _set_item_date(
-            project_id="PVT_kwDOA",
-            item_id="PVTI_item_id",
-            field_id="PVTF_date",
-            date="2023-01-15",
-            headers=headers,
-        )
-
-    mock_post.assert_called_once()
-    call_kwargs = mock_post.call_args.kwargs
-    variables = call_kwargs["json"]["variables"]
-    assert variables["projectId"] == "PVT_kwDOA"
-    assert variables["itemId"] == "PVTI_item_id"
-    assert variables["fieldId"] == "PVTF_date"
-    assert variables["date"] == "2023-01-15"
-
-
-@pytest.mark.ai_generated
 def test_set_item_date_skips_missing_project_item() -> None:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
@@ -1531,8 +1492,20 @@ def test_update_project_item_dates_raises_without_token(monkeypatch: pytest.Monk
 
 
 @pytest.mark.ai_generated
-def test_update_project_item_dates_warns_when_no_date_fields(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When the project has no Start date / End date fields, a warning is emitted and no updates are made."""
+@pytest.mark.parametrize(
+    ("update_function", "expected_warning"),
+    [
+        (historia.project.update_project_item_dates, "no 'Start date' or 'End date' fields"),
+        (historia.project.update_project_item_members, "has no 'Members' field"),
+    ],
+    ids=["dates", "members"],
+)
+def test_update_project_items_warns_when_field_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    update_function: collections.abc.Callable[..., None],
+    expected_warning: str,
+) -> None:
+    """When the project lacks the fields an update writes, a warning is emitted and no updates are made."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
     project_info_response = unittest.mock.MagicMock()
@@ -1558,9 +1531,9 @@ def test_update_project_item_dates_warns_when_no_date_fields(monkeypatch: pytest
 
     with (
         unittest.mock.patch("requests.post", return_value=project_info_response),
-        pytest.warns(UserWarning, match="no 'Start date' or 'End date' fields"),
+        pytest.warns(UserWarning, match=expected_warning),
     ):
-        historia.project.update_project_item_dates(project_url="https://github.com/users/testuser/projects/1")
+        update_function(project_url="https://github.com/users/testuser/projects/1")
 
 
 @pytest.mark.ai_generated
@@ -1778,38 +1751,6 @@ def test_update_project_item_members_raises_without_token(monkeypatch: pytest.Mo
 
 
 @pytest.mark.ai_generated
-def test_update_project_item_members_warns_when_no_members_field(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
-
-    project_info_response = unittest.mock.MagicMock()
-    project_info_response.status_code = 200
-    project_info_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "id": "PVT_project",
-                    "fields": {
-                        "nodes": [
-                            {
-                                "id": "PVTSSF_status",
-                                "name": "Status",
-                                "options": [{"id": "opt_done", "name": "Done"}],
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-    }
-
-    with (
-        unittest.mock.patch("requests.post", return_value=project_info_response),
-        pytest.warns(UserWarning, match="has no 'Members' field"),
-    ):
-        historia.project.update_project_item_members(project_url="https://github.com/users/testuser/projects/1")
-
-
-@pytest.mark.ai_generated
 def test_update_project_item_members_updates_items(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
@@ -1992,8 +1933,26 @@ def test_list_project_items_with_member_usernames_returns_items() -> None:
 
 
 @pytest.mark.ai_generated
-def test_list_project_item_content_urls_returns_urls() -> None:
-    """_list_project_item_content_urls returns the set of content URLs already in the project."""
+@pytest.mark.parametrize(
+    ("nodes", "expected_urls"),
+    [
+        (
+            [
+                {"content": {"url": "https://github.com/owner/repo/pull/1"}},
+                {"content": {"url": "https://github.com/owner/repo/issues/2"}},
+                {"content": None},
+            ],
+            {
+                "https://github.com/owner/repo/pull/1",
+                "https://github.com/owner/repo/issues/2",
+            },
+        ),
+        ([], set()),
+    ],
+    ids=["items", "empty"],
+)
+def test_list_project_item_content_urls_returns_urls(nodes: list[dict], expected_urls: set[str]) -> None:
+    """_list_project_item_content_urls returns the set of content URLs already in the project, if any."""
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
@@ -2001,11 +1960,7 @@ def test_list_project_item_content_urls_returns_urls() -> None:
             "user": {
                 "projectV2": {
                     "items": {
-                        "nodes": [
-                            {"content": {"url": "https://github.com/owner/repo/pull/1"}},
-                            {"content": {"url": "https://github.com/owner/repo/issues/2"}},
-                            {"content": None},
-                        ],
+                        "nodes": nodes,
                         "pageInfo": {"hasNextPage": False, "endCursor": None},
                     },
                 },
@@ -2021,39 +1976,7 @@ def test_list_project_item_content_urls_returns_urls() -> None:
             headers={"Authorization": "token fake-token"},
         )
 
-    assert urls == {
-        "https://github.com/owner/repo/pull/1",
-        "https://github.com/owner/repo/issues/2",
-    }
-
-
-@pytest.mark.ai_generated
-def test_list_project_item_content_urls_returns_empty_set_when_no_items() -> None:
-    """_list_project_item_content_urls returns an empty set when the project has no items."""
-    mock_response = unittest.mock.MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "nodes": [],
-                        "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    },
-                },
-            },
-        },
-    }
-
-    with unittest.mock.patch("requests.post", return_value=mock_response):
-        urls = _list_project_item_content_urls(
-            owner_type="users",
-            owner_login="testuser",
-            project_number=1,
-            headers={"Authorization": "token fake-token"},
-        )
-
-    assert urls == set()
+    assert urls == expected_urls
 
 
 @pytest.mark.ai_generated
