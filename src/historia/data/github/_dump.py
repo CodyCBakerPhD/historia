@@ -29,7 +29,7 @@ def dump_specific_info(
         The type of information to fetch and save. One of "prs_opened", "prs_assigned", "prs_review_requested",
         "prs_reviewed", "issues_opened", or "issues_assigned".
     date : str
-        The date to fetch information for, in the format "YYYY-MM-DD".
+        The date to fetch information for, in the format "YYYY-MM-DD". It is a day in UTC.
     username : str
         The GitHub username to fetch information about.
     overwrite : bool, default=False
@@ -89,7 +89,7 @@ def dump_info_for_date(
     directory : pathlib.Path
         The base directory to save the data to.
     date : str
-        The date to fetch information for, in the format "YYYY-MM-DD".
+        The date to fetch information for, in the format "YYYY-MM-DD". It is a day in UTC.
     username : str
         The GitHub username to fetch information about.
     overwrite : bool, default=False

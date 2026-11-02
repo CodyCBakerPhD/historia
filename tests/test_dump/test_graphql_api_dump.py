@@ -1,5 +1,10 @@
+import collections.abc
+import datetime
 import json
+import os
 import pathlib
+import time
+import types
 
 import pytest
 
@@ -219,6 +224,88 @@ def test_update_iterates_over_expected_dates(
     )
 
     assert fetched_dates == ["2026-01-05", "2026-01-04", "2026-01-03"]
+
+
+@pytest.fixture
+def set_local_timezone() -> collections.abc.Iterator[collections.abc.Callable[[str], None]]:
+    original_timezone = os.environ.get("TZ")
+
+    def _set_local_timezone(timezone: str, /) -> None:
+        os.environ["TZ"] = timezone
+        time.tzset()
+
+    yield _set_local_timezone
+
+    if original_timezone is None:
+        os.environ.pop("TZ", None)
+    else:
+        os.environ["TZ"] = original_timezone
+    time.tzset()
+
+
+def _frozen_datetime_module(instant: datetime.datetime, /) -> types.SimpleNamespace:
+    class _FrozenDatetime(datetime.datetime):
+        @classmethod
+        def now(cls, tz: datetime.tzinfo | None = None) -> "_FrozenDatetime":
+            return cls.fromtimestamp(instant.timestamp(), tz=tz)
+
+    return types.SimpleNamespace(
+        datetime=_FrozenDatetime,
+        date=datetime.date,
+        timedelta=datetime.timedelta,
+        timezone=datetime.timezone,
+    )
+
+
+@pytest.mark.ai_generated
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="time.tzset is only available on Unix")
+@pytest.mark.parametrize(
+    ("local_timezone", "instant", "expected_dates"),
+    [
+        # POSIX zone strings invert the sign, so `<+14>-14` is 14 hours ahead of UTC
+        pytest.param(
+            "<+14>-14",
+            datetime.datetime(2026, 1, 5, 23, 30, tzinfo=datetime.timezone.utc),
+            ["2026-01-05", "2026-01-04"],
+            id="utc-plus-14",
+        ),
+        pytest.param(
+            "<-12>+12",
+            datetime.datetime(2026, 1, 6, 0, 30, tzinfo=datetime.timezone.utc),
+            ["2026-01-06", "2026-01-05"],
+            id="utc-minus-12",
+        ),
+    ],
+)
+def test_update_anchors_on_the_utc_date(  # noqa: PLR0913, PLR0917
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    set_local_timezone: collections.abc.Callable[[str], None],
+    local_timezone: str,
+    instant: datetime.datetime,
+    expected_dates: list[str],
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    set_local_timezone(local_timezone)
+    monkeypatch.setattr("historia.data.github._update.datetime", _frozen_datetime_module(instant))
+
+    fetched_dates: list[str] = []
+
+    def _mock_fetch_info_for_date(
+        *,
+        info_type: str,
+        date: str,
+        username: str,  # noqa: ARG001
+    ) -> tuple[list[str], bool]:
+        if info_type == "prs_opened":
+            fetched_dates.append(date)
+        return ([], False)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+
+    historia.data.github.update(directory=tmp_path, username="codycbakerphd", past_number_of_days=1)
+
+    assert fetched_dates == expected_dates
 
 
 @pytest.mark.ai_generated

@@ -122,7 +122,7 @@ def historia_data_update_cli() -> None:
     required=False,
     help=(
         "Optional anchor date to count backwards from, in the format `YYYY-MM-DD`. "
-        "Defaults to today's date in the local timezone. "
+        "Defaults to today's date in UTC, the calendar GitHub's timestamps and search dates use. "
         "Primarily intended to make iteration deterministic for backfills and testing."
     ),
 )
