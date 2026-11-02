@@ -5,6 +5,7 @@
 ### 🚀 Enhancement
 
 - `dump_info_for_date` now returns whether the GitHub API rate limit was hit, as its docstring already said. It used to return `None`. `update` likewise returns whether any day hit the rate limit. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
+- Added `historia.project.get_project_info`, which returns a `ProjectInfo` named tuple with a project's node ID and the IDs of its Status (with options), Start date, End date, and Members fields. A field the project lacks has `None` as its ID. ([#215](https://github.com/CodyCBakerPhD/historia/pull/215))
 
 ### 📝 Documentation
 
@@ -23,7 +24,7 @@
 - Ruff's `exclude` is now `extend-exclude`, so it keeps ruff's default excludes and a plain `ruff check .` no longer lints local virtual environments or build output. ([#211](https://github.com/CodyCBakerPhD/historia/pull/211))
 - Removed source comments that restated the line below them, and renamed the `entity` locals in `_format_graphql_queries` to `info_type`, as the rest of the package calls them. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 - Docstrings are now checked against the code they document. Ruff's DOC rules flag a missing or extra `Returns` or `Raises` section, and numpydoc's validation hook checks public names against the numpy docstring standard. Ruff alone never flagged a public function with no docstring, because every source module's name starts with an underscore. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
-- `_get_project_info` now returns a `_ProjectInfo` named tuple instead of a six-item tuple, so its callers read each field by name rather than unpacking all six. ([#215](https://github.com/CodyCBakerPhD/historia/pull/215))
+- `_get_project_info` now returns a `ProjectInfo` named tuple instead of a six-item tuple, so its callers read each field by name rather than unpacking all six. Data models now live in one module, `historia/_models.py`. ([#215](https://github.com/CodyCBakerPhD/historia/pull/215))
 
 ## v0.13.0
 

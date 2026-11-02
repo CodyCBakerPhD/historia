@@ -13,6 +13,8 @@ import beartype
 import requests
 import tqdm
 
+from .._models import ProjectInfo
+
 _MAXIMUM_ATTEMPTS = 5
 _INITIAL_BACKOFF_SECONDS = 2.0
 _TRANSIENT_ERROR_MESSAGE_PREFIX = "Something went wrong while executing your query"
@@ -674,40 +676,11 @@ def _is_missing_project_item_error(*, response: requests.Response, item_id: str)
     return False
 
 
-class _ProjectInfo(typing.NamedTuple):
-    """
-    The node ID of a GitHub Project and the IDs of the fields historia writes to.
-
-    Attributes
-    ----------
-    project_id : str
-        The global node ID of the project.
-    status_field_id : str
-        The ID of the Status field.
-    status_options : dict[str, str]
-        The ID of each Status option, keyed by option name.
-    start_date_field_id : str or None
-        The ID of the "Start date" date field, or None if the project has none.
-    end_date_field_id : str or None
-        The ID of the "End date" date field, or None if the project has none.
-    members_field_id : str or None
-        The ID of the "Members" field, or None if the project has none.
-
-    """
-
-    project_id: str
-    status_field_id: str
-    status_options: dict[str, str]
-    start_date_field_id: str | None
-    end_date_field_id: str | None
-    members_field_id: str | None
-
-
 def _get_project_info(
     *,
     project_url: str,
     headers: dict[str, str],
-) -> _ProjectInfo:
+) -> ProjectInfo:
     """
     Retrieve the project node ID and the IDs of its Status (with options), Start date, End date, and Members fields.
 
@@ -720,7 +693,7 @@ def _get_project_info(
 
     Returns
     -------
-    _ProjectInfo
+    ProjectInfo
         The project node ID and the IDs of its fields. A field the project lacks has None as its ID.
 
     Raises
@@ -824,7 +797,7 @@ query GetProject($login: String!, $number: Int!) {
         message = f"No 'Status' field found in project `{project_url}`."
         raise ValueError(message)
 
-    return _ProjectInfo(
+    return ProjectInfo(
         project_id=project_id,
         status_field_id=status_field_id,
         status_options=status_options,
@@ -1977,6 +1950,39 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
         for node in workflow_nodes
         if node and node.get("enabled") is True and "auto-close" in node.get("name", "").lower()
     ]
+
+
+@beartype.beartype
+def get_project_info(project_url: str, /) -> ProjectInfo:
+    """
+    Retrieve the node ID of a GitHub Project and the IDs of the fields historia writes to.
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2,
+        e.g., ``https://github.com/users/username/projects/1``
+        or ``https://github.com/orgs/orgname/projects/1``.
+
+    Returns
+    -------
+    ProjectInfo
+        The project node ID and the IDs of its Status (with options), Start date, End date, and Members fields.
+        A field the project lacks has None as its ID.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if the project has no ``Status`` field.
+
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token is None:
+        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
+        raise ValueError(message)
+
+    headers = {"Authorization": f"token {github_token}"}
+    return _get_project_info(project_url=project_url, headers=headers)
 
 
 @beartype.beartype

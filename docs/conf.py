@@ -4,6 +4,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import typing
 
 import sphinx.application
 
@@ -49,9 +50,30 @@ def _substitute_historia_action_tag(
     source[0] = source[0].replace(HISTORIA_ACTION_TAG_PLACEHOLDER, HISTORIA_ACTION_TAG)
 
 
+class _Probe(typing.NamedTuple):
+    field: int
+
+
+_NAMED_TUPLE_FIELD_TYPE = type(_Probe.field)
+
+
+def _skip_named_tuple_fields(  # noqa: PLR0913, PLR0917
+    app: sphinx.application.Sphinx,  # noqa: ARG001
+    what: str,  # noqa: ARG001
+    name: str,  # noqa: ARG001
+    obj: object,
+    skip: bool,  # noqa: FBT001
+    options: dict[str, object],  # noqa: ARG001
+) -> bool:
+    # A NamedTuple's numpy "Attributes" section already describes each field, and napoleon renders it.
+    # autodoc would document every field a second time as "Alias for field number N".
+    return skip or isinstance(obj, _NAMED_TUPLE_FIELD_TYPE)
+
+
 def setup(app: sphinx.application.Sphinx) -> None:
-    """Register the substitution of the latest `historia-action` tag into every page."""
+    """Register the `historia-action` tag substitution and the skipping of NamedTuple field members."""
     app.connect("source-read", _substitute_historia_action_tag)
+    app.connect("autodoc-skip-member", _skip_named_tuple_fields)
 
 
 project = "historia"

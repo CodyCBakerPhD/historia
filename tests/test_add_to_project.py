@@ -2300,6 +2300,50 @@ def test_get_project_closing_workflows_org_project() -> None:
 
 
 @pytest.mark.ai_generated
+def test_get_project_info_public_raises_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+    with pytest.raises(ValueError, match="GITHUB_TOKEN"):
+        historia.project.get_project_info("https://github.com/users/testuser/projects/1")
+
+
+@pytest.mark.ai_generated
+def test_get_project_info_public_returns_project_info(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    response = _json_response(
+        payload=_project_info_payload(
+            project_id="PVT_project",
+            fields=[
+                {"id": "PVTSSF_status", "name": "Status", "options": [{"id": "opt_done", "name": "Done"}]},
+                {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"},
+                {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+            ],
+        ),
+    )
+
+    with unittest.mock.patch("requests.post", return_value=response) as mock_post:
+        project = historia.project.get_project_info("https://github.com/users/testuser/projects/1")
+
+    assert project == historia.project.ProjectInfo(
+        project_id="PVT_project",
+        status_field_id="PVTSSF_status",
+        status_options={"Done": "opt_done"},
+        start_date_field_id="PVTF_start",
+        end_date_field_id=None,
+        members_field_id="PVTF_members",
+    )
+    assert mock_post.call_args.kwargs["headers"] == {"Authorization": "token fake-token"}
+
+
+@pytest.mark.ai_generated
+def test_get_project_info_public_rejects_keyword_call() -> None:
+    function = typing.cast("typing.Any", historia.project.get_project_info)
+    with pytest.raises(TypeError, match="positional-only arguments"):
+        function(project_url="https://github.com/users/testuser/projects/1")
+
+
+@pytest.mark.ai_generated
 def test_get_project_closing_workflows_public_raises_without_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
