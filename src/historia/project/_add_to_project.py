@@ -16,6 +16,20 @@ from .._github import get_github_headers, post_graphql_with_retries
 from .._models import ItemInfo, ProjectInfo
 
 _TRANSIENT_ERROR_MESSAGE_PREFIX = "Something went wrong while executing your query"
+_TEXT_FIELD_VALUE_SELECTION = """{
+    ... on ProjectV2ItemFieldTextValue {
+        text
+        field { ... on ProjectV2Field { id } }
+    }
+}"""
+_STATUS_FIELD_VALUE_SELECTION = """{
+    ... on ProjectV2ItemFieldSingleSelectValue {
+        optionId
+        field { ... on ProjectV2SingleSelectField { id } }
+    }
+}"""
+_ASSIGNEE_SELECTION = "{ login }"
+_REVIEW_REQUEST_SELECTION = "{ requestedReviewer { ... on User { login } } }"
 _GITHUB_API_URL = "https://api.github.com"
 
 
@@ -640,6 +654,80 @@ def _owner_root_field(owner_type: str, /) -> str:
     return "user" if owner_type == "users" else "organization"
 
 
+def _all_connection_nodes(  # noqa: PLR0913
+    *,
+    connection_data: dict,
+    node_id: str | None,
+    node_type: str,
+    connection: str,
+    selection: str,
+    headers: dict[str, str],
+    context: str,
+) -> list[dict]:
+    """
+    Return every node of a nested connection, fetching the pages after the first one already in hand.
+
+    A connection nested inside a list of nodes cannot take its own cursor in the same query, so each remaining page
+    is read through ``node(id:)`` on the node that owns the connection.
+
+    Parameters
+    ----------
+    connection_data : dict
+        The connection as returned with its parent, holding ``nodes`` and ``pageInfo``.
+    node_id : str or None
+        The global node ID of the parent. It is only read when there are more pages.
+    node_type : str
+        The GraphQL type or interface of the parent that declares the connection, such as ``ProjectV2Item``.
+    connection : str
+        The name of the connection field, such as ``fieldValues``.
+    selection : str
+        The selection set for each node of the connection, including its braces.
+    headers : dict[str, str]
+        HTTP headers including the Authorization token.
+    context : str
+        A descriptive label used in error and warning messages.
+
+    Returns
+    -------
+    list[dict]
+        The nodes of every page, in order.
+
+    Raises
+    ------
+    RuntimeError
+        If more pages exist but the parent's node ID is unknown.
+
+    """
+    nodes = list(connection_data.get("nodes") or [])
+    page_info = connection_data.get("pageInfo") or {}
+    after_cursor = page_info.get("endCursor") if page_info.get("hasNextPage") else None
+    if after_cursor is None:
+        return nodes
+    if node_id is None:
+        message = f"{context}\nThe `{connection}` connection has more pages, but its parent has no node ID."
+        raise RuntimeError(message)
+
+    query = """
+query GetRemainingNodes($id: ID!, $after: String) {
+    node(id: $id) {
+        ... on {node_type} {
+            {connection}(first: 100, after: $after) {
+                nodes {selection}
+                pageInfo { hasNextPage endCursor }
+            }
+        }
+    }
+}
+""".replace("{node_type}", node_type).replace("{connection}", connection).replace("{selection}", selection)
+    while after_cursor is not None:
+        response = _post_graphql(query=query, variables={"id": node_id, "after": after_cursor}, headers=headers)
+        result = _check_graphql_response(response=response, context=context)
+        page = result["data"]["node"][connection]
+        nodes.extend(page["nodes"])
+        after_cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
+    return nodes
+
+
 def _get_project_info(
     *,
     project_url: str,
@@ -670,11 +758,11 @@ def _get_project_info(
 
     root_field = _owner_root_field(owner_type)
     query = """
-query GetProject($login: String!, $number: Int!) {
+query GetProject($login: String!, $number: Int!, $after: String) {
     {owner_root}(login: $login) {
         projectV2(number: $number) {
             id
-            fields(first: 20) {
+            fields(first: 100, after: $after) {
                 nodes {
                     ... on ProjectV2SingleSelectField {
                         id
@@ -690,17 +778,28 @@ query GetProject($login: String!, $number: Int!) {
                         dataType
                     }
                 }
+                pageInfo { hasNextPage endCursor }
             }
         }
     }
 }
 """.replace("{owner_root}", root_field)
-    variables = {"login": owner_login, "number": project_number}
 
-    response = _post_graphql(query=query, variables=variables, headers=headers)
-    result = _check_graphql_response(response=response, context=f"Failed to retrieve project info for `{project_url}`.")
-
-    project_data = result["data"][root_field]["projectV2"]
+    field_nodes: list[dict] = []
+    after_cursor = None
+    while True:
+        variables = {"login": owner_login, "number": project_number, "after": after_cursor}
+        response = _post_graphql(query=query, variables=variables, headers=headers)
+        result = _check_graphql_response(
+            response=response,
+            context=f"Failed to retrieve project info for `{project_url}`.",
+        )
+        project_data = result["data"][root_field]["projectV2"]
+        field_nodes.extend(project_data["fields"]["nodes"])
+        page_info = project_data["fields"].get("pageInfo") or {}
+        if not page_info.get("hasNextPage"):
+            break
+        after_cursor = page_info["endCursor"]
 
     project_id = project_data["id"]
 
@@ -710,7 +809,7 @@ query GetProject($login: String!, $number: Int!) {
     end_date_field_id = None
     members_field_id = None
 
-    for field in project_data["fields"]["nodes"]:
+    for field in field_nodes:
         if not field:
             continue
         field_name = field.get("name", "")
@@ -1401,17 +1500,9 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
                         ... on PullRequest { url }
                         ... on Issue { url }
                     }
-                    fieldValues(first: 20) {
-                        nodes {
-                            ... on ProjectV2ItemFieldTextValue {
-                                text
-                                field {
-                                    ... on ProjectV2Field {
-                                        id
-                                    }
-                                }
-                            }
-                        }
+                    fieldValues(first: 100) {
+                        nodes {text_field_value_selection}
+                        pageInfo { hasNextPage endCursor }
                     }
                 }
                 pageInfo { hasNextPage endCursor }
@@ -1419,7 +1510,8 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
         }
     }
 }
-""".replace("{owner_root}", root_field)
+""".replace("{owner_root}", root_field).replace("{text_field_value_selection}", _TEXT_FIELD_VALUE_SELECTION)
+    context = f"Failed to list project member values for project {project_number}."
 
     items_by_url: dict[str, dict[str, str | None]] = {}
     after_cursor = None
@@ -1427,10 +1519,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
         response = _post_graphql(query=query, variables=variables, headers=headers)
-        result = _check_graphql_response(
-            response=response,
-            context=f"Failed to list project member values for project {project_number}.",
-        )
+        result = _check_graphql_response(response=response, context=context)
         items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
@@ -1438,8 +1527,17 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
             if not content or "url" not in content:
                 continue
 
+            field_values = _all_connection_nodes(
+                connection_data=node["fieldValues"],
+                node_id=node["id"],
+                node_type="ProjectV2Item",
+                connection="fieldValues",
+                selection=_TEXT_FIELD_VALUE_SELECTION,
+                headers=headers,
+                context=context,
+            )
             members_value = None
-            for field_value in node["fieldValues"]["nodes"]:
+            for field_value in field_values:
                 field = field_value.get("field")
                 if field and field.get("id") == members_field_id:
                     members_value = field_value.get("text")
@@ -1473,26 +1571,21 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
                     id
                     content {
                         ... on PullRequest {
-                            assignees(first: 20) {
-                                nodes {
-                                    login
-                                }
+                            id
+                            assignees(first: 100) {
+                                nodes {assignee_selection}
+                                pageInfo { hasNextPage endCursor }
                             }
-                            reviewRequests(first: 20) {
-                                nodes {
-                                    requestedReviewer {
-                                        ... on User {
-                                            login
-                                        }
-                                    }
-                                }
+                            reviewRequests(first: 100) {
+                                nodes {review_request_selection}
+                                pageInfo { hasNextPage endCursor }
                             }
                         }
                         ... on Issue {
-                            assignees(first: 20) {
-                                nodes {
-                                    login
-                                }
+                            id
+                            assignees(first: 100) {
+                                nodes {assignee_selection}
+                                pageInfo { hasNextPage endCursor }
                             }
                         }
                     }
@@ -1503,6 +1596,9 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
     }
 }
 """.replace("{owner_root}", root_field)
+    query = query.replace("{assignee_selection}", _ASSIGNEE_SELECTION)
+    query = query.replace("{review_request_selection}", _REVIEW_REQUEST_SELECTION)
+    context = f"Failed to list project members for project {project_number}."
 
     items_with_members: list[tuple[str, set[str]]] = []
     after_cursor = None
@@ -1510,10 +1606,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
         response = _post_graphql(query=query, variables=variables, headers=headers)
-        result = _check_graphql_response(
-            response=response,
-            context=f"Failed to list project members for project {project_number}.",
-        )
+        result = _check_graphql_response(response=response, context=context)
         items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
@@ -1521,14 +1614,33 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
             if content is None:
                 continue
 
+            assignees = _all_connection_nodes(
+                connection_data=content.get("assignees", {}),
+                node_id=content.get("id"),
+                node_type="Assignable",
+                connection="assignees",
+                selection=_ASSIGNEE_SELECTION,
+                headers=headers,
+                context=context,
+            )
+            review_requests = _all_connection_nodes(
+                connection_data=content.get("reviewRequests", {}),
+                node_id=content.get("id"),
+                node_type="PullRequest",
+                connection="reviewRequests",
+                selection=_REVIEW_REQUEST_SELECTION,
+                headers=headers,
+                context=context,
+            )
+
             member_usernames: set[str] = set()
 
-            for assignee in content.get("assignees", {}).get("nodes", []):
+            for assignee in assignees:
                 assignee_login = assignee.get("login")
                 if assignee_login is not None:
                     member_usernames.add(assignee_login)
 
-            for review_request in content.get("reviewRequests", {}).get("nodes", []):
+            for review_request in review_requests:
                 requested_reviewer = review_request.get("requestedReviewer")
                 if requested_reviewer is None:
                     continue
@@ -1586,17 +1698,9 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
             items(first: 100, after: $after) {
                 nodes {
                     id
-                    fieldValues(first: 20) {
-                        nodes {
-                            ... on ProjectV2ItemFieldSingleSelectValue {
-                                optionId
-                                field {
-                                    ... on ProjectV2SingleSelectField {
-                                        id
-                                    }
-                                }
-                            }
-                        }
+                    fieldValues(first: 100) {
+                        nodes {status_field_value_selection}
+                        pageInfo { hasNextPage endCursor }
                     }
                 }
                 pageInfo { hasNextPage endCursor }
@@ -1604,7 +1708,8 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
         }
     }
 }
-""".replace("{owner_root}", root_field)
+""".replace("{owner_root}", root_field).replace("{status_field_value_selection}", _STATUS_FIELD_VALUE_SELECTION)
+    context = f"Failed to list project items with status for project {project_number}."
 
     all_items = []
     after_cursor = None
@@ -1612,16 +1717,22 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
     while True:
         variables = {"login": owner_login, "number": project_number, "after": after_cursor}
         response = _post_graphql(query=query, variables=variables, headers=headers)
-        result = _check_graphql_response(
-            response=response,
-            context=f"Failed to list project items with status for project {project_number}.",
-        )
+        result = _check_graphql_response(response=response, context=context)
         items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
             item_id = node["id"]
+            field_values = _all_connection_nodes(
+                connection_data=node.get("fieldValues", {}),
+                node_id=item_id,
+                node_type="ProjectV2Item",
+                connection="fieldValues",
+                selection=_STATUS_FIELD_VALUE_SELECTION,
+                headers=headers,
+                context=context,
+            )
             status_option_id = None
-            for field_value in node.get("fieldValues", {}).get("nodes", []):
+            for field_value in field_values:
                 if not field_value:
                     continue
                 field = field_value.get("field", {})
@@ -1663,31 +1774,36 @@ def _get_project_closing_workflows(
 
     root_field = _owner_root_field(owner_type)
     query = """
-query GetProjectWorkflows($login: String!, $number: Int!) {
+query GetProjectWorkflows($login: String!, $number: Int!, $after: String) {
     {owner_root}(login: $login) {
         projectV2(number: $number) {
-            workflows(first: 20) {
+            workflows(first: 100, after: $after) {
                 nodes {
                     name
                     enabled
                 }
+                pageInfo { hasNextPage endCursor }
             }
         }
     }
 }
 """.replace("{owner_root}", root_field)
 
-    variables = {"login": owner_login, "number": project_number}
-
-    response = _post_graphql(query=query, variables=variables, headers=headers)
-    result = _check_graphql_response(
-        response=response,
-        context=f"Failed to retrieve workflows for `{project_url}`.",
-    )
-
-    project_data = result["data"][root_field]["projectV2"]
-
-    workflow_nodes = project_data.get("workflows", {}).get("nodes", [])
+    workflow_nodes: list[dict] = []
+    after_cursor = None
+    while True:
+        variables = {"login": owner_login, "number": project_number, "after": after_cursor}
+        response = _post_graphql(query=query, variables=variables, headers=headers)
+        result = _check_graphql_response(
+            response=response,
+            context=f"Failed to retrieve workflows for `{project_url}`.",
+        )
+        workflows = result["data"][root_field]["projectV2"].get("workflows", {})
+        workflow_nodes.extend(workflows.get("nodes", []))
+        page_info = workflows.get("pageInfo") or {}
+        if not page_info.get("hasNextPage"):
+            break
+        after_cursor = page_info["endCursor"]
 
     return [
         node["name"]
