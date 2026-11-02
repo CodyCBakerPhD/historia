@@ -1,5 +1,7 @@
 """Command-line interface for historia."""
 
+import collections.abc
+import contextlib
 import importlib.metadata
 import pathlib
 
@@ -14,6 +16,75 @@ from .project import (
     update_project_item_dates,
     update_project_item_members,
 )
+
+_OptionDecorator = collections.abc.Callable[[collections.abc.Callable[..., None]], collections.abc.Callable[..., None]]
+
+_placeholder_option = rich_click.option(
+    "--placeholder",
+    "end_date_placeholder_days",
+    type=int,
+    default=180,
+    show_default=True,
+    required=False,
+    help=(
+        "Number of days after an item's creation date to use as the placeholder end date "
+        "when the item has not yet been closed. Default is 180 (approximately 6 months)."
+    ),
+)
+
+
+def _url_option(purpose: str, /) -> _OptionDecorator:
+    return rich_click.option(
+        "--url",
+        "project_url",
+        type=str,
+        required=True,
+        help=(
+            f"The URL of the GitHub Project v2 {purpose}. "
+            "E.g., `https://github.com/users/username/projects/1` "
+            "or `https://github.com/orgs/orgname/projects/1`."
+        ),
+    )
+
+
+def _yes_option(action: str, /) -> _OptionDecorator:
+    return rich_click.option(
+        "--yes",
+        "auto_accept",
+        is_flag=True,
+        default=False,
+        required=False,
+        help=(
+            f"Automatically proceed with {action} when closing workflows are detected, "
+            "skipping the confirmation prompt (for headless/non-interactive use)."
+        ),
+    )
+
+
+def _confirm_closing_workflows(*, project_url: str, consequence: str, prompt: str, auto_accept: bool) -> None:
+    """Warn about enabled workflows that close items on a status change, then exit unless the user proceeds."""
+    closing_workflows = get_project_closing_workflows(project_url)
+    if not closing_workflows:
+        return
+    workflow_list = ", ".join(f"'{workflow}'" for workflow in closing_workflows)
+    warning = (
+        f"\nWarning: This project has the following enabled workflow(s) that may close "
+        f"the underlying GitHub items when their status is modified: {workflow_list}.\n"
+        f"{consequence}\n"
+    )
+    rich_click.echo(rich_click.style(warning, fg="yellow"))
+    if not (auto_accept or rich_click.confirm(prompt)):
+        raise SystemExit(0)
+
+
+@contextlib.contextmanager
+def _exit_on_api_error() -> collections.abc.Iterator[None]:
+    """Report a ``ValueError`` or ``RuntimeError`` in red and exit with code 1."""
+    try:
+        yield
+    except (ValueError, RuntimeError) as exception:
+        rich_click.echo(rich_click.style(str(exception), fg="red"))
+        raise SystemExit(1) from exception
 
 
 # historia
@@ -113,17 +184,7 @@ def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> Non
         "`version-*` subdirectories is provided, only the latest version is used."
     ),
 )
-@rich_click.option(
-    "--url",
-    "project_url",
-    type=str,
-    required=True,
-    help=(
-        "The URL of the GitHub Project v2 to populate. "
-        "E.g., `https://github.com/users/username/projects/1` "
-        "or `https://github.com/orgs/orgname/projects/1`."
-    ),
-)
+@_url_option("to populate")
 @rich_click.option(
     "--status",
     type=str,
@@ -134,18 +195,7 @@ def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> Non
         "When omitted, the status is derived from each item's type and state."
     ),
 )
-@rich_click.option(
-    "--placeholder",
-    "end_date_placeholder_days",
-    type=int,
-    default=180,
-    show_default=True,
-    required=False,
-    help=(
-        "Number of days after an item's creation date to use as the placeholder end date "
-        "when the item has not yet been closed. Default is 180 (approximately 6 months)."
-    ),
-)
+@_placeholder_option
 @rich_click.option(
     "--members",
     "assign_members",
@@ -154,17 +204,7 @@ def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> Non
     required=False,
     help="Assign the custom 'Members' field based on username directories.",
 )
-@rich_click.option(
-    "--yes",
-    "auto_accept",
-    is_flag=True,
-    default=False,
-    required=False,
-    help=(
-        "Automatically proceed with populate when closing workflows are detected, "
-        "skipping the confirmation prompt (for headless/non-interactive use)."
-    ),
-)
+@_yes_option("populate")
 def _historia_project_populate_cli(  # noqa: PLR0913
     *,
     directory: str,
@@ -175,20 +215,17 @@ def _historia_project_populate_cli(  # noqa: PLR0913
     auto_accept: bool,
 ) -> None:
     """Add the saved issues and pull requests to a GitHub Project."""
-    try:
-        closing_workflows = get_project_closing_workflows(project_url)
-        if closing_workflows:
-            workflow_list = ", ".join(f"'{w}'" for w in closing_workflows)
-            status_description = f"the specified status '{status}'" if status is not None else "derived status values"
-            warning = (
-                f"\nWarning: This project has the following enabled workflow(s) that may close "
-                f"the underlying GitHub items when their status is modified: {workflow_list}.\n"
+    status_description = f"the specified status '{status}'" if status is not None else "derived status values"
+    with _exit_on_api_error():
+        _confirm_closing_workflows(
+            project_url=project_url,
+            consequence=(
                 f"Populating this project with {status_description} may cause unintended changes "
-                f"to source issues and pull requests.\n"
-            )
-            rich_click.echo(rich_click.style(warning, fg="yellow"))
-            if not (auto_accept or rich_click.confirm("Do you want to proceed with populating this project?")):
-                raise SystemExit(0)
+                "to source issues and pull requests."
+            ),
+            prompt="Do you want to proceed with populating this project?",
+            auto_accept=auto_accept,
+        )
         add_to_project(
             directory=pathlib.Path(directory),
             project_url=project_url,
@@ -196,9 +233,6 @@ def _historia_project_populate_cli(  # noqa: PLR0913
             end_date_placeholder_days=end_date_placeholder_days,
             assign_members=assign_members,
         )
-    except (ValueError, RuntimeError) as exception:
-        rich_click.echo(rich_click.style(str(exception), fg="red"))
-        raise SystemExit(1) from exception
 
 
 # historia project update
@@ -209,29 +243,8 @@ def _historia_project_update_cli() -> None:
 
 # historia project update dates
 @_historia_project_update_cli.command(name="dates", no_args_is_help=True)
-@rich_click.option(
-    "--url",
-    "project_url",
-    type=str,
-    required=True,
-    help=(
-        "The URL of the GitHub Project v2 whose item dates should be updated. "
-        "E.g., `https://github.com/users/username/projects/1` "
-        "or `https://github.com/orgs/orgname/projects/1`."
-    ),
-)
-@rich_click.option(
-    "--placeholder",
-    "end_date_placeholder_days",
-    type=int,
-    default=180,
-    show_default=True,
-    required=False,
-    help=(
-        "Number of days after an item's creation date to use as the placeholder end date "
-        "when the item has not yet been closed. Default is 180 (approximately 6 months)."
-    ),
-)
+@_url_option("whose item dates should be updated")
+@_placeholder_option
 @rich_click.option(
     "--recency",
     "past_number_of_days",
@@ -251,52 +264,26 @@ def _historia_project_update_dates_cli(
     past_number_of_days: int | None,
 ) -> None:
     """Recompute the Start and End dates of items in the project."""
-    try:
+    with _exit_on_api_error():
         update_project_item_dates(
             project_url=project_url,
             end_date_placeholder_days=end_date_placeholder_days,
             past_number_of_days=past_number_of_days,
         )
-    except (ValueError, RuntimeError) as exception:
-        rich_click.echo(rich_click.style(str(exception), fg="red"))
-        raise SystemExit(1) from exception
 
 
 # historia project update members
 @_historia_project_update_cli.command(name="members", no_args_is_help=True)
-@rich_click.option(
-    "--url",
-    "project_url",
-    type=str,
-    required=True,
-    help=(
-        "The URL of the GitHub Project v2 whose item member attribution should be updated. "
-        "E.g., `https://github.com/users/username/projects/1` "
-        "or `https://github.com/orgs/orgname/projects/1`."
-    ),
-)
+@_url_option("whose item member attribution should be updated")
 def _historia_project_update_members_cli(*, project_url: str) -> None:
     """Refresh the Members field of items in the project."""
-    try:
+    with _exit_on_api_error():
         update_project_item_members(project_url=project_url)
-    except (ValueError, RuntimeError) as exception:
-        rich_click.echo(rich_click.style(str(exception), fg="red"))
-        raise SystemExit(1) from exception
 
 
 # historia project transition
 @_historia_project_cli.command(name="transition", no_args_is_help=True)
-@rich_click.option(
-    "--url",
-    "project_url",
-    type=str,
-    required=True,
-    help=(
-        "The URL of the GitHub Project v2 whose items should be transitioned. "
-        "E.g., `https://github.com/users/username/projects/1` "
-        "or `https://github.com/orgs/orgname/projects/1`."
-    ),
-)
+@_url_option("whose items should be transitioned")
 @rich_click.option(
     "--status",
     "--current",
@@ -312,17 +299,7 @@ def _historia_project_update_members_cli(*, project_url: str) -> None:
     required=True,
     help="The status to assign to matching items.",
 )
-@rich_click.option(
-    "--yes",
-    "auto_accept",
-    is_flag=True,
-    default=False,
-    required=False,
-    help=(
-        "Automatically proceed with transition when closing workflows are detected, "
-        "skipping the confirmation prompt (for headless/non-interactive use)."
-    ),
-)
+@_yes_option("transition")
 def _historia_project_transition_cli(
     *,
     project_url: str,
@@ -331,19 +308,11 @@ def _historia_project_transition_cli(
     auto_accept: bool,
 ) -> None:
     """Move every project item with the given status to a new status."""
-    try:
-        closing_workflows = get_project_closing_workflows(project_url)
-        if closing_workflows:
-            workflow_list = ", ".join(f"'{w}'" for w in closing_workflows)
-            warning = (
-                f"\nWarning: This project has the following enabled workflow(s) that may close "
-                f"the underlying GitHub items when their status is modified: {workflow_list}.\n"
-                f"Proceeding with this transition may cause unintended closures.\n"
-            )
-            rich_click.echo(rich_click.style(warning, fg="yellow"))
-            if not auto_accept and not rich_click.confirm("Do you want to proceed with the transition?"):
-                raise SystemExit(0)
+    with _exit_on_api_error():
+        _confirm_closing_workflows(
+            project_url=project_url,
+            consequence="Proceeding with this transition may cause unintended closures.",
+            prompt="Do you want to proceed with the transition?",
+            auto_accept=auto_accept,
+        )
         transition_status(project_url=project_url, current_status=current_status, new_status=new_status)
-    except (ValueError, RuntimeError) as exception:
-        rich_click.echo(rich_click.style(str(exception), fg="red"))
-        raise SystemExit(1) from exception
