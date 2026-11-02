@@ -3,6 +3,7 @@
 import collections.abc
 import contextlib
 import importlib.metadata
+import os
 import pathlib
 
 import requests
@@ -78,6 +79,15 @@ def _confirm_closing_workflows(*, project_url: str, consequence: str, prompt: st
         raise SystemExit(0)
 
 
+def _set_github_actions_output(*, name: str, value: str) -> None:
+    """Set a step output when running as a GitHub Actions step, so a later step can act on it."""
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if not output_path:
+        return
+    with pathlib.Path(output_path).open(mode="a") as stream:
+        stream.write(f"{name}={value}\n")
+
+
 @contextlib.contextmanager
 def _exit_on_api_error() -> collections.abc.Iterator[None]:
     """Report a ``ValueError``, ``RuntimeError`` or failed request in red and exit with code 1."""
@@ -144,12 +154,15 @@ def _historia_data_update_github_cli(
             past_number_of_days=past_number_of_days,
             start_date=start_date,
         )
+    _set_github_actions_output(name="rate-limited", value="true" if hit_rate_limit else "false")
     if hit_rate_limit:
         message = (
             "The GitHub API rate limit was hit, so some days were not saved. "
             "A later run that covers those days fetches them again."
         )
         rich_click.echo(rich_click.style(message, fg="yellow"))
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            rich_click.echo(f"::warning title=GitHub API rate limit::{message}")
 
 
 # historia project

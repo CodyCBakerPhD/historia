@@ -6,6 +6,7 @@
 
 - `dump_info_for_date` now returns whether the GitHub API rate limit was hit, as its docstring already said. It used to return `None`. `update` likewise returns whether any day hit the rate limit. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 - Added `historia.project.get_project_info`, which returns a `ProjectInfo` named tuple with a project's node ID and the IDs of its Status (with options), Start date, End date, and Members fields. A field the project lacks has `None` as its ID. ([#215](https://github.com/CodyCBakerPhD/historia/pull/215))
+- When `historia update github` runs as a GitHub Actions step, it now sets a `rate-limited` step output to `true` or `false`, and a rate-limited run gets a warning annotation. A workflow can use the output to raise an alert when runs keep hitting the rate limit, since the run itself still succeeds. ([#223](https://github.com/CodyCBakerPhD/historia/pull/223))
 
 ### 🐛 Bug Fix
 

@@ -10,6 +10,13 @@ import historia
 import historia._cli
 
 
+@pytest.fixture(autouse=True)
+def _outside_github_actions(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the tests from writing to the step outputs of the CI run that executes them."""
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+
+
 @pytest.mark.ai_generated
 def test_root_cli_version_flag() -> None:
     runner = click.testing.CliRunner()
@@ -163,6 +170,58 @@ def test_data_update_command_notes_a_rate_limit_and_still_succeeds(
 
     assert result.exit_code == 0
     assert ("rate limit was hit" in result.output) is expected_note
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("hit_rate_limit", "expected_output", "expected_annotation"),
+    [
+        pytest.param(True, "rate-limited=true\n", True, id="rate-limited"),
+        pytest.param(False, "rate-limited=false\n", False, id="not-rate-limited"),
+    ],
+)
+def test_data_update_command_reports_a_rate_limit_to_github_actions(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    hit_rate_limit: bool,
+    expected_output: str,
+    expected_annotation: bool,
+) -> None:
+    """Inside GitHub Actions, the command sets a `rate-limited` step output and annotates a rate limit."""
+    output_path = tmp_path / "github_output"
+    output_path.write_text("earlier=value\n")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output_path))
+    monkeypatch.setattr(historia._cli.data.github, "update", lambda **_kwargs: hit_rate_limit)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        ["update", "github", "--directory", str(tmp_path), "--username", "octocat", "--recency", "2"],
+    )
+
+    assert result.exit_code == 0
+    assert output_path.read_text() == "earlier=value\n" + expected_output
+    assert ("::warning title=GitHub API rate limit::" in result.output) is expected_annotation
+
+
+@pytest.mark.ai_generated
+def test_data_update_command_sets_no_output_outside_github_actions(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setattr(historia._cli.data.github, "update", lambda **_kwargs: True)
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        ["update", "github", "--directory", str(tmp_path), "--username", "octocat", "--recency", "2"],
+    )
+
+    assert result.exit_code == 0
+    assert "rate limit was hit" in result.output
+    assert "::warning" not in result.output
+    assert list(tmp_path.iterdir()) == []
 
 
 @pytest.mark.ai_generated

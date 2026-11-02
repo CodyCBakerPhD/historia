@@ -101,6 +101,7 @@ jobs:
 Tips:
 
 - The `recency: "2"` input tells **Historia** to refresh just the last two days on each run.
+- When `historia update github` runs as a GitHub Actions step, it sets a `rate-limited` step output to `true` or `false`. A rate-limited run also gets a warning annotation on its summary page. A later step can act on the output, for example to open an issue when runs keep hitting the rate limit.
 - The compressed `content.tar.gz` archive can be distributed as a portable payload living on an ephemeral branch.
 - Add additional `project-populate` steps with another `url:` to post the same data to multiple project boards.
 - **Historia** runs from a pinned container image rather than a `pip install`, so the workflow never depends on the runner's Python. There is no interpreter to set up and no install cache to invalidate.
