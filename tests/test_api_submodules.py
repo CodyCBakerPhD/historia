@@ -42,6 +42,8 @@ def test_global_init_exports(attribute_name: str, is_exposed: bool) -> None:
         (historia.project, "create_project_page", True),
         (historia.project, "transition_status", True),
         (historia.project, "update_project_item_dates", True),
+        (historia.project, "ProjectInfo", True),
+        (historia.project, "get_project_info", True),
     ],
 )
 def test_submodule_exports_remain_available(module: object, attribute_name: str, is_exposed: bool) -> None:

@@ -13,6 +13,8 @@ import beartype
 import requests
 import tqdm
 
+from .._models import ProjectInfo
+
 _MAXIMUM_ATTEMPTS = 5
 _INITIAL_BACKOFF_SECONDS = 2.0
 _TRANSIENT_ERROR_MESSAGE_PREFIX = "Something went wrong while executing your query"
@@ -125,21 +127,19 @@ def add_to_project(
         warnings.warn(message=f"No URLs found in directory `{data_directory}`.", stacklevel=2)
         return
 
-    project_id, status_field_id, status_options, start_date_field_id, end_date_field_id, members_field_id = (
-        _get_project_info(
-            project_url=project_url,
-            headers=headers,
-        )
+    project = _get_project_info(
+        project_url=project_url,
+        headers=headers,
     )
 
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
     validated_members_field_id: str | None = None
     if assign_members:
-        if members_field_id is None:
+        if project.members_field_id is None:
             message = f"No 'Members' field found in project `{project_url}`."
             raise ValueError(message)
-        validated_members_field_id = members_field_id
+        validated_members_field_id = project.members_field_id
         existing_items = _list_project_items_with_member_values(
             owner_type=owner_type,
             owner_login=owner_login,
@@ -162,7 +162,7 @@ def add_to_project(
         for url in all_urls:
             if url in existing_items:
                 _merge_existing_item_members(
-                    project_id=project_id,
+                    project_id=project.project_id,
                     existing_item_info=existing_items[url],
                     usernames=url_to_members.get(url, set()),
                     members_field_id=typing.cast("str", validated_members_field_id),
@@ -187,7 +187,7 @@ def add_to_project(
         if current_url in existing_items:
             if assign_members:
                 _merge_existing_item_members(
-                    project_id=project_id,
+                    project_id=project.project_id,
                     existing_item_info=existing_items[current_url],
                     usernames=url_to_members.get(url, set()),
                     members_field_id=typing.cast("str", validated_members_field_id),
@@ -202,7 +202,7 @@ def add_to_project(
                 continue
         item_node_id, item_type, item_state, created_at, closed_at = item_info
 
-        item_id = _add_item_to_project(project_id=project_id, content_id=item_node_id, headers=headers)
+        item_id = _add_item_to_project(project_id=project.project_id, content_id=item_node_id, headers=headers)
         if item_id is None:
             continue
 
@@ -217,12 +217,12 @@ def add_to_project(
                 "closed_at": closed_at,
             },
             project_values={
-                "project_id": project_id,
+                "project_id": project.project_id,
                 "status": status,
-                "status_field_id": status_field_id,
-                "status_options": status_options,
-                "start_date_field_id": start_date_field_id,
-                "end_date_field_id": end_date_field_id,
+                "status_field_id": project.status_field_id,
+                "status_options": project.status_options,
+                "start_date_field_id": project.start_date_field_id,
+                "end_date_field_id": project.end_date_field_id,
                 "end_date_placeholder_days": end_date_placeholder_days,
                 "members_field_id": validated_members_field_id if assign_members else None,
                 "member_usernames": member_usernames,
@@ -680,7 +680,7 @@ def _get_project_info(
     *,
     project_url: str,
     headers: dict[str, str],
-) -> tuple[str, str, dict[str, str], str | None, str | None, str | None]:
+) -> ProjectInfo:
     """
     Retrieve the project node ID and the IDs of its Status (with options), Start date, End date, and Members fields.
 
@@ -693,12 +693,8 @@ def _get_project_info(
 
     Returns
     -------
-    tuple[str, str, dict[str, str], str | None, str | None, str | None]
-        A tuple of (project_id, status_field_id, status_options, start_date_field_id,
-        end_date_field_id, members_field_id) where status_options maps option name → option ID, and
-        start_date_field_id / end_date_field_id are the IDs of the project's "Start date"
-        and "End date" date fields respectively (or None if not present). ``members_field_id``
-        is the ID of the project's "Members" field (or None if not present).
+    ProjectInfo
+        The project node ID and the IDs of its fields. A field the project lacks has None as its ID.
 
     Raises
     ------
@@ -801,7 +797,14 @@ query GetProject($login: String!, $number: Int!) {
         message = f"No 'Status' field found in project `{project_url}`."
         raise ValueError(message)
 
-    return project_id, status_field_id, status_options, start_date_field_id, end_date_field_id, members_field_id
+    return ProjectInfo(
+        project_id=project_id,
+        status_field_id=status_field_id,
+        status_options=status_options,
+        start_date_field_id=start_date_field_id,
+        end_date_field_id=end_date_field_id,
+        members_field_id=members_field_id,
+    )
 
 
 def _get_item_info(*, url: str, headers: dict[str, str]) -> tuple[str, str, str, str, str | None] | None:
@@ -1181,14 +1184,12 @@ def update_project_item_dates(
 
     headers = {"Authorization": f"token {github_token}"}
 
-    project_id, _status_field_id, _status_options, start_date_field_id, end_date_field_id, _members_field_id = (
-        _get_project_info(
-            project_url=project_url,
-            headers=headers,
-        )
+    project = _get_project_info(
+        project_url=project_url,
+        headers=headers,
     )
 
-    if start_date_field_id is None and end_date_field_id is None:
+    if project.start_date_field_id is None and project.end_date_field_id is None:
         warnings.warn(
             message=(
                 f"Project `{project_url}` has no 'Start date' or 'End date' fields. No date updates were performed."
@@ -1218,26 +1219,26 @@ def update_project_item_dates(
         created_at: str = item["createdAt"]
         closed_at: str | None = item.get("closedAt")
 
-        if start_date_field_id is not None:
+        if project.start_date_field_id is not None:
             start_date = created_at[:10]
             _set_item_date(
-                project_id=project_id,
+                project_id=project.project_id,
                 item_id=item_id,
-                field_id=start_date_field_id,
+                field_id=project.start_date_field_id,
                 date=start_date,
                 headers=headers,
             )
 
-        if end_date_field_id is not None:
+        if project.end_date_field_id is not None:
             if closed_at is not None:
                 end_date = closed_at[:10]
             else:
                 creation_date = datetime.date.fromisoformat(created_at[:10])
                 end_date = (creation_date + datetime.timedelta(days=end_date_placeholder_days)).isoformat()
             _set_item_date(
-                project_id=project_id,
+                project_id=project.project_id,
                 item_id=item_id,
-                field_id=end_date_field_id,
+                field_id=project.end_date_field_id,
                 date=end_date,
                 headers=headers,
             )
@@ -1271,14 +1272,12 @@ def update_project_item_members(*, project_url: str) -> None:
 
     headers = {"Authorization": f"token {github_token}"}
 
-    project_id, _status_field_id, _status_options, _start_date_field_id, _end_date_field_id, members_field_id = (
-        _get_project_info(
-            project_url=project_url,
-            headers=headers,
-        )
+    project = _get_project_info(
+        project_url=project_url,
+        headers=headers,
     )
 
-    if members_field_id is None:
+    if project.members_field_id is None:
         warnings.warn(
             message=f"Project `{project_url}` has no 'Members' field. No member updates were performed.",
             stacklevel=2,
@@ -1303,9 +1302,9 @@ def update_project_item_members(*, project_url: str) -> None:
         if members_value is None:
             continue
         _set_item_text(
-            project_id=project_id,
+            project_id=project.project_id,
             item_id=item_id,
-            field_id=members_field_id,
+            field_id=project.members_field_id,
             text=members_value,
             headers=headers,
         )
@@ -1954,6 +1953,39 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
 
 
 @beartype.beartype
+def get_project_info(project_url: str, /) -> ProjectInfo:
+    """
+    Retrieve the node ID of a GitHub Project and the IDs of the fields historia writes to.
+
+    Parameters
+    ----------
+    project_url : str
+        The URL of the GitHub Project v2,
+        e.g., ``https://github.com/users/username/projects/1``
+        or ``https://github.com/orgs/orgname/projects/1``.
+
+    Returns
+    -------
+    ProjectInfo
+        The project node ID and the IDs of its Status (with options), Start date, End date, and Members fields.
+        A field the project lacks has None as its ID.
+
+    Raises
+    ------
+    ValueError
+        If the ``GITHUB_TOKEN`` environment variable is not set, or if the project has no ``Status`` field.
+
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token is None:
+        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
+        raise ValueError(message)
+
+    headers = {"Authorization": f"token {github_token}"}
+    return _get_project_info(project_url=project_url, headers=headers)
+
+
+@beartype.beartype
 def get_project_closing_workflows(project_url: str, /) -> list[str]:
     """
     Return the names of enabled project workflows that close the underlying GitHub items when status changes.
@@ -2016,26 +2048,24 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
 
     headers = {"Authorization": f"token {github_token}"}
 
-    project_id, status_field_id, status_options, _start_date_field_id, _end_date_field_id, _members_field_id = (
-        _get_project_info(
-            project_url=project_url,
-            headers=headers,
-        )
+    project = _get_project_info(
+        project_url=project_url,
+        headers=headers,
     )
 
-    current_option_id = status_options.get(current_status)
+    current_option_id = project.status_options.get(current_status)
     if current_option_id is None:
         message = (
             f"Status option '{current_status}' not found in project `{project_url}`. "
-            f"Available options: {list(status_options.keys())}."
+            f"Available options: {list(project.status_options.keys())}."
         )
         raise ValueError(message)
 
-    new_option_id = status_options.get(new_status)
+    new_option_id = project.status_options.get(new_status)
     if new_option_id is None:
         message = (
             f"Status option '{new_status}' not found in project `{project_url}`. "
-            f"Available options: {list(status_options.keys())}."
+            f"Available options: {list(project.status_options.keys())}."
         )
         raise ValueError(message)
 
@@ -2045,7 +2075,7 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         owner_type=owner_type,
         owner_login=owner_login,
         project_number=project_number,
-        status_field_id=status_field_id,
+        status_field_id=project.status_field_id,
         headers=headers,
     )
 
@@ -2058,9 +2088,9 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         dynamic_ncols=True,
     ):
         _set_item_status(
-            project_id=project_id,
+            project_id=project.project_id,
             item_id=item["id"],
-            field_id=status_field_id,
+            field_id=project.status_field_id,
             option_id=new_option_id,
             headers=headers,
         )
