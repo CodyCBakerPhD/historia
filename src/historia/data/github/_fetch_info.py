@@ -1,18 +1,14 @@
 """Fetch GitHub activity for a user and date through the GraphQL API."""
 
 import functools
-import os
 import re
-import time
 import warnings
 
 import beartype
 import requests
 
+from ..._github import get_github_headers, post_graphql_with_retries
 from ..._globals import InfoType
-
-_MAXIMUM_ATTEMPTS = 5
-_INITIAL_BACKOFF_SECONDS = 2.0
 
 
 @beartype.beartype
@@ -54,10 +50,7 @@ def fetch_info_for_date(
         If the ``GITHUB_TOKEN`` environment variable is not set, or if ``date`` is not in ISO format.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
+    headers = get_github_headers()
     if re.match(pattern=r"^\d{4}-\d{2}-\d{2}$", string=date) is None:
         message = (
             f"\nDate `{date}` is not in the correct format!\n"
@@ -69,7 +62,7 @@ def fetch_info_for_date(
         info_type=info_type,
         date=date,
         username=username,
-        token=github_token,
+        headers=headers,
     )
 
     return result, hit_rate_limit
@@ -221,29 +214,29 @@ def _fetch_info_for_date_graphql(
     info_type: InfoType,
     date: str,
     username: str,
-    token: str,
+    headers: dict[str, str],
 ) -> tuple[list[str], bool]:
     info_type_to_query = _format_graphql_queries(date=date, username=username)
     query = info_type_to_query[info_type]
 
     if info_type in ("prs_assigned", "prs_review_requested", "prs_reviewed", "issues_assigned"):
-        urls, hit_rate_limit = _fetch_event_urls(query=query, date=date, username=username, token=token)
+        urls, hit_rate_limit = _fetch_event_urls(query=query, date=date, username=username, headers=headers)
         return urls, hit_rate_limit
 
     # The query requires a page size. 100 should be enough for a single day
-    nodes, _, hit_rate_limit = _post_search_query(query=query, variables={"first": 100}, token=token)
+    nodes, _, hit_rate_limit = _post_search_query(query=query, variables={"first": 100}, headers=headers)
     if hit_rate_limit:
         return [], hit_rate_limit
     urls = [node["url"] for node in nodes]
     return urls, False
 
 
-def _fetch_event_urls(*, query: str, date: str, username: str, token: str) -> tuple[list[str], bool]:
+def _fetch_event_urls(*, query: str, date: str, username: str, headers: dict[str, str]) -> tuple[list[str], bool]:
     urls: list[str] = []
     after_cursor = None
     while True:
         variables = {"first": 100, "after": after_cursor}
-        nodes, after_cursor, hit_rate_limit = _post_search_query(query=query, variables=variables, token=token)
+        nodes, after_cursor, hit_rate_limit = _post_search_query(query=query, variables=variables, headers=headers)
         if hit_rate_limit:
             return [], hit_rate_limit
         urls.extend(node["url"] for node in nodes if _has_event_on_date(node=node, date=date, username=username))
@@ -263,46 +256,9 @@ def _has_event_on_date(*, node: dict, date: str, username: str) -> bool:
     return False
 
 
-def _post_with_retries(*, query: str, variables: dict, token: str) -> requests.Response:
-    """
-    Post a GraphQL query, retrying with exponential backoff on server errors and dropped connections.
-
-    GitHub occasionally answers with a 502 or 503 from its edge for a moment. Those carry an HTML body rather than
-    a GraphQL payload, and a repeat of the same request usually succeeds. The last response is returned regardless
-    of its status so the caller can report it, and the last connection error is re-raised.
-
-    Returns
-    -------
-    requests.Response
-        The last response received, whatever its status.
-
-    """
-    backoff_seconds = _INITIAL_BACKOFF_SECONDS
-    for _ in range(_MAXIMUM_ATTEMPTS - 1):
-        try:
-            response: requests.Response | None = _post_once(query=query, variables=variables, token=token)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-            response = None
-        if response is not None and response.status_code < 500:
-            return response
-        time.sleep(backoff_seconds)
-        backoff_seconds *= 2
-    return _post_once(query=query, variables=variables, token=token)
-
-
-def _post_once(*, query: str, variables: dict, token: str) -> requests.Response:
-    headers = {"Authorization": f"token {token}"}
-    return requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": query, "variables": variables},
-        headers=headers,
-        timeout=30,
-    )
-
-
-def _post_search_query(*, query: str, variables: dict, token: str) -> tuple[list[dict], str | None, bool]:
+def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) -> tuple[list[dict], str | None, bool]:
     """Run one page of a GraphQL search, returning its nodes, the next page cursor (if any), and a rate limit flag."""
-    response = _post_with_retries(query=query, variables=variables, token=token)
+    response = post_graphql_with_retries(query=query, variables=variables, headers=headers)
     status = response.status_code
     if status == 403:
         hit_rate_limit = True

@@ -55,6 +55,7 @@ def update(
             date = (anchor - datetime.timedelta(days=day)).strftime("%Y-%m-%d")
             progress_bar.set_postfix(date=date)
             overwrite = day < 2
+            # Rate limits on these tokens are transient, so a rate-limited day does not stop the later days
             hit_rate_limit |= dump_info_for_date(directory=directory, date=date, username=username, overwrite=overwrite)
 
     return hit_rate_limit
