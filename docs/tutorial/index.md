@@ -227,6 +227,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
 
     steps:
       - uses: CodyCBakerPhD/historia-action@|historia_action_tag|
@@ -248,6 +249,8 @@ The action updates what it is pointed at and creates nothing, so three things ha
 - A dedicated repository you have created (e.g., `work-history-data`) to host the collected JSON files. The workflow file lives in it, and the action commits back to it.
 - The project board from Step 2, whose URL becomes `project-url`.
 - A repository secret named `GH_PAT` holding a personal access token, created as described under [Setup](https://github.com/CodyCBakerPhD/historia-action#setup) in the action reference. A board owned by an organization allows a fine-grained token limited to selected repositories and to reading them. A board owned by your user account requires a classic token. The pushes use the workflow's own `GITHUB_TOKEN`, which is why the job asks for `contents: write`.
+
+The job also asks for `issues: write`, which lets the action keep an issue open while runs keep hitting the GitHub API rate limit. A rate-limited run still succeeds and commits what it fetched, so without that issue a limit that keeps recurring would go unnoticed. The first such run opens the issue, each later one comments on it, and the next clean run closes it. See [Rate limit alerts](https://github.com/CodyCBakerPhD/historia-action#rate-limit-alerts) in the action reference. Without `issues: write`, the run only warns that tracking was skipped.
 
 The first action checks out the data repository, fetches recent activity, commits and pushes the new content, populates the project board, and force-pushes a compressed archive to a `dist` branch. The second refreshes the dates already on the board, which populating does not revisit once an item is added. Pin both to a published tag, and see the [action reference](https://github.com/CodyCBakerPhD/historia-action) for the optional inputs.
 
