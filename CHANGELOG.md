@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## v0.15.0
+
 ### 🚀 Enhancement
 
 - `dump_info_for_date` now returns whether the GitHub API rate limit was hit, as its docstring already said. It used to return `None`. `update` likewise returns whether any day hit the rate limit. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
