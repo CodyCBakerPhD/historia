@@ -75,20 +75,52 @@ def post_graphql_with_retries(
         If the last attempt times out.
 
     """
-    backoff_seconds = _INITIAL_BACKOFF_SECONDS
-    for _ in range(_MAXIMUM_ATTEMPTS - 1):
+    for wait_seconds in retry_waits():
         try:
-            response: requests.Response | None = _post_once(query=query, variables=variables, headers=headers)
+            response: requests.Response | None = post_graphql_once(query=query, variables=variables, headers=headers)
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
             response = None
         if response is not None and not is_transient(response):
             return response
-        time.sleep(backoff_seconds)
-        backoff_seconds *= 2
-    return _post_once(query=query, variables=variables, headers=headers)
+        time.sleep(wait_seconds)
+    return post_graphql_once(query=query, variables=variables, headers=headers)
 
 
-def _post_once(*, query: str, variables: dict, headers: dict[str, str]) -> requests.Response:
+def retry_waits() -> collections.abc.Iterator[float]:
+    """
+    Yield the wait in seconds before each retry of a GitHub request, doubling each time.
+
+    Yields
+    ------
+    float
+        The seconds to wait before the next attempt: 2, 4, 8, and 16, for five attempts in all.
+
+    """
+    wait_seconds = _INITIAL_BACKOFF_SECONDS
+    for _ in range(_MAXIMUM_ATTEMPTS - 1):
+        yield wait_seconds
+        wait_seconds *= 2
+
+
+def post_graphql_once(*, query: str, variables: dict, headers: dict[str, str]) -> requests.Response:
+    """
+    Post a GraphQL query or mutation once, without retrying.
+
+    Parameters
+    ----------
+    query : str
+        The GraphQL query or mutation.
+    variables : dict
+        The variables of the query.
+    headers : dict[str, str]
+        The request headers, including the Authorization token.
+
+    Returns
+    -------
+    requests.Response
+        The response, whatever its status.
+
+    """
     return requests.post(
         url="https://api.github.com/graphql",
         json={"query": query, "variables": variables},

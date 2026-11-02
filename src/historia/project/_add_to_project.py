@@ -707,8 +707,31 @@ def _all_connection_nodes(  # noqa: PLR0913
         message = f"{context}\nThe `{connection}` connection has more pages, but its parent has no node ID."
         raise RuntimeError(message)
 
+    remaining_nodes = _read_node_connection(
+        node_id=node_id,
+        node_type=node_type,
+        connection=connection,
+        selection=selection,
+        after_cursor=after_cursor,
+        headers=headers,
+        context=context,
+    )
+    return [*nodes, *remaining_nodes]
+
+
+def _read_node_connection(  # noqa: PLR0913
+    *,
+    node_id: str,
+    node_type: str,
+    connection: str,
+    selection: str,
+    after_cursor: str | None,
+    headers: dict[str, str],
+    context: str,
+) -> list[dict]:
+    """Read a connection of the node with the given ID through ``node(id:)``, from a cursor through its last page."""
     query = """
-query GetRemainingNodes($id: ID!, $after: String) {
+query GetConnectionNodes($id: ID!, $after: String) {
     node(id: $id) {
         ... on {node_type} {
             {connection}(first: 100, after: $after) {
@@ -719,13 +742,15 @@ query GetRemainingNodes($id: ID!, $after: String) {
     }
 }
 """.replace("{node_type}", node_type).replace("{connection}", connection).replace("{selection}", selection)
-    while after_cursor is not None:
+    nodes: list[dict] = []
+    while True:
         response = _post_graphql(query=query, variables={"id": node_id, "after": after_cursor}, headers=headers)
         result = _check_graphql_response(response=response, context=context)
         page = result["data"]["node"][connection]
         nodes.extend(page["nodes"])
-        after_cursor = page["pageInfo"]["endCursor"] if page["pageInfo"]["hasNextPage"] else None
-    return nodes
+        if not page["pageInfo"]["hasNextPage"]:
+            return nodes
+        after_cursor = page["pageInfo"]["endCursor"]
 
 
 def _get_project_info(

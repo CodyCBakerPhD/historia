@@ -2485,7 +2485,7 @@ def test_transition_status_reads_status_beyond_the_first_page_of_field_values(
         answers={
             "GetProject": _project_answer,
             "GetItemsWithStatus": _items_answer,
-            "GetRemainingNodes": _remaining_answer,
+            "GetConnectionNodes": _remaining_answer,
             "SetStatus": _set_field_value_answer,
         },
     )
@@ -2525,7 +2525,7 @@ def test_add_to_project_keeps_members_value_beyond_the_first_page_of_field_value
         answers={
             "GetProject": _project_fields_answer,
             "GetItemsWithMembers": _items_answer,
-            "GetRemainingNodes": _remaining_answer,
+            "GetConnectionNodes": _remaining_answer,
             "SetText": _set_field_value_answer,
         },
     )
@@ -2560,7 +2560,7 @@ def test_update_project_item_members_reads_assignees_and_review_requests_beyond_
         answers={
             "GetProject": _project_fields_answer,
             "GetItemsWithMembers": _items_answer,
-            "GetRemainingNodes": _remaining_answer,
+            "GetConnectionNodes": _remaining_answer,
             "SetText": _set_field_value_answer,
         },
     )
