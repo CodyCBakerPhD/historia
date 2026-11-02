@@ -29,6 +29,7 @@
 - Removed three duplications in the project and data code. The end-date rule for project items lives in one helper instead of two copies, the three functions that read the history JSON files share one walker, and `INFO_TYPES` is derived from the `InfoType` literal instead of repeating its six names. ([#217](https://github.com/CodyCBakerPhD/historia/pull/217))
 - The seven project queries that were written once for user projects and once for organization projects now exist once each, with the owner's root field filled in. A change to one of them, such as a field's page size, is now made in one place. ([#218](https://github.com/CodyCBakerPhD/historia/pull/218))
 - The `GITHUB_TOKEN` check and the GraphQL retry loop now live in one new module, `historia/_github.py`. The token check and the Authorization header were built in seven places, and the retry loop was written twice with its attempt count and backoff declared in each copy. Each module keeps its own rule for which failures are worth retrying. ([#219](https://github.com/CodyCBakerPhD/historia/pull/219))
+- The project commands share their `--url`, `--placeholder` and `--yes` options, the closing-workflow warning and prompt, and the handling that reports an API error in red and exits with code 1. Each was written out once per command, and the two closing-workflow checks had drifted apart in form. Every command's `--help` and output is unchanged. ([#220](https://github.com/CodyCBakerPhD/historia/pull/220))
 
 ## v0.13.0
 
