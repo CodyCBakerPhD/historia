@@ -13,11 +13,4 @@ InfoType = typing.Literal[
     "issues_opened",
     "issues_assigned",
 ]
-INFO_TYPES: list[InfoType] = [
-    "prs_opened",
-    "prs_assigned",
-    "prs_review_requested",
-    "prs_reviewed",
-    "issues_opened",
-    "issues_assigned",
-]
+INFO_TYPES: list[InfoType] = list(typing.get_args(InfoType))

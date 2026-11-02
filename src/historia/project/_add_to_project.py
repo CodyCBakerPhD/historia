@@ -1,5 +1,6 @@
 """Add saved GitHub activity to a GitHub Project and keep its fields up to date."""
 
+import collections.abc
 import datetime
 import json
 import os
@@ -234,26 +235,29 @@ def add_to_project(
         warnings.warn(message=message, stacklevel=2)
 
 
-def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
-    """Collect all unique URLs from GraphQL JSON files under the given directory."""
-    all_info_file_paths = list(directory.rglob(pattern="*.json"))
-    all_urls: set[str] = set()
-    for info_file_path in all_info_file_paths:
+def _iter_history_lists(directory: pathlib.Path, /) -> collections.abc.Iterator[tuple[pathlib.Path, list]]:
+    """Yield the path and contents of each JSON file under ``directory`` that holds a list."""
+    for info_file_path in directory.rglob(pattern="*.json"):
         with info_file_path.open(mode="r") as file_stream:
             info = json.load(file_stream)
         if isinstance(info, list):
-            for value in info:
-                if isinstance(value, str):
-                    all_urls.add(value)
+            yield info_file_path, info
+
+
+def _collect_unique_urls(directory: pathlib.Path, /) -> list[str]:
+    """Collect all unique URLs from GraphQL JSON files under the given directory."""
+    all_urls: set[str] = set()
+    for _, info in _iter_history_lists(directory):
+        for value in info:
+            if isinstance(value, str):
+                all_urls.add(value)
     return list(all_urls)
 
 
 def _rewrite_moved_urls(*, directory: pathlib.Path, moved_urls: dict[str, str]) -> None:
     """Rewrite the history files under ``directory`` so each URL in ``moved_urls`` is recorded where it moved to."""
-    for info_file_path in directory.rglob(pattern="*.json"):
-        with info_file_path.open(mode="r") as file_stream:
-            info = json.load(file_stream)
-        if not isinstance(info, list) or not any(isinstance(value, str) and value in moved_urls for value in info):
+    for info_file_path, info in _iter_history_lists(directory):
+        if not any(isinstance(value, str) and value in moved_urls for value in info):
             continue
 
         # A file listing an item under both its old and its current URL keeps a single entry for it
@@ -314,14 +318,7 @@ def _resolve_latest_version_data_directory(directory: pathlib.Path, /) -> pathli
 def _collect_url_member_usernames(directory: pathlib.Path, /) -> dict[str, set[str]]:
     """Map each URL under ``directory`` to the set of usernames inferred from its path."""
     url_to_members: dict[str, set[str]] = {}
-    all_info_file_paths = list(directory.rglob(pattern="*.json"))
-
-    for info_file_path in all_info_file_paths:
-        with info_file_path.open(mode="r") as file_stream:
-            info = json.load(file_stream)
-        if not isinstance(info, list):
-            continue
-
+    for info_file_path, info in _iter_history_lists(directory):
         username = _infer_username_from_data_path(directory=directory, info_file_path=info_file_path)
         for value in info:
             if not isinstance(value, str):
@@ -489,6 +486,14 @@ def _resolve_status_name(*, url: str, item_type: str, item_state: str, status: s
     return status_name
 
 
+def _derive_end_date(*, created_at: str, closed_at: str | None, end_date_placeholder_days: int) -> str:
+    """Return the close date of a closed item, or its creation date plus the placeholder days for an open one."""
+    if closed_at is not None:
+        return closed_at[:10]
+    creation_date = datetime.date.fromisoformat(created_at[:10])
+    return (creation_date + datetime.timedelta(days=end_date_placeholder_days)).isoformat()
+
+
 def _set_item_dates_for_content(
     *,
     item_id: str,
@@ -511,11 +516,11 @@ def _set_item_dates_for_content(
     if project.end_date_field_id is None:
         return
 
-    if item.closed_at is not None:
-        end_date = item.closed_at[:10]
-    else:
-        creation_date = datetime.date.fromisoformat(item.created_at[:10])
-        end_date = (creation_date + datetime.timedelta(days=end_date_placeholder_days)).isoformat()
+    end_date = _derive_end_date(
+        created_at=item.created_at,
+        closed_at=item.closed_at,
+        end_date_placeholder_days=end_date_placeholder_days,
+    )
     _set_item_date(
         project_id=project.project_id,
         item_id=item_id,
@@ -1202,11 +1207,11 @@ def update_project_item_dates(
             )
 
         if project.end_date_field_id is not None:
-            if closed_at is not None:
-                end_date = closed_at[:10]
-            else:
-                creation_date = datetime.date.fromisoformat(created_at[:10])
-                end_date = (creation_date + datetime.timedelta(days=end_date_placeholder_days)).isoformat()
+            end_date = _derive_end_date(
+                created_at=created_at,
+                closed_at=closed_at,
+                end_date_placeholder_days=end_date_placeholder_days,
+            )
             _set_item_date(
                 project_id=project.project_id,
                 item_id=item_id,
