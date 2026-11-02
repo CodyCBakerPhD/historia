@@ -1693,12 +1693,11 @@ def test_list_project_items_with_member_usernames_returns_items() -> None:
             owner_type="users",
             owner_login="testuser",
             project_number=1,
+            members_field_id="PVTF_members",
             headers={"Authorization": "token fake-token"},
         )
 
-    assert len(items) == 1
-    assert items[0][0] == "PVTI_1"
-    assert items[0][1] == {"alex", "cody"}
+    assert items == [("PVTI_1", None, {"alex", "cody"}), ("PVTI_empty", None, set())]
 
 
 @pytest.mark.ai_generated
@@ -2555,6 +2554,103 @@ def test_update_project_item_members_reads_assignees_and_review_requests_beyond_
             return {"node": {"assignees": _page(nodes=[{"login": "blake"}])}}
         assert variables == {"id": "PR_node", "after": "reviews-1"}
         return {"node": {"reviewRequests": _page(nodes=[{"requestedReviewer": {"login": "cody"}}])}}
+
+    github = _PagedGitHub(
+        answers={
+            "GetProject": _project_fields_answer,
+            "GetItemsWithMembers": _items_answer,
+            "GetConnectionNodes": _remaining_answer,
+            "SetText": _set_field_value_answer,
+        },
+    )
+    with unittest.mock.patch("requests.post", side_effect=github.post):
+        historia.project.update_project_item_members(project_url=_PAGINATED_PROJECT_URL)
+
+    assert [variables["text"] for variables in github.variables_of("SetText")] == ["alex,blake,cody"]
+
+
+@pytest.mark.ai_generated
+def test_update_project_item_members_merges_everyone_involved_with_the_current_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Authors, assignees, pending and submitted reviewers are added to the current value, and no name is dropped."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    def _members_value(text: str) -> dict:
+        return _page(nodes=[{"text": text, "field": {"id": "PVTF_members"}}])
+
+    def _items_answer(_variables: dict, _query: str) -> dict:
+        nodes = [
+            {
+                "id": "PVTI_pr",
+                "fieldValues": _members_value("former-assignee"),
+                "content": {
+                    "id": "PR_node",
+                    "author": {"login": "alex"},
+                    "assignees": _page(nodes=[{"login": "blake"}]),
+                    "reviewRequests": _page(
+                        nodes=[{"requestedReviewer": {"login": "cody"}}, {"requestedReviewer": {}}],
+                    ),
+                    "latestReviews": _page(nodes=[{"author": {"login": "dana"}}, {"author": {}}]),
+                },
+            },
+            {
+                "id": "PVTI_issue",
+                "fieldValues": _page(nodes=[]),
+                "content": {"id": "I_node", "author": {"login": "erin"}, "assignees": _page(nodes=[])},
+            },
+            {
+                "id": "PVTI_unchanged",
+                "fieldValues": _members_value("frank, gale"),
+                "content": {
+                    "id": "I_other",
+                    "author": {"login": "gale"},
+                    "assignees": _page(nodes=[{"login": "frank"}]),
+                },
+            },
+            {
+                "id": "PVTI_bot_issue",
+                "fieldValues": _page(nodes=[]),
+                "content": {"id": "I_bot", "author": {}, "assignees": _page(nodes=[])},
+            },
+        ]
+        return {"user": {"projectV2": {"items": _page(nodes=nodes)}}}
+
+    github = _PagedGitHub(
+        answers={
+            "GetProject": _project_fields_answer,
+            "GetItemsWithMembers": _items_answer,
+            "SetText": _set_field_value_answer,
+        },
+    )
+    with unittest.mock.patch("requests.post", side_effect=github.post):
+        historia.project.update_project_item_members(project_url=_PAGINATED_PROJECT_URL)
+
+    assert [(variables["itemId"], variables["text"]) for variables in github.variables_of("SetText")] == [
+        ("PVTI_pr", "alex,blake,cody,dana,former-assignee"),
+        ("PVTI_issue", "erin"),
+    ]
+
+
+@pytest.mark.ai_generated
+def test_update_project_item_members_reads_submitted_reviews_beyond_the_first_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    def _items_answer(_variables: dict, _query: str) -> dict:
+        content = {
+            "id": "PR_node",
+            "author": {"login": "alex"},
+            "latestReviews": _page(nodes=[{"author": {"login": "blake"}}], next_cursor="reviews-1"),
+        }
+        node = {"id": "PVTI_item", "fieldValues": _page(nodes=[]), "content": content}
+        return {"user": {"projectV2": {"items": _page(nodes=[node])}}}
+
+    def _remaining_answer(variables: dict, query: str) -> dict:
+        assert "latestReviews(first: 100, after: $after)" in query
+        assert variables == {"id": "PR_node", "after": "reviews-1"}
+        return {"node": {"latestReviews": _page(nodes=[{"author": {"login": "cody"}}])}}
 
     github = _PagedGitHub(
         answers={
