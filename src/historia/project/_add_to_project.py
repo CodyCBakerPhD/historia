@@ -657,6 +657,11 @@ def _is_missing_project_item_error(*, response: requests.Response, item_id: str)
     return False
 
 
+def _owner_root_field(owner_type: str, /) -> str:
+    """Return the GraphQL root field for a project owner type: ``user`` for ``'users'``, else ``organization``."""
+    return "user" if owner_type == "users" else "organization"
+
+
 def _get_project_info(
     *,
     project_url: str,
@@ -685,10 +690,10 @@ def _get_project_info(
     """
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    if owner_type == "users":
-        query = """
+    root_field = _owner_root_field(owner_type)
+    query = """
 query GetProject($login: String!, $number: Int!) {
-    user(login: $login) {
+    {owner_root}(login: $login) {
         projectV2(number: $number) {
             id
             fields(first: 20) {
@@ -711,45 +716,13 @@ query GetProject($login: String!, $number: Int!) {
         }
     }
 }
-"""
-        variables = {"login": owner_login, "number": project_number}
-        data_path = ["data", "user", "projectV2"]
-    else:
-        query = """
-query GetProject($login: String!, $number: Int!) {
-    organization(login: $login) {
-        projectV2(number: $number) {
-            id
-            fields(first: 20) {
-                nodes {
-                    ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        options {
-                            id
-                            name
-                        }
-                    }
-                    ... on ProjectV2Field {
-                        id
-                        name
-                        dataType
-                    }
-                }
-            }
-        }
-    }
-}
-"""
-        variables = {"login": owner_login, "number": project_number}
-        data_path = ["data", "organization", "projectV2"]
+""".replace("{owner_root}", root_field)
+    variables = {"login": owner_login, "number": project_number}
 
     response = _post_graphql(query=query, variables=variables, headers=headers)
     result = _check_graphql_response(response=response, context=f"Failed to retrieve project info for `{project_url}`.")
 
-    project_data = result
-    for key in data_path:
-        project_data = project_data[key]
+    project_data = result["data"][root_field]["projectV2"]
 
     project_id = project_data["id"]
 
@@ -1314,10 +1287,10 @@ def _list_project_item_content_urls(
         A set of content URLs (PR or Issue URLs) for all items currently in the project.
 
     """
-    if owner_type == "users":
-        query = """
+    root_field = _owner_root_field(owner_type)
+    query = """
 query GetItemUrls($login: String!, $number: Int!, $after: String) {
-    user(login: $login) {
+    {owner_root}(login: $login) {
         projectV2(number: $number) {
             items(first: 100, after: $after) {
                 nodes {
@@ -1331,27 +1304,7 @@ query GetItemUrls($login: String!, $number: Int!, $after: String) {
         }
     }
 }
-"""
-        data_path = ["data", "user", "projectV2", "items"]
-    else:
-        query = """
-query GetItemUrls($login: String!, $number: Int!, $after: String) {
-    organization(login: $login) {
-        projectV2(number: $number) {
-            items(first: 100, after: $after) {
-                nodes {
-                    content {
-                        ... on PullRequest { url }
-                        ... on Issue { url }
-                    }
-                }
-                pageInfo { hasNextPage endCursor }
-            }
-        }
-    }
-}
-"""
-        data_path = ["data", "organization", "projectV2", "items"]
+""".replace("{owner_root}", root_field)
 
     existing_urls: set[str] = set()
     after_cursor = None
@@ -1366,9 +1319,7 @@ query GetItemUrls($login: String!, $number: Int!, $after: String) {
                 f" (owner_type={owner_type!r}, owner_login={owner_login!r})."
             ),
         )
-        items_data = result
-        for key in data_path:
-            items_data = items_data[key]
+        items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
             content = node.get("content")
@@ -1410,10 +1361,10 @@ def _list_project_items_with_dates(
         A list of dicts, each with keys ``id``, ``createdAt``, and optionally ``closedAt``.
 
     """
-    if owner_type == "users":
-        query = """
+    root_field = _owner_root_field(owner_type)
+    query = """
 query GetItems($login: String!, $number: Int!, $after: String) {
-    user(login: $login) {
+    {owner_root}(login: $login) {
         projectV2(number: $number) {
             items(first: 100, after: $after) {
                 nodes {
@@ -1428,28 +1379,7 @@ query GetItems($login: String!, $number: Int!, $after: String) {
         }
     }
 }
-"""
-        data_path = ["data", "user", "projectV2", "items"]
-    else:
-        query = """
-query GetItems($login: String!, $number: Int!, $after: String) {
-    organization(login: $login) {
-        projectV2(number: $number) {
-            items(first: 100, after: $after) {
-                nodes {
-                    id
-                    content {
-                        ... on PullRequest { createdAt closedAt }
-                        ... on Issue { createdAt closedAt }
-                    }
-                }
-                pageInfo { hasNextPage endCursor }
-            }
-        }
-    }
-}
-"""
-        data_path = ["data", "organization", "projectV2", "items"]
+""".replace("{owner_root}", root_field)
 
     all_items = []
     after_cursor = None
@@ -1461,9 +1391,7 @@ query GetItems($login: String!, $number: Int!, $after: String) {
             response=response,
             context=f"Failed to list project items for project {project_number}.",
         )
-        items_data = result
-        for key in data_path:
-            items_data = items_data[key]
+        items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
             content = node.get("content")
@@ -1493,10 +1421,10 @@ def _list_project_items_with_member_values(
     headers: dict[str, str],
 ) -> dict[str, dict[str, str | None]]:
     """Return project item IDs and current Members text values indexed by content URL."""
-    if owner_type == "users":
-        query = """
+    root_field = _owner_root_field(owner_type)
+    query = """
 query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
-    user(login: $login) {
+    {owner_root}(login: $login) {
         projectV2(number: $number) {
             items(first: 100, after: $after) {
                 nodes {
@@ -1523,40 +1451,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
         }
     }
 }
-"""
-        data_path = ["data", "user", "projectV2", "items"]
-    else:
-        query = """
-query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
-    organization(login: $login) {
-        projectV2(number: $number) {
-            items(first: 100, after: $after) {
-                nodes {
-                    id
-                    content {
-                        ... on PullRequest { url }
-                        ... on Issue { url }
-                    }
-                    fieldValues(first: 20) {
-                        nodes {
-                            ... on ProjectV2ItemFieldTextValue {
-                                text
-                                field {
-                                    ... on ProjectV2Field {
-                                        id
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                pageInfo { hasNextPage endCursor }
-            }
-        }
-    }
-}
-"""
-        data_path = ["data", "organization", "projectV2", "items"]
+""".replace("{owner_root}", root_field)
 
     items_by_url: dict[str, dict[str, str | None]] = {}
     after_cursor = None
@@ -1568,9 +1463,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
             response=response,
             context=f"Failed to list project member values for project {project_number}.",
         )
-        items_data = result
-        for key in data_path:
-            items_data = items_data[key]
+        items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
             content = node.get("content")
@@ -1602,10 +1495,10 @@ def _list_project_items_with_member_usernames(
     headers: dict[str, str],
 ) -> list[tuple[str, set[str]]]:
     """Return project item IDs and inferred member usernames from assignees/reviewers."""
-    if owner_type == "users":
-        query = """
+    root_field = _owner_root_field(owner_type)
+    query = """
 query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
-    user(login: $login) {
+    {owner_root}(login: $login) {
         projectV2(number: $number) {
             items(first: 100, after: $after) {
                 nodes {
@@ -1641,49 +1534,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
         }
     }
 }
-"""
-        data_path = ["data", "user", "projectV2", "items"]
-    else:
-        query = """
-query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
-    organization(login: $login) {
-        projectV2(number: $number) {
-            items(first: 100, after: $after) {
-                nodes {
-                    id
-                    content {
-                        ... on PullRequest {
-                            assignees(first: 20) {
-                                nodes {
-                                    login
-                                }
-                            }
-                            reviewRequests(first: 20) {
-                                nodes {
-                                    requestedReviewer {
-                                        ... on User {
-                                            login
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        ... on Issue {
-                            assignees(first: 20) {
-                                nodes {
-                                    login
-                                }
-                            }
-                        }
-                    }
-                }
-                pageInfo { hasNextPage endCursor }
-            }
-        }
-    }
-}
-"""
-        data_path = ["data", "organization", "projectV2", "items"]
+""".replace("{owner_root}", root_field)
 
     items_with_members: list[tuple[str, set[str]]] = []
     after_cursor = None
@@ -1695,9 +1546,7 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
             response=response,
             context=f"Failed to list project members for project {project_number}.",
         )
-        items_data = result
-        for key in data_path:
-            items_data = items_data[key]
+        items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
             content = node.get("content")
@@ -1761,10 +1610,10 @@ def _list_project_items_with_status(
         Items whose status field value cannot be determined have ``status_option_id`` set to ``None``.
 
     """
-    if owner_type == "users":
-        query = """
+    root_field = _owner_root_field(owner_type)
+    query = """
 query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
-    user(login: $login) {
+    {owner_root}(login: $login) {
         projectV2(number: $number) {
             items(first: 100, after: $after) {
                 nodes {
@@ -1787,36 +1636,7 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
         }
     }
 }
-"""
-        data_path = ["data", "user", "projectV2", "items"]
-    else:
-        query = """
-query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
-    organization(login: $login) {
-        projectV2(number: $number) {
-            items(first: 100, after: $after) {
-                nodes {
-                    id
-                    fieldValues(first: 20) {
-                        nodes {
-                            ... on ProjectV2ItemFieldSingleSelectValue {
-                                optionId
-                                field {
-                                    ... on ProjectV2SingleSelectField {
-                                        id
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                pageInfo { hasNextPage endCursor }
-            }
-        }
-    }
-}
-"""
-        data_path = ["data", "organization", "projectV2", "items"]
+""".replace("{owner_root}", root_field)
 
     all_items = []
     after_cursor = None
@@ -1828,9 +1648,7 @@ query GetItemsWithStatus($login: String!, $number: Int!, $after: String) {
             response=response,
             context=f"Failed to list project items with status for project {project_number}.",
         )
-        items_data = result
-        for key in data_path:
-            items_data = items_data[key]
+        items_data = result["data"][root_field]["projectV2"]["items"]
 
         for node in items_data["nodes"]:
             item_id = node["id"]
@@ -1875,10 +1693,10 @@ def _get_project_closing_workflows(
     """
     owner_type, owner_login, project_number = _parse_project_url(project_url)
 
-    if owner_type == "users":
-        query = """
+    root_field = _owner_root_field(owner_type)
+    query = """
 query GetProjectWorkflows($login: String!, $number: Int!) {
-    user(login: $login) {
+    {owner_root}(login: $login) {
         projectV2(number: $number) {
             workflows(first: 20) {
                 nodes {
@@ -1889,24 +1707,7 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
         }
     }
 }
-"""
-        data_path = ["data", "user", "projectV2"]
-    else:
-        query = """
-query GetProjectWorkflows($login: String!, $number: Int!) {
-    organization(login: $login) {
-        projectV2(number: $number) {
-            workflows(first: 20) {
-                nodes {
-                    name
-                    enabled
-                }
-            }
-        }
-    }
-}
-"""
-        data_path = ["data", "organization", "projectV2"]
+""".replace("{owner_root}", root_field)
 
     variables = {"login": owner_login, "number": project_number}
 
@@ -1916,9 +1717,7 @@ query GetProjectWorkflows($login: String!, $number: Int!) {
         context=f"Failed to retrieve workflows for `{project_url}`.",
     )
 
-    project_data = result
-    for key in data_path:
-        project_data = project_data[key]
+    project_data = result["data"][root_field]["projectV2"]
 
     workflow_nodes = project_data.get("workflows", {}).get("nodes", [])
 
