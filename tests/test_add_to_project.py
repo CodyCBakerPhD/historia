@@ -2380,3 +2380,191 @@ def test_get_project_closing_workflows_public_returns_list(
         result = historia.project.get_project_closing_workflows("https://github.com/users/testuser/projects/1")
 
     assert result == ["Auto-close issue"]
+
+
+_PAGINATED_PROJECT_URL = "https://github.com/users/testuser/projects/1"
+_STATUS_AND_MEMBERS_FIELDS: list[dict] = [
+    {"id": "PVTSSF_status", "name": "Status", "options": [{"id": "opt_done", "name": "Done"}]},
+    {"id": "PVTF_members", "name": "Members", "dataType": "TEXT"},
+]
+
+
+def _page(*, nodes: list[dict], next_cursor: str | None = None) -> dict:
+    return {"nodes": nodes, "pageInfo": {"hasNextPage": next_cursor is not None, "endCursor": next_cursor}}
+
+
+class _PagedGitHub:
+    """Answer GraphQL requests by operation name, recording each request's operation, variables and query."""
+
+    def __init__(self, *, answers: dict[str, collections.abc.Callable[[dict, str], dict]]) -> None:
+        self.answers = answers
+        self.requests: list[tuple[str, dict, str]] = []
+
+    def post(self, *, json: dict, **_kwargs: object) -> unittest.mock.MagicMock:
+        operation = json["query"].split("(")[0].split()[-1]
+        self.requests.append((operation, json["variables"], json["query"]))
+        return _json_response(payload={"data": self.answers[operation](json["variables"], json["query"])})
+
+    def variables_of(self, operation: str, /) -> list[dict]:
+        return [variables for name, variables, _ in self.requests if name == operation]
+
+
+def _project_fields_answer(_variables: dict, _query: str) -> dict:
+    return {"user": {"projectV2": {"id": "PVT_project", "fields": _page(nodes=_STATUS_AND_MEMBERS_FIELDS)}}}
+
+
+def _set_field_value_answer(variables: dict, _query: str) -> dict:
+    return {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": variables["itemId"]}}}
+
+
+@pytest.mark.ai_generated
+def test_get_project_info_reads_fields_beyond_the_first_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    start_field = {"id": "PVTF_start", "name": "Start date", "dataType": "DATE"}
+
+    def _fields_answer(variables: dict, _query: str) -> dict:
+        fields = _page(nodes=[start_field], next_cursor="fields-1")
+        if variables["after"] == "fields-1":
+            fields = _page(nodes=_STATUS_AND_MEMBERS_FIELDS)
+        return {"user": {"projectV2": {"id": "PVT_project", "fields": fields}}}
+
+    github = _PagedGitHub(answers={"GetProject": _fields_answer})
+    with unittest.mock.patch("requests.post", side_effect=github.post):
+        project = historia.project.get_project_info(_PAGINATED_PROJECT_URL)
+
+    assert project.status_field_id == "PVTSSF_status"
+    assert project.start_date_field_id == "PVTF_start"
+    assert project.members_field_id == "PVTF_members"
+    assert [variables["after"] for variables in github.variables_of("GetProject")] == [None, "fields-1"]
+
+
+@pytest.mark.ai_generated
+def test_get_project_closing_workflows_reads_workflows_beyond_the_first_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    def _workflows_answer(variables: dict, _query: str) -> dict:
+        workflows = _page(nodes=[{"name": "Item closed", "enabled": True}], next_cursor="workflows-1")
+        if variables["after"] == "workflows-1":
+            workflows = _page(nodes=[{"name": "Auto-close issue", "enabled": True}])
+        return {"user": {"projectV2": {"workflows": workflows}}}
+
+    github = _PagedGitHub(answers={"GetProjectWorkflows": _workflows_answer})
+    with unittest.mock.patch("requests.post", side_effect=github.post):
+        closing_workflows = historia.project.get_project_closing_workflows(_PAGINATED_PROJECT_URL)
+
+    assert closing_workflows == ["Auto-close issue"]
+
+
+@pytest.mark.ai_generated
+def test_transition_status_reads_status_beyond_the_first_page_of_field_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    fields = [
+        {
+            "id": "PVTSSF_status",
+            "name": "Status",
+            "options": [{"id": "opt_a", "name": "A"}, {"id": "opt_b", "name": "B"}],
+        },
+    ]
+
+    def _project_answer(_variables: dict, _query: str) -> dict:
+        return {"user": {"projectV2": {"id": "PVT_project", "fields": _page(nodes=fields)}}}
+
+    def _items_answer(_variables: dict, _query: str) -> dict:
+        node = {"id": "PVTI_item", "fieldValues": _page(nodes=[{}], next_cursor="values-1")}
+        return {"user": {"projectV2": {"items": _page(nodes=[node])}}}
+
+    def _remaining_answer(variables: dict, query: str) -> dict:
+        assert "fieldValues(first: 100, after: $after)" in query
+        assert variables == {"id": "PVTI_item", "after": "values-1"}
+        status_value = {"optionId": "opt_a", "field": {"id": "PVTSSF_status"}}
+        return {"node": {"fieldValues": _page(nodes=[status_value])}}
+
+    github = _PagedGitHub(
+        answers={
+            "GetProject": _project_answer,
+            "GetItemsWithStatus": _items_answer,
+            "GetConnectionNodes": _remaining_answer,
+            "SetStatus": _set_field_value_answer,
+        },
+    )
+    with unittest.mock.patch("requests.post", side_effect=github.post):
+        historia.project.transition_status(project_url=_PAGINATED_PROJECT_URL, current_status="A", new_status="B")
+
+    assert github.variables_of("SetStatus") == [
+        {"projectId": "PVT_project", "itemId": "PVTI_item", "fieldId": "PVTSSF_status", "optionId": "opt_b"},
+    ]
+
+
+@pytest.mark.ai_generated
+def test_add_to_project_keeps_members_value_beyond_the_first_page_of_field_values(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    """A Members value on a later page of field values is merged with the local usernames, never overwritten."""
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    pull_request_url = "https://github.com/owner/repo/pull/1"
+    user_directory = tmp_path / "username-alex"
+    user_directory.mkdir()
+    (user_directory / "urls.json").write_text(json.dumps([pull_request_url]))
+
+    def _items_answer(_variables: dict, _query: str) -> dict:
+        node = {
+            "id": "PVTI_item",
+            "content": {"url": pull_request_url},
+            "fieldValues": _page(nodes=[{"text": "A title", "field": {"id": "PVTF_title"}}], next_cursor="values-1"),
+        }
+        return {"user": {"projectV2": {"items": _page(nodes=[node])}}}
+
+    def _remaining_answer(_variables: dict, _query: str) -> dict:
+        members_value = {"text": "cody", "field": {"id": "PVTF_members"}}
+        return {"node": {"fieldValues": _page(nodes=[members_value])}}
+
+    github = _PagedGitHub(
+        answers={
+            "GetProject": _project_fields_answer,
+            "GetItemsWithMembers": _items_answer,
+            "GetConnectionNodes": _remaining_answer,
+            "SetText": _set_field_value_answer,
+        },
+    )
+    with unittest.mock.patch("requests.post", side_effect=github.post):
+        historia.project.add_to_project(directory=tmp_path, project_url=_PAGINATED_PROJECT_URL, assign_members=True)
+
+    assert [variables["text"] for variables in github.variables_of("SetText")] == ["alex,cody"]
+
+
+@pytest.mark.ai_generated
+def test_update_project_item_members_reads_assignees_and_review_requests_beyond_the_first_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    def _items_answer(_variables: dict, _query: str) -> dict:
+        content = {
+            "id": "PR_node",
+            "assignees": _page(nodes=[{"login": "alex"}], next_cursor="assignees-1"),
+            "reviewRequests": _page(nodes=[], next_cursor="reviews-1"),
+        }
+        return {"user": {"projectV2": {"items": _page(nodes=[{"id": "PVTI_item", "content": content}])}}}
+
+    def _remaining_answer(variables: dict, query: str) -> dict:
+        if "... on Assignable" in query:
+            assert variables == {"id": "PR_node", "after": "assignees-1"}
+            return {"node": {"assignees": _page(nodes=[{"login": "blake"}])}}
+        assert variables == {"id": "PR_node", "after": "reviews-1"}
+        return {"node": {"reviewRequests": _page(nodes=[{"requestedReviewer": {"login": "cody"}}])}}
+
+    github = _PagedGitHub(
+        answers={
+            "GetProject": _project_fields_answer,
+            "GetItemsWithMembers": _items_answer,
+            "GetConnectionNodes": _remaining_answer,
+            "SetText": _set_field_value_answer,
+        },
+    )
+    with unittest.mock.patch("requests.post", side_effect=github.post):
+        historia.project.update_project_item_members(project_url=_PAGINATED_PROJECT_URL)
+
+    assert [variables["text"] for variables in github.variables_of("SetText")] == ["alex,blake,cody"]

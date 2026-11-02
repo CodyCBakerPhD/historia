@@ -4,6 +4,7 @@ import pathlib
 
 import click.testing
 import pytest
+import requests
 
 import historia
 import historia._cli
@@ -74,11 +75,12 @@ def test_data_update_command_invokes_update(
         username: str,
         past_number_of_days: int,
         start_date: str | None,
-    ) -> None:
+    ) -> bool:
         called_args["directory"] = directory
         called_args["username"] = username
         called_args["past_number_of_days"] = past_number_of_days
         called_args["start_date"] = start_date
+        return False
 
     monkeypatch.setattr(historia._cli.data.github, "update", _fake_update)
     runner = click.testing.CliRunner()
@@ -141,20 +143,51 @@ def test_project_create_command_invokes_create(
 
 
 @pytest.mark.ai_generated
-def test_project_create_command_shows_failure_message_when_none_returned(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _fake_create(*, owner: str, title: str, public: bool) -> None:
-        pass
-
-    monkeypatch.setattr(historia._cli, "create_project_page", _fake_create)
+@pytest.mark.parametrize(
+    ("hit_rate_limit", "expected_note"),
+    [pytest.param(True, True, id="rate-limited"), pytest.param(False, False, id="not-rate-limited")],
+)
+def test_data_update_command_notes_a_rate_limit_and_still_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    hit_rate_limit: bool,
+    expected_note: bool,
+) -> None:
+    monkeypatch.setattr(historia._cli.data.github, "update", lambda **_kwargs: hit_rate_limit)
     runner = click.testing.CliRunner()
 
     result = runner.invoke(
         historia.historia_cli,
-        ["project", "create", "--owner", "octocat", "--title", "Work Board"],
+        ["update", "github", "--directory", str(tmp_path), "--username", "octocat", "--recency", "2"],
     )
 
     assert result.exit_code == 0
-    assert "Project creation failed" in result.output
+    assert ("rate limit was hit" in result.output) is expected_note
+
+
+@pytest.mark.ai_generated
+def test_data_update_command_reports_a_malformed_start_date(tmp_path: pathlib.Path) -> None:
+    runner = click.testing.CliRunner()
+
+    result = runner.invoke(
+        historia.historia_cli,
+        [
+            "update",
+            "github",
+            "--directory",
+            str(tmp_path),
+            "--username",
+            "octocat",
+            "--recency",
+            "1",
+            "--start",
+            "05/01/2026",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Invalid isoformat string: '05/01/2026'" in result.output
+    assert not isinstance(result.exception, ValueError)
 
 
 @pytest.mark.ai_generated
@@ -479,10 +512,27 @@ def test_project_transition_yes_flag_has_no_effect_when_no_closing_workflows(
 
 
 @pytest.mark.ai_generated
-@pytest.mark.parametrize("exception_type", [ValueError, RuntimeError])
+@pytest.mark.parametrize("exception_type", [ValueError, RuntimeError, requests.exceptions.ConnectionError])
 @pytest.mark.parametrize(
     ("attr_name", "make_cli_args"),
     [
+        (
+            "data.github.update",
+            lambda tmp_path: [
+                "update",
+                "github",
+                "--directory",
+                str(tmp_path),
+                "--username",
+                "octocat",
+                "--recency",
+                "1",
+            ],
+        ),
+        (
+            "create_project_page",
+            lambda _: ["project", "create", "--owner", "octocat", "--title", "Work Board"],
+        ),
         (
             "add_to_project",
             lambda tmp_path: [
@@ -529,7 +579,7 @@ def test_project_transition_yes_flag_has_no_effect_when_no_closing_workflows(
         ),
     ],
 )
-def test_project_command_shows_error_on_exception(
+def test_command_shows_error_on_exception(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
     exception_type: type[Exception],
@@ -540,7 +590,7 @@ def test_project_command_shows_error_on_exception(
         error_message = "something went wrong"
         raise exception_type(error_message)
 
-    monkeypatch.setattr(historia._cli, attr_name, _fake)
+    monkeypatch.setattr(f"historia._cli.{attr_name}", _fake)
     if attr_name in {"add_to_project", "transition_status"}:
         monkeypatch.setattr(historia._cli, "get_project_closing_workflows", lambda _url: [])
     runner = click.testing.CliRunner()
@@ -549,6 +599,7 @@ def test_project_command_shows_error_on_exception(
 
     assert result.exit_code == 1
     assert "something went wrong" in result.output
+    assert isinstance(result.exception, SystemExit)
 
 
 @pytest.mark.ai_generated

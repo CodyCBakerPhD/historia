@@ -30,7 +30,7 @@ def update(
         Number of days (in addition to the anchor date) to fetch backwards from.
     start_date : str, optional
         Anchor date to count backwards from, in the format "YYYY-MM-DD".
-        Defaults to today's date in the local timezone.
+        Defaults to today's date in UTC, the calendar GitHub's timestamps and search dates use.
         Primarily intended to make the iteration deterministic for testing.
 
     Returns
@@ -40,7 +40,7 @@ def update(
 
     """
     if start_date is None:
-        anchor = datetime.datetime.now(tz=datetime.timezone.utc).astimezone().date()
+        anchor = datetime.datetime.now(tz=datetime.timezone.utc).date()
     else:
         anchor = datetime.date.fromisoformat(start_date)
 

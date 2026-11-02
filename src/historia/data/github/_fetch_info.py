@@ -33,7 +33,7 @@ def fetch_info_for_date(
         The type of GitHub info to fetch. One of "prs_opened", "prs_assigned", "prs_review_requested",
         "prs_reviewed", "issues_opened", or "issues_assigned".
     date : str
-        The date for which to fetch GitHub info, in ISO format (e.g., "2026-01-01").
+        The date for which to fetch GitHub info, in ISO format (e.g., "2026-01-01"). It is a day in UTC.
     username : str
         The GitHub username for which to fetch info.
 
