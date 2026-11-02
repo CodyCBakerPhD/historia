@@ -30,6 +30,7 @@ _STATUS_FIELD_VALUE_SELECTION = """{
 }"""
 _ASSIGNEE_SELECTION = "{ login }"
 _REVIEW_REQUEST_SELECTION = "{ requestedReviewer { ... on User { login } } }"
+_REVIEW_SELECTION = "{ author { ... on User { login } } }"
 _GITHUB_API_URL = "https://api.github.com"
 
 
@@ -1296,8 +1297,10 @@ def update_project_item_members(*, project_url: str) -> None:
     """
     Update the Members text field on all items already added to a GitHub Project (v2).
 
-    Member attribution is inferred from assignee usernames and pull request reviewer usernames.
-    Items without assignees or reviewers are skipped.
+    The members of an item are everyone involved in it the way ``historia update github`` records involvement. That
+    covers its author, its assignees, the users with a pending review request on a pull request, and the users who
+    submitted a review of it. They are merged with the item's current Members value, so no name is ever removed.
+    Only users count, not bots or teams. An item whose value would not change is not written.
 
     Parameters
     ----------
@@ -1331,23 +1334,21 @@ def update_project_item_members(*, project_url: str) -> None:
         owner_type=owner_type,
         owner_login=owner_login,
         project_number=project_number,
+        members_field_id=project.members_field_id,
         headers=headers,
     )
 
-    for item_id, member_usernames in tqdm.tqdm(
+    for item_id, current_members, member_usernames in tqdm.tqdm(
         iterable=all_items,
         desc="Updating item members",
         unit="items",
         dynamic_ncols=True,
     ):
-        members_value = _merge_member_values(current_value=None, usernames=member_usernames)
-        if members_value is None:
-            continue
-        _set_item_text(
+        _merge_existing_item_members(
             project_id=project.project_id,
-            item_id=item_id,
-            field_id=project.members_field_id,
-            text=members_value,
+            existing_item_info={"item_id": item_id, "members": current_members},
+            usernames=member_usernames,
+            members_field_id=project.members_field_id,
             headers=headers,
         )
 
@@ -1583,9 +1584,32 @@ def _list_project_items_with_member_usernames(
     owner_type: str,
     owner_login: str,
     project_number: int,
+    members_field_id: str,
     headers: dict[str, str],
-) -> list[tuple[str, set[str]]]:
-    """Return project item IDs and inferred member usernames from assignees/reviewers."""
+) -> list[tuple[str, str | None, set[str]]]:
+    """
+    Return each project item's ID, its current Members value, and the users involved in its issue or pull request.
+
+    Parameters
+    ----------
+    owner_type : str
+        Either ``'users'`` or ``'orgs'``.
+    owner_login : str
+        The GitHub login of the project owner.
+    project_number : int
+        The number of the GitHub Project v2.
+    members_field_id : str
+        The global node ID of the Members field.
+    headers : dict[str, str]
+        HTTP headers including the Authorization token.
+
+    Returns
+    -------
+    list[tuple[str, str or None, set[str]]]
+        For each item with content, its node ID, its Members text or None, and the logins of the author, the
+        assignees, the users with a pending review request, and the users who submitted a review.
+
+    """
     root_field = _owner_root_field(owner_type)
     query = """
 query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
@@ -1594,9 +1618,14 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
             items(first: 100, after: $after) {
                 nodes {
                     id
+                    fieldValues(first: 100) {
+                        nodes {text_field_value_selection}
+                        pageInfo { hasNextPage endCursor }
+                    }
                     content {
                         ... on PullRequest {
                             id
+                            author { ... on User { login } }
                             assignees(first: 100) {
                                 nodes {assignee_selection}
                                 pageInfo { hasNextPage endCursor }
@@ -1605,9 +1634,14 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
                                 nodes {review_request_selection}
                                 pageInfo { hasNextPage endCursor }
                             }
+                            latestReviews(first: 100) {
+                                nodes {review_selection}
+                                pageInfo { hasNextPage endCursor }
+                            }
                         }
                         ... on Issue {
                             id
+                            author { ... on User { login } }
                             assignees(first: 100) {
                                 nodes {assignee_selection}
                                 pageInfo { hasNextPage endCursor }
@@ -1621,11 +1655,13 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
     }
 }
 """.replace("{owner_root}", root_field)
+    query = query.replace("{text_field_value_selection}", _TEXT_FIELD_VALUE_SELECTION)
     query = query.replace("{assignee_selection}", _ASSIGNEE_SELECTION)
     query = query.replace("{review_request_selection}", _REVIEW_REQUEST_SELECTION)
+    query = query.replace("{review_selection}", _REVIEW_SELECTION)
     context = f"Failed to list project members for project {project_number}."
 
-    items_with_members: list[tuple[str, set[str]]] = []
+    items_with_members: list[tuple[str, str | None, set[str]]] = []
     after_cursor = None
 
     while True:
@@ -1657,8 +1693,38 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
                 headers=headers,
                 context=context,
             )
+            reviews = _all_connection_nodes(
+                connection_data=content.get("latestReviews", {}),
+                node_id=content.get("id"),
+                node_type="PullRequest",
+                connection="latestReviews",
+                selection=_REVIEW_SELECTION,
+                headers=headers,
+                context=context,
+            )
+            field_values = _all_connection_nodes(
+                connection_data=node.get("fieldValues", {}),
+                node_id=node["id"],
+                node_type="ProjectV2Item",
+                connection="fieldValues",
+                selection=_TEXT_FIELD_VALUE_SELECTION,
+                headers=headers,
+                context=context,
+            )
+            current_members = next(
+                (
+                    field_value.get("text")
+                    for field_value in field_values
+                    if field_value and (field_value.get("field") or {}).get("id") == members_field_id
+                ),
+                None,
+            )
 
             member_usernames: set[str] = set()
+
+            author_login = (content.get("author") or {}).get("login")
+            if author_login is not None:
+                member_usernames.add(author_login)
 
             for assignee in assignees:
                 assignee_login = assignee.get("login")
@@ -1673,8 +1739,12 @@ query GetItemsWithMembers($login: String!, $number: Int!, $after: String) {
                 if reviewer_login is not None:
                     member_usernames.add(reviewer_login)
 
-            if member_usernames:
-                items_with_members.append((node["id"], member_usernames))
+            for review in reviews:
+                review_author_login = (review.get("author") or {}).get("login")
+                if review_author_login is not None:
+                    member_usernames.add(review_author_login)
+
+            items_with_members.append((node["id"], current_members, member_usernames))
 
         page_info = items_data["pageInfo"]
         if not page_info["hasNextPage"]:
