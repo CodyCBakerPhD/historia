@@ -3,10 +3,8 @@
 import collections.abc
 import datetime
 import json
-import os
 import pathlib
 import re
-import time
 import typing
 import warnings
 
@@ -14,10 +12,9 @@ import beartype
 import requests
 import tqdm
 
+from .._github import get_github_headers, post_graphql_with_retries
 from .._models import ItemInfo, ProjectInfo
 
-_MAXIMUM_ATTEMPTS = 5
-_INITIAL_BACKOFF_SECONDS = 2.0
 _TRANSIENT_ERROR_MESSAGE_PREFIX = "Something went wrong while executing your query"
 _GITHUB_API_URL = "https://api.github.com"
 
@@ -112,12 +109,7 @@ def add_to_project(
         and the project has no ``Members`` field.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
-
-    headers = {"Authorization": f"token {github_token}"}
+    headers = get_github_headers()
 
     data_directory = _resolve_latest_version_data_directory(directory)
 
@@ -546,25 +538,11 @@ def _post_graphql(*, query: str, variables: dict, headers: dict[str, str]) -> re
         The last response received, whatever its status.
 
     """
-    backoff_seconds = _INITIAL_BACKOFF_SECONDS
-    for _ in range(_MAXIMUM_ATTEMPTS - 1):
-        try:
-            response: requests.Response | None = _post_graphql_once(query=query, variables=variables, headers=headers)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-            response = None
-        if response is not None and not _is_transient_failure(response):
-            return response
-        time.sleep(backoff_seconds)
-        backoff_seconds *= 2
-    return _post_graphql_once(query=query, variables=variables, headers=headers)
-
-
-def _post_graphql_once(*, query: str, variables: dict, headers: dict[str, str]) -> requests.Response:
-    return requests.post(
-        url="https://api.github.com/graphql",
-        json={"query": query, "variables": variables},
+    return post_graphql_with_retries(
+        query=query,
+        variables=variables,
         headers=headers,
-        timeout=30,
+        is_transient=_is_transient_failure,
     )
 
 
@@ -1127,12 +1105,7 @@ def update_project_item_dates(
         If the ``GITHUB_TOKEN`` environment variable is not set.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
-
-    headers = {"Authorization": f"token {github_token}"}
+    headers = get_github_headers()
 
     project = _get_project_info(
         project_url=project_url,
@@ -1215,12 +1188,7 @@ def update_project_item_members(*, project_url: str) -> None:
         If the ``GITHUB_TOKEN`` environment variable is not set.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
-
-    headers = {"Authorization": f"token {github_token}"}
+    headers = get_github_headers()
 
     project = _get_project_info(
         project_url=project_url,
@@ -1752,12 +1720,7 @@ def get_project_info(project_url: str, /) -> ProjectInfo:
         If the ``GITHUB_TOKEN`` environment variable is not set, or if the project has no ``Status`` field.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
-
-    headers = {"Authorization": f"token {github_token}"}
+    headers = get_github_headers()
     return _get_project_info(project_url=project_url, headers=headers)
 
 
@@ -1785,12 +1748,7 @@ def get_project_closing_workflows(project_url: str, /) -> list[str]:
         If the ``GITHUB_TOKEN`` environment variable is not set.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
-
-    headers = {"Authorization": f"token {github_token}"}
+    headers = get_github_headers()
     return _get_project_closing_workflows(project_url=project_url, headers=headers)
 
 
@@ -1817,12 +1775,7 @@ def transition_status(*, project_url: str, current_status: str, new_status: str)
         does not have one of the specified status options.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
-
-    headers = {"Authorization": f"token {github_token}"}
+    headers = get_github_headers()
 
     project = _get_project_info(
         project_url=project_url,

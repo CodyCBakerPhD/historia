@@ -1,10 +1,11 @@
 """Create a GitHub Project set up for historia."""
 
-import os
 import warnings
 
 import beartype
 import requests
+
+from .._github import get_github_headers
 
 
 @beartype.beartype
@@ -38,12 +39,7 @@ def create_project_page(*, owner: str, title: str, public: bool = False) -> dict
         If the project-creation mutation fails with any status other than 403.
 
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        message = "\nPlease set the `GITHUB_TOKEN` environment variable with a valid GitHub Personal Access Token!\n\n"
-        raise ValueError(message)
-
-    headers = {"Authorization": f"token {github_token}"}
+    headers = get_github_headers()
 
     # Resolve the owner's global node ID (works for both users and organizations)
     owner_id = _get_owner_node_id(owner=owner, headers=headers)
