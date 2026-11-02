@@ -13,7 +13,7 @@ import beartype
 import requests
 import tqdm
 
-from .._models import ProjectInfo
+from .._models import ItemInfo, ProjectInfo
 
 _MAXIMUM_ATTEMPTS = 5
 _INITIAL_BACKOFF_SECONDS = 2.0
@@ -200,33 +200,21 @@ def add_to_project(
             if item_info is None:
                 unresolved_urls.append(url)
                 continue
-        item_node_id, item_type, item_state, created_at, closed_at = item_info
 
-        item_id = _add_item_to_project(project_id=project.project_id, content_id=item_node_id, headers=headers)
+        item_id = _add_item_to_project(project_id=project.project_id, content_id=item_info.node_id, headers=headers)
         if item_id is None:
             continue
 
         member_usernames = url_to_members.get(url, set())
         _set_initial_project_item_fields(
-            item_values={
-                "url": current_url,
-                "item_id": item_id,
-                "item_type": item_type,
-                "item_state": item_state,
-                "created_at": created_at,
-                "closed_at": closed_at,
-            },
-            project_values={
-                "project_id": project.project_id,
-                "status": status,
-                "status_field_id": project.status_field_id,
-                "status_options": project.status_options,
-                "start_date_field_id": project.start_date_field_id,
-                "end_date_field_id": project.end_date_field_id,
-                "end_date_placeholder_days": end_date_placeholder_days,
-                "members_field_id": validated_members_field_id if assign_members else None,
-                "member_usernames": member_usernames,
-            },
+            url=current_url,
+            item_id=item_id,
+            item=item_info,
+            project=project,
+            status=status,
+            end_date_placeholder_days=end_date_placeholder_days,
+            members_field_id=validated_members_field_id,
+            member_usernames=member_usernames,
             headers=headers,
         )
         existing_items[current_url] = {
@@ -300,7 +288,7 @@ def _resolve_latest_version_data_directory(directory: pathlib.Path, /) -> pathli
         only the highest version directory is selected.
 
     """
-    if not directory.exists() or not directory.is_dir():
+    if not directory.is_dir():
         return directory
 
     version_directories: list[tuple[int, pathlib.Path]] = []
@@ -422,27 +410,24 @@ def _merge_existing_item_members(
     existing_item_info["members"] = updated_members
 
 
-def _set_initial_project_item_fields(
+def _set_initial_project_item_fields(  # noqa: PLR0913
     *,
-    item_values: dict[str, str | None],
-    project_values: dict[str, object],
+    url: str,
+    item_id: str,
+    item: ItemInfo,
+    project: ProjectInfo,
+    status: str | None,
+    end_date_placeholder_days: int,
+    members_field_id: str | None,
+    member_usernames: set[str],
     headers: dict[str, str],
 ) -> None:
     """Set status/date/member fields for a newly added project item."""
-    url = item_values["url"]
-    item_id = item_values["item_id"]
-    item_type = item_values["item_type"]
-    item_state = item_values["item_state"]
-    created_at = item_values["created_at"]
-    if url is None or item_id is None or item_type is None or item_state is None or created_at is None:
-        return
-
-    status_options = typing.cast("dict[str, str]", project_values["status_options"])
-    status = typing.cast("str | None", project_values["status"])
+    status_options = project.status_options
     status_name = _resolve_status_name(
         url=url,
-        item_type=item_type,
-        item_state=item_state,
+        item_type=item.item_type,
+        item_state=item.item_state,
         status=status,
     )
     if status_name is None:
@@ -457,20 +442,20 @@ def _set_initial_project_item_fields(
         return
 
     _set_item_status(
-        project_id=typing.cast("str", project_values["project_id"]),
+        project_id=project.project_id,
         item_id=item_id,
-        field_id=typing.cast("str", project_values["status_field_id"]),
+        field_id=project.status_field_id,
         option_id=option_id,
         headers=headers,
     )
     _set_item_dates_for_content(
-        item_values=item_values,
-        project_values=project_values,
+        item_id=item_id,
+        item=item,
+        project=project,
+        end_date_placeholder_days=end_date_placeholder_days,
         headers=headers,
     )
 
-    members_field_id = typing.cast("str | None", project_values["members_field_id"])
-    member_usernames = typing.cast("set[str]", project_values["member_usernames"])
     if members_field_id is not None:
         initial_members = _merge_member_values(
             current_value=None,
@@ -478,7 +463,7 @@ def _set_initial_project_item_fields(
         )
         if initial_members is not None:
             _set_item_text(
-                project_id=typing.cast("str", project_values["project_id"]),
+                project_id=project.project_id,
                 item_id=item_id,
                 field_id=members_field_id,
                 text=initial_members,
@@ -506,44 +491,35 @@ def _resolve_status_name(*, url: str, item_type: str, item_state: str, status: s
 
 def _set_item_dates_for_content(
     *,
-    item_values: dict[str, str | None],
-    project_values: dict[str, object],
+    item_id: str,
+    item: ItemInfo,
+    project: ProjectInfo,
+    end_date_placeholder_days: int,
     headers: dict[str, str],
 ) -> None:
     """Set start and end date fields for a project item when date fields exist."""
-    item_id = item_values["item_id"]
-    created_at = item_values["created_at"]
-    closed_at = item_values["closed_at"]
-    if item_id is None or created_at is None:
-        return
-
-    project_id = typing.cast("str", project_values["project_id"])
-    start_date_field_id = typing.cast("str | None", project_values["start_date_field_id"])
-    end_date_field_id = typing.cast("str | None", project_values["end_date_field_id"])
-    end_date_placeholder_days = typing.cast("int", project_values["end_date_placeholder_days"])
-
-    if start_date_field_id is not None:
-        start_date = created_at[:10]  # Extract YYYY-MM-DD from ISO datetime
+    if project.start_date_field_id is not None:
+        start_date = item.created_at[:10]  # Extract YYYY-MM-DD from ISO datetime
         _set_item_date(
-            project_id=project_id,
+            project_id=project.project_id,
             item_id=item_id,
-            field_id=start_date_field_id,
+            field_id=project.start_date_field_id,
             date=start_date,
             headers=headers,
         )
 
-    if end_date_field_id is None:
+    if project.end_date_field_id is None:
         return
 
-    if closed_at is not None:
-        end_date = closed_at[:10]
+    if item.closed_at is not None:
+        end_date = item.closed_at[:10]
     else:
-        creation_date = datetime.date.fromisoformat(created_at[:10])
+        creation_date = datetime.date.fromisoformat(item.created_at[:10])
         end_date = (creation_date + datetime.timedelta(days=end_date_placeholder_days)).isoformat()
     _set_item_date(
-        project_id=project_id,
+        project_id=project.project_id,
         item_id=item_id,
-        field_id=end_date_field_id,
+        field_id=project.end_date_field_id,
         date=end_date,
         headers=headers,
     )
@@ -807,7 +783,7 @@ query GetProject($login: String!, $number: Int!) {
     )
 
 
-def _get_item_info(*, url: str, headers: dict[str, str]) -> tuple[str, str, str, str, str | None] | None:
+def _get_item_info(*, url: str, headers: dict[str, str]) -> ItemInfo | None:
     """
     Fetch the node ID, type (PullRequest or Issue), state, creation date, and closed date for the given URL.
 
@@ -820,11 +796,8 @@ def _get_item_info(*, url: str, headers: dict[str, str]) -> tuple[str, str, str,
 
     Returns
     -------
-    tuple[str, str, str, str, str | None] or None
-        A tuple of (node_id, item_type, item_state, created_at, closed_at) where item_type is
-        'PullRequest' or 'Issue', item_state is 'open' or 'closed', created_at is an ISO 8601
-        datetime string, and closed_at is an ISO 8601 datetime string or None if not closed.
-        Returns None if the URL does not resolve to a PR or Issue.
+    ItemInfo or None
+        The item's node ID, type, state, and dates, or None if the URL does not resolve to a PR or Issue.
 
     """
     query = """
@@ -852,14 +825,13 @@ query GetItem($url: URI!) {
     resource = result["data"]["resource"]
     if resource is None:
         return None
-    node_id = resource["id"]
-    item_state = resource["state"].lower()
-    created_at: str = resource["createdAt"]
-    closed_at: str | None = resource.get("closedAt")
-
-    item_type = "PullRequest" if "/pull/" in url else "Issue"
-
-    return node_id, item_type, item_state, created_at, closed_at
+    return ItemInfo(
+        node_id=resource["id"],
+        item_type="PullRequest" if "/pull/" in url else "Issue",
+        item_state=resource["state"].lower(),
+        created_at=resource["createdAt"],
+        closed_at=resource.get("closedAt"),
+    )
 
 
 def _resolve_current_url(*, url: str, headers: dict[str, str]) -> str | None:

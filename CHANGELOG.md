@@ -25,6 +25,7 @@
 - Removed source comments that restated the line below them, and renamed the `entity` locals in `_format_graphql_queries` to `info_type`, as the rest of the package calls them. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 - Docstrings are now checked against the code they document. Ruff's DOC rules flag a missing or extra `Returns` or `Raises` section, and numpydoc's validation hook checks public names against the numpy docstring standard. Ruff alone never flagged a public function with no docstring, because every source module's name starts with an underscore. ([#214](https://github.com/CodyCBakerPhD/historia/pull/214))
 - `_get_project_info` now returns a `ProjectInfo` named tuple instead of a six-item tuple, so its callers read each field by name rather than unpacking all six. Data models now live in one module, `historia/_models.py`. ([#215](https://github.com/CodyCBakerPhD/historia/pull/215))
+- `add_to_project` passes typed models to its helpers instead of the `item_values` and `project_values` dicts. `_get_item_info` returns an `ItemInfo` named tuple, which joins `ProjectInfo` in `historia/_models.py`. This removes 11 `typing.cast` calls and two guards that no input could reach. ([#216](https://github.com/CodyCBakerPhD/historia/pull/216))
 
 ## v0.13.0
 
