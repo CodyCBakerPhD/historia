@@ -5,6 +5,7 @@ import contextlib
 import importlib.metadata
 import pathlib
 
+import requests
 import rich_click
 
 from . import data
@@ -79,10 +80,10 @@ def _confirm_closing_workflows(*, project_url: str, consequence: str, prompt: st
 
 @contextlib.contextmanager
 def _exit_on_api_error() -> collections.abc.Iterator[None]:
-    """Report a ``ValueError`` or ``RuntimeError`` in red and exit with code 1."""
+    """Report a ``ValueError``, ``RuntimeError`` or failed request in red and exit with code 1."""
     try:
         yield
-    except (ValueError, RuntimeError) as exception:
+    except (ValueError, RuntimeError, requests.exceptions.RequestException) as exception:
         rich_click.echo(rich_click.style(str(exception), fg="red"))
         raise SystemExit(1) from exception
 
@@ -136,12 +137,19 @@ def _historia_data_update_github_cli(
     """Fetch and save a user's GitHub issues and pull requests by day."""
     directory_path = pathlib.Path(directory)
 
-    data.github.update(
-        directory=directory_path,
-        username=username,
-        past_number_of_days=past_number_of_days,
-        start_date=start_date,
-    )
+    with _exit_on_api_error():
+        hit_rate_limit = data.github.update(
+            directory=directory_path,
+            username=username,
+            past_number_of_days=past_number_of_days,
+            start_date=start_date,
+        )
+    if hit_rate_limit:
+        message = (
+            "The GitHub API rate limit was hit, so some days were not saved. "
+            "A later run that covers those days fetches them again."
+        )
+        rich_click.echo(rich_click.style(message, fg="yellow"))
 
 
 # historia project
@@ -163,13 +171,10 @@ def _historia_project_cli() -> None:
 )
 def _historia_project_create_cli(*, owner: str, title: str, public: bool) -> None:
     """Create a GitHub Project with Start date and End date fields."""
-    project = create_project_page(owner=owner, title=title, public=public)
-    if project:
-        message = f"Project created successfully!\nID: {project['id']}\nURL: {project['url']}"
-        rich_click.echo(rich_click.style(message, fg="green"))
-    else:
-        message = "Project creation failed due to rate limiting. Please check the warnings above and try again later."
-        rich_click.echo(rich_click.style(message, fg="red"))
+    with _exit_on_api_error():
+        project = create_project_page(owner=owner, title=title, public=public)
+    message = f"Project created successfully!\nID: {project['id']}\nURL: {project['url']}"
+    rich_click.echo(rich_click.style(message, fg="green"))
 
 
 # historia project populate
