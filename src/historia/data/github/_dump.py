@@ -8,6 +8,8 @@ import beartype
 from ._fetch_info import fetch_info_for_date
 from ..._globals import CACHE_LAYOUT_VERSION, INFO_TYPES, InfoType
 
+_EMPTY_RESULTS_FILENAME = "empty-results.txt"
+
 
 @beartype.beartype
 def dump_specific_info(
@@ -21,6 +23,10 @@ def dump_specific_info(
     """
     Fetch and save a specific type of GitHub info for a given date.
 
+    An answer with no items writes no file, so a day without activity gets no folder. Instead, the date and info
+    type are listed in ``empty-results.txt`` in the user's folder, one ``YYYY-MM-DD info_type`` per line. A later
+    call without ``overwrite`` then does not fetch them again. An existing file is never replaced by an empty answer.
+
     Parameters
     ----------
     directory : pathlib.Path
@@ -33,7 +39,7 @@ def dump_specific_info(
     username : str
         The GitHub username to fetch information about.
     overwrite : bool, default=False
-        Whether to overwrite existing files.
+        Whether to fetch again a date and info type that was already saved or recorded as empty.
         If False, existing files will be left unchanged.
         Use of True is recommended for the most recent days (since API fetches may not be 100% accurate).
 
@@ -44,17 +50,14 @@ def dump_specific_info(
 
     """
     year, month, day = date.split("-")
-    subdir = (
-        directory
-        / f"version-{CACHE_LAYOUT_VERSION}"
-        / f"username-{username}"
-        / f"year-{year}"
-        / f"month-{month}"
-        / f"day-{day}"
-    )
+    user_directory = directory / f"version-{CACHE_LAYOUT_VERSION}" / f"username-{username}"
+    subdir = user_directory / f"year-{year}" / f"month-{month}" / f"day-{day}"
     filename = f'info-{info_type.replace("_", "+")}_date-{date.replace("-", "+")}.json'
     file_path = subdir / filename
-    if overwrite is False and file_path.exists():
+    empty_results_path = user_directory / _EMPTY_RESULTS_FILENAME
+    empty_results = _read_empty_results(empty_results_path)
+    empty_result = f"{date} {info_type}"
+    if overwrite is False and (file_path.exists() or empty_result in empty_results):
         return False
 
     info, hit_rate_limit = fetch_info_for_date(info_type=info_type, date=date, username=username)
@@ -62,13 +65,34 @@ def dump_specific_info(
     if hit_rate_limit:
         return hit_rate_limit
     if len(info) == 0:
+        # A day that already has a file keeps it, so only a day with nothing saved is recorded as empty
+        if not file_path.exists() and empty_result not in empty_results:
+            _write_empty_results(path=empty_results_path, empty_results=empty_results | {empty_result})
         return False
 
     subdir.mkdir(parents=True, exist_ok=True)
     with file_path.open(mode="w") as file_stream:
         json.dump(obj=info, fp=file_stream, indent=1)
+    if empty_result in empty_results:
+        _write_empty_results(path=empty_results_path, empty_results=empty_results - {empty_result})
 
     return False
+
+
+def _read_empty_results(path: pathlib.Path, /) -> set[str]:
+    """Read the ``YYYY-MM-DD info_type`` lines of a user's record of empty answers."""
+    if not path.exists():
+        return set()
+    return set(path.read_text(encoding="utf-8").splitlines()) - {""}
+
+
+def _write_empty_results(*, path: pathlib.Path, empty_results: set[str]) -> None:
+    """Write a user's record of empty answers in sorted order, removing the file once it would be empty."""
+    if len(empty_results) == 0:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(data="".join(f"{empty_result}\n" for empty_result in sorted(empty_results)), encoding="utf-8")
 
 
 @beartype.beartype
@@ -93,7 +117,7 @@ def dump_info_for_date(
     username : str
         The GitHub username to fetch information about.
     overwrite : bool, default=False
-        Whether to overwrite existing files.
+        Whether to fetch again an info type that was already saved or recorded as empty for the date.
         If False, existing files will be left unchanged.
         Use of True is recommended for the most recent days (since API fetches may not be 100% accurate).
 

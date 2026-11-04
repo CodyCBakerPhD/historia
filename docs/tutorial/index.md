@@ -35,6 +35,7 @@ assert tutorial_text.count(target_cli_start_flag) == 1
 - `--username` is the GitHub username whose activity to fetch.
 - `--recency` is number of past days to fetch.
   - The two most recent days are always refreshed to account for late-arriving data.
+  - Older days are fetched once. A day and info type with no activity gets no file. It is listed in `empty-results.txt` instead, so it is not fetched again either.
 - `--start` is an optional anchor date.
   - Use the `YYYY-MM-DD` string format, for example `2026-02-09`.
   - It is included here to keep the tutorial on a fixed historical range. Omit it for a moving window anchored on today's date in UTC.
@@ -69,6 +70,7 @@ After this step, `./history` will contain a versioned folder tree such as:
 history/
 └── version-0+5/
     └── username-[user]/
+        ├── empty-results.txt
         └── year-2026/
             └── month-05/
                 └── day-10/

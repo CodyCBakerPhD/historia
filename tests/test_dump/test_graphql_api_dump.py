@@ -64,8 +64,12 @@ def test_dump_info_for_date_graphql(monkeypatch: pytest.MonkeyPatch, tmp_path: p
         assert test_content == expected_content
 
 
+def _user_directory(directory: pathlib.Path, /) -> pathlib.Path:
+    return directory / f"version-{historia.data.github.CACHE_LAYOUT_VERSION}" / "username-codycbakerphd"
+
+
 @pytest.mark.ai_generated
-def test_dump_specific_info_does_not_create_folder_when_empty(
+def test_dump_info_for_date_records_empty_results_without_day_folders(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: pathlib.Path,
 ) -> None:
@@ -85,9 +89,161 @@ def test_dump_specific_info_does_not_create_folder_when_empty(
         username="codycbakerphd",
     )
 
-    # No nested day folders or files should have been created when there were no results.
     assert list(test_directory.rglob(pattern="*.json")) == []
-    assert not any(child.is_dir() for child in test_directory.iterdir())
+    assert list(test_directory.rglob(pattern="year-*")) == []
+    empty_results_text = (_user_directory(test_directory) / "empty-results.txt").read_text(encoding="utf-8")
+    assert empty_results_text.splitlines() == [
+        "2026-01-05 issues_assigned",
+        "2026-01-05 issues_opened",
+        "2026-01-05 prs_assigned",
+        "2026-01-05 prs_opened",
+        "2026-01-05 prs_review_requested",
+        "2026-01-05 prs_reviewed",
+    ]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("overwrite", "expected_fetch_count"),
+    [
+        pytest.param(False, 0, id="overwrite-false-skips"),
+        pytest.param(True, 1, id="overwrite-true-fetches"),
+    ],
+)
+def test_dump_specific_info_does_not_fetch_a_recorded_empty_result_again(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    overwrite: bool,
+    expected_fetch_count: int,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    fetch_count = 0
+
+    def _mock_fetch_info_for_date(**_kwargs: object) -> tuple[list[str], bool]:
+        nonlocal fetch_count
+        fetch_count += 1
+        return ([], False)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+    user_directory = _user_directory(tmp_path)
+    user_directory.mkdir(parents=True)
+    (user_directory / "empty-results.txt").write_text(data="2026-01-05 prs_assigned\n", encoding="utf-8")
+
+    historia.data.github.dump_specific_info(
+        directory=tmp_path,
+        info_type="prs_assigned",
+        date="2026-01-05",
+        username="codycbakerphd",
+        overwrite=overwrite,
+    )
+
+    assert fetch_count == expected_fetch_count
+    assert (user_directory / "empty-results.txt").read_text(encoding="utf-8") == "2026-01-05 prs_assigned\n"
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("initial_lines", "expected_lines"),
+    [
+        pytest.param(["2026-01-05 prs_assigned"], None, id="last-entry-removes-file"),
+        pytest.param(
+            ["2026-01-04 prs_opened", "2026-01-05 prs_assigned"],
+            ["2026-01-04 prs_opened"],
+            id="other-entries-kept",
+        ),
+    ],
+)
+def test_dump_specific_info_drops_a_recorded_empty_result_once_items_are_saved(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    initial_lines: list[str],
+    expected_lines: list[str] | None,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    def _mock_fetch_info_for_date(**_kwargs: object) -> tuple[list[str], bool]:
+        return (["https://github.com/con/nwb2bids/pull/1"], False)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+    user_directory = _user_directory(tmp_path)
+    user_directory.mkdir(parents=True)
+    empty_results_path = user_directory / "empty-results.txt"
+    empty_results_path.write_text(data="".join(f"{line}\n" for line in initial_lines), encoding="utf-8")
+
+    historia.data.github.dump_specific_info(
+        directory=tmp_path,
+        info_type="prs_assigned",
+        date="2026-01-05",
+        username="codycbakerphd",
+        overwrite=True,
+    )
+
+    saved_file_path = user_directory / "year-2026" / "month-01" / "day-05" / "info-prs+assigned_date-2026+01+05.json"
+    assert json.loads(saved_file_path.read_text(encoding="utf-8")) == ["https://github.com/con/nwb2bids/pull/1"]
+    actual_lines = empty_results_path.read_text(encoding="utf-8").splitlines() if empty_results_path.exists() else None
+    assert actual_lines == expected_lines
+
+
+@pytest.mark.ai_generated
+def test_dump_specific_info_keeps_a_saved_file_on_an_empty_answer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+
+    def _mock_fetch_info_for_date(**_kwargs: object) -> tuple[list[str], bool]:
+        return ([], False)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+    user_directory = _user_directory(tmp_path)
+    day_directory = user_directory / "year-2026" / "month-01" / "day-05"
+    day_directory.mkdir(parents=True)
+    saved_file_path = day_directory / "info-prs+assigned_date-2026+01+05.json"
+    saved_file_path.write_text(data='["https://github.com/con/nwb2bids/pull/1"]', encoding="utf-8")
+
+    historia.data.github.dump_specific_info(
+        directory=tmp_path,
+        info_type="prs_assigned",
+        date="2026-01-05",
+        username="codycbakerphd",
+        overwrite=True,
+    )
+
+    assert saved_file_path.read_text(encoding="utf-8") == '["https://github.com/con/nwb2bids/pull/1"]'
+    assert not (user_directory / "empty-results.txt").exists()
+
+
+@pytest.mark.ai_generated
+def test_update_fetches_an_empty_older_day_only_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    fetched_dates: list[str] = []
+
+    def _mock_fetch_info_for_date(
+        *,
+        info_type: str,
+        date: str,
+        username: str,  # noqa: ARG001
+    ) -> tuple[list[str], bool]:
+        if info_type == "prs_assigned":
+            fetched_dates.append(date)
+        return ([], False)
+
+    monkeypatch.setattr("historia.data.github._dump.fetch_info_for_date", _mock_fetch_info_for_date)
+
+    for _ in range(2):
+        historia.data.github.update(
+            directory=tmp_path,
+            username="codycbakerphd",
+            past_number_of_days=3,
+            start_date="2026-01-05",
+        )
+
+    first_run_dates = ["2026-01-05", "2026-01-04", "2026-01-03", "2026-01-02"]
+    second_run_dates = ["2026-01-05", "2026-01-04"]
+    assert fetched_dates == first_run_dates + second_run_dates
 
 
 @pytest.mark.ai_generated
