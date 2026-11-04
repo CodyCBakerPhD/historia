@@ -7,6 +7,10 @@ import requests
 import historia
 
 _OWNER_LOOKUP_RESPONSE = unittest.mock.MagicMock(status_code=200, json=lambda: {"node_id": "MDQ6VXNlcg=="})
+_UNAPPLIED_ANSWERS: dict[str, tuple[int, object | None, str]] = {
+    "502": (502, None, "<html>502 Bad Gateway</html>"),
+    "list": (200, [], ""),
+}
 
 
 def _response(
@@ -35,9 +39,9 @@ class _FakeProjects:
 
     ``outcomes`` maps a mutation's operation name to what each call does in turn. ``"ok"`` applies it and answers
     normally, ``"lost"`` applies it but answers with a 502 as if the response were lost, ``"empty"`` applies it but
-    answers with a 200 and an empty body, ``"502"`` answers with a 502 without applying it, ``"connection"`` raises a
-    dropped connection without applying it, and an integer answers with that status and an error. Calls beyond the
-    listed outcomes are ``"ok"``.
+    answers with a 200 and an empty body, ``"502"`` answers with a 502 without applying it, ``"list"`` answers with a
+    200 whose JSON is a list without applying it, ``"connection"`` raises a dropped connection without applying it,
+    and an integer answers with that status and an error. Calls beyond the listed outcomes are ``"ok"``.
     """
 
     def __init__(
@@ -65,8 +69,9 @@ class _FakeProjects:
             raise requests.exceptions.ConnectionError(message)
         if isinstance(outcome, int):
             return _response(status_code=outcome, payload={"errors": [{"message": f"{operation} refused"}]})
-        if outcome == "502":
-            return _response(status_code=502, text="<html>502 Bad Gateway</html>", request_id="F469:1E5255:A85622")
+        if outcome in _UNAPPLIED_ANSWERS:
+            status_code, payload, text = _UNAPPLIED_ANSWERS[outcome]
+            return _response(status_code=status_code, payload=payload, text=text, request_id="F469:1E5255:A85622")
 
         data = self._apply(operation, variables)
         if outcome == "lost":
@@ -262,4 +267,17 @@ def test_create_project_page_reports_a_non_json_response_clearly(monkeypatch: py
 
     assert str(caught.value).splitlines()[-1] == "GitHub request ID: F469:1E5255:A85622"
     assert github.operations.count("CreateProject") == 5
+    assert github.projects == []
+
+
+@pytest.mark.ai_generated
+def test_create_project_page_reports_an_unexpected_payload_without_retrying(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    github = _FakeProjects(outcomes={"CreateProject": ["list"]})
+
+    with pytest.raises(RuntimeError, match=r"returned unexpected JSON payload: \[\]") as caught:
+        _create(github)
+
+    assert str(caught.value).splitlines()[-1] == "GitHub request ID: F469:1E5255:A85622"
+    assert github.operations.count("CreateProject") == 1
     assert github.projects == []
