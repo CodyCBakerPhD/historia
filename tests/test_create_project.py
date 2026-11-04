@@ -7,11 +7,24 @@ import requests
 import historia
 
 _OWNER_LOOKUP_RESPONSE = unittest.mock.MagicMock(status_code=200, json=lambda: {"node_id": "MDQ6VXNlcg=="})
+_UNAPPLIED_ANSWERS: dict[str, tuple[int, object | None, str]] = {
+    "502": (502, None, "<html>502 Bad Gateway</html>"),
+    "list": (200, [], ""),
+}
 
 
-def _response(*, status_code: int, payload: object | None = None, text: str = "") -> unittest.mock.MagicMock:
+def _response(
+    *,
+    status_code: int,
+    payload: object | None = None,
+    text: str = "",
+    request_id: str | None = None,
+) -> unittest.mock.MagicMock:
     response = unittest.mock.MagicMock()
     response.status_code = status_code
+    response.headers = requests.structures.CaseInsensitiveDict()
+    if request_id is not None:
+        response.headers["X-GitHub-Request-Id"] = request_id
     if payload is None:
         response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", text, 0)
         response.text = text
@@ -25,9 +38,10 @@ class _FakeProjects:
     Answer the requests of ``create_project_page`` from an in-memory model of one owner's projects.
 
     ``outcomes`` maps a mutation's operation name to what each call does in turn. ``"ok"`` applies it and answers
-    normally, ``"lost"`` applies it but answers with a 502 as if the response were lost, ``"502"`` answers with a
-    502 without applying it, ``"connection"`` raises a dropped connection without applying it, and an integer
-    answers with that status and an error. Calls beyond the listed outcomes are ``"ok"``.
+    normally, ``"lost"`` applies it but answers with a 502 as if the response were lost, ``"empty"`` applies it but
+    answers with a 200 and an empty body, ``"502"`` answers with a 502 without applying it, ``"list"`` answers with a
+    200 whose JSON is a list without applying it, ``"connection"`` raises a dropped connection without applying it,
+    and an integer answers with that status and an error. Calls beyond the listed outcomes are ``"ok"``.
     """
 
     def __init__(
@@ -55,12 +69,15 @@ class _FakeProjects:
             raise requests.exceptions.ConnectionError(message)
         if isinstance(outcome, int):
             return _response(status_code=outcome, payload={"errors": [{"message": f"{operation} refused"}]})
-        if outcome == "502":
-            return _response(status_code=502, text="<html>502 Bad Gateway</html>")
+        if outcome in _UNAPPLIED_ANSWERS:
+            status_code, payload, text = _UNAPPLIED_ANSWERS[outcome]
+            return _response(status_code=status_code, payload=payload, text=text, request_id="F469:1E5255:A85622")
 
         data = self._apply(operation, variables)
         if outcome == "lost":
             return _response(status_code=502, text="<html>502 Bad Gateway</html>")
+        if outcome == "empty":
+            return _response(status_code=200)
         return _response(status_code=200, payload={"data": data})
 
     def _connection(self, query: str, variables: dict) -> dict:
@@ -178,6 +195,7 @@ def test_create_project_page_names_the_project_when_cleanup_fails(monkeypatch: p
     ("outcomes", "expected_calls"),
     [
         pytest.param({"CreateProject": ["lost"]}, 1, id="project-response-lost"),
+        pytest.param({"CreateProject": ["empty"]}, 1, id="project-response-empty"),
         pytest.param({"CreateProject": ["502", "connection"]}, 3, id="project-not-applied"),
         pytest.param({"CreateField": ["lost"]}, 2, id="field-response-lost"),
         pytest.param({"CreateField": ["connection"]}, 3, id="field-not-applied"),
@@ -233,6 +251,9 @@ def test_create_project_page_raises_and_warns_when_rate_limited(monkeypatch: pyt
     assert [str(warning.message).splitlines()[0] for warning in caught_warnings] == [
         "GitHub GraphQL API mutation to create project `Work History` failed!",
     ]
+    assert [str(warning.message).splitlines()[-1] for warning in caught_warnings] == [
+        "GitHub request ID: <not given>",
+    ]
     assert github.projects == []
 
 
@@ -241,8 +262,22 @@ def test_create_project_page_reports_a_non_json_response_clearly(monkeypatch: py
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
     github = _FakeProjects(outcomes={"CreateProject": ["502"] * 5})
 
-    with pytest.raises(RuntimeError, match="not valid JSON: <html>502 Bad Gateway</html>"):
+    with pytest.raises(RuntimeError, match="not valid JSON: <html>502 Bad Gateway</html>") as caught:
         _create(github)
 
+    assert str(caught.value).splitlines()[-1] == "GitHub request ID: F469:1E5255:A85622"
     assert github.operations.count("CreateProject") == 5
+    assert github.projects == []
+
+
+@pytest.mark.ai_generated
+def test_create_project_page_reports_an_unexpected_payload_without_retrying(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    github = _FakeProjects(outcomes={"CreateProject": ["list"]})
+
+    with pytest.raises(RuntimeError, match=r"returned unexpected JSON payload: \[\]") as caught:
+        _create(github)
+
+    assert str(caught.value).splitlines()[-1] == "GitHub request ID: F469:1E5255:A85622"
+    assert github.operations.count("CreateProject") == 1
     assert github.projects == []

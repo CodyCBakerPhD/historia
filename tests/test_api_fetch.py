@@ -1,3 +1,4 @@
+import re
 import unittest.mock
 import warnings
 
@@ -66,14 +67,34 @@ def _bad_gateway_response() -> unittest.mock.MagicMock:
     return mock_response
 
 
+def _empty_ok_response() -> unittest.mock.MagicMock:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = ""
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+    return mock_response
+
+
 @pytest.mark.ai_generated
-def test_fetch_info_graphql_raises_on_persistent_non_json_response(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("non_json_response", "expected_message"),
+    [
+        (_bad_gateway_response(), "Status code 502: GitHub returned a non-JSON response body: <html>"),
+        (_empty_ok_response(), "Status code 200: GitHub returned a non-JSON response body: <empty response body>"),
+    ],
+    ids=["bad_gateway", "empty_ok"],
+)
+def test_fetch_info_graphql_raises_on_persistent_non_json_response(
+    monkeypatch: pytest.MonkeyPatch,
+    non_json_response: unittest.mock.MagicMock,
+    expected_message: str,
+) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
     with (
-        unittest.mock.patch("requests.post", return_value=_bad_gateway_response()) as mock_post,
+        unittest.mock.patch("requests.post", return_value=non_json_response) as mock_post,
         unittest.mock.patch("time.sleep") as mock_sleep,
-        pytest.raises(RuntimeError, match="non-JSON response body"),
+        pytest.raises(RuntimeError, match=re.escape(expected_message)),
     ):
         historia.data.github.fetch_info_for_date(
             info_type="issues_opened",
@@ -91,10 +112,11 @@ def test_fetch_info_graphql_raises_on_persistent_non_json_response(monkeypatch: 
     "transient_failure",
     [
         _bad_gateway_response(),
+        _empty_ok_response(),
         requests.exceptions.ConnectionError("connection reset"),
         requests.exceptions.ReadTimeout("read timed out"),
     ],
-    ids=["bad_gateway", "connection_error", "timeout"],
+    ids=["bad_gateway", "empty_ok", "connection_error", "timeout"],
 )
 def test_fetch_info_graphql_retries_transient_failures(
     monkeypatch: pytest.MonkeyPatch,
@@ -123,6 +145,59 @@ def test_fetch_info_graphql_retries_transient_failures(
     assert mock_post.call_count == 2
     slept_seconds = [call.args[0] for call in mock_sleep.call_args_list]
     assert slept_seconds == [2.0]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("status_code", "payload"),
+    [
+        (200, None),
+        (401, {"message": "Bad credentials"}),
+        (200, {"errors": [{"message": 'Parse error on "}" (RCURLY)'}]}),
+        (200, {"data": None}),
+    ],
+    ids=["empty_ok", "bad_credentials", "graphql_errors", "unexpected_payload"],
+)
+@pytest.mark.parametrize(
+    ("headers", "expected_last_line"),
+    [
+        (
+            {"X-GitHub-Request-Id": "F469:1E5255:A85622:22BFE56:6ABB0329"},
+            "GitHub request ID: F469:1E5255:A85622:22BFE56:6ABB0329",
+        ),
+        ({}, "GitHub request ID: <not given>"),
+    ],
+    ids=["request_id", "no_request_id"],
+)
+def test_fetch_info_graphql_error_ends_with_the_github_request_id(
+    monkeypatch: pytest.MonkeyPatch,
+    status_code: int,
+    payload: dict | None,
+    headers: dict[str, str],
+    expected_last_line: str,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = status_code
+    mock_response.headers = requests.structures.CaseInsensitiveDict(headers)
+    if payload is None:
+        mock_response.text = ""
+        mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+    else:
+        mock_response.json.return_value = payload
+
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        unittest.mock.patch("time.sleep"),
+        pytest.raises(RuntimeError) as caught,
+    ):
+        historia.data.github.fetch_info_for_date(
+            info_type="issues_opened",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
+
+    assert str(caught.value).splitlines()[-1] == expected_last_line
 
 
 @pytest.mark.ai_generated
