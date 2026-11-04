@@ -147,6 +147,59 @@ def test_fetch_info_graphql_retries_transient_failures(
 
 
 @pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("status_code", "payload"),
+    [
+        (200, None),
+        (401, {"message": "Bad credentials"}),
+        (200, {"errors": [{"message": 'Parse error on "}" (RCURLY)'}]}),
+        (200, {"data": None}),
+    ],
+    ids=["empty_ok", "bad_credentials", "graphql_errors", "unexpected_payload"],
+)
+@pytest.mark.parametrize(
+    ("headers", "expected_last_line"),
+    [
+        (
+            {"X-GitHub-Request-Id": "F469:1E5255:A85622:22BFE56:6ABB0329"},
+            "GitHub request ID: F469:1E5255:A85622:22BFE56:6ABB0329",
+        ),
+        ({}, "GitHub request ID: <not given>"),
+    ],
+    ids=["request_id", "no_request_id"],
+)
+def test_fetch_info_graphql_error_ends_with_the_github_request_id(
+    monkeypatch: pytest.MonkeyPatch,
+    status_code: int,
+    payload: dict | None,
+    headers: dict[str, str],
+    expected_last_line: str,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = status_code
+    mock_response.headers = requests.structures.CaseInsensitiveDict(headers)
+    if payload is None:
+        mock_response.text = ""
+        mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+    else:
+        mock_response.json.return_value = payload
+
+    with (
+        unittest.mock.patch("requests.post", return_value=mock_response),
+        unittest.mock.patch("time.sleep"),
+        pytest.raises(RuntimeError) as caught,
+    ):
+        historia.data.github.fetch_info_for_date(
+            info_type="issues_opened",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
+
+    assert str(caught.value).splitlines()[-1] == expected_last_line
+
+
+@pytest.mark.ai_generated
 def test_fetch_info_graphql_raises_on_persistent_connection_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 

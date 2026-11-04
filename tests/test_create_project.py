@@ -9,9 +9,18 @@ import historia
 _OWNER_LOOKUP_RESPONSE = unittest.mock.MagicMock(status_code=200, json=lambda: {"node_id": "MDQ6VXNlcg=="})
 
 
-def _response(*, status_code: int, payload: object | None = None, text: str = "") -> unittest.mock.MagicMock:
+def _response(
+    *,
+    status_code: int,
+    payload: object | None = None,
+    text: str = "",
+    request_id: str | None = None,
+) -> unittest.mock.MagicMock:
     response = unittest.mock.MagicMock()
     response.status_code = status_code
+    response.headers = requests.structures.CaseInsensitiveDict()
+    if request_id is not None:
+        response.headers["X-GitHub-Request-Id"] = request_id
     if payload is None:
         response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", text, 0)
         response.text = text
@@ -57,7 +66,7 @@ class _FakeProjects:
         if isinstance(outcome, int):
             return _response(status_code=outcome, payload={"errors": [{"message": f"{operation} refused"}]})
         if outcome == "502":
-            return _response(status_code=502, text="<html>502 Bad Gateway</html>")
+            return _response(status_code=502, text="<html>502 Bad Gateway</html>", request_id="F469:1E5255:A85622")
 
         data = self._apply(operation, variables)
         if outcome == "lost":
@@ -237,6 +246,9 @@ def test_create_project_page_raises_and_warns_when_rate_limited(monkeypatch: pyt
     assert [str(warning.message).splitlines()[0] for warning in caught_warnings] == [
         "GitHub GraphQL API mutation to create project `Work History` failed!",
     ]
+    assert [str(warning.message).splitlines()[-1] for warning in caught_warnings] == [
+        "GitHub request ID: <not given>",
+    ]
     assert github.projects == []
 
 
@@ -245,8 +257,9 @@ def test_create_project_page_reports_a_non_json_response_clearly(monkeypatch: py
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
     github = _FakeProjects(outcomes={"CreateProject": ["502"] * 5})
 
-    with pytest.raises(RuntimeError, match="not valid JSON: <html>502 Bad Gateway</html>"):
+    with pytest.raises(RuntimeError, match="not valid JSON: <html>502 Bad Gateway</html>") as caught:
         _create(github)
 
+    assert str(caught.value).splitlines()[-1] == "GitHub request ID: F469:1E5255:A85622"
     assert github.operations.count("CreateProject") == 5
     assert github.projects == []

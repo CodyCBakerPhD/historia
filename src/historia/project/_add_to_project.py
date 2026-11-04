@@ -12,7 +12,7 @@ import beartype
 import requests
 import tqdm
 
-from .._github import get_github_headers, is_server_error_or_not_json, post_graphql_with_retries
+from .._github import format_request_id, get_github_headers, is_server_error_or_not_json, post_graphql_with_retries
 from .._models import ItemInfo, ProjectInfo
 
 _TRANSIENT_ERROR_MESSAGE_PREFIX = "Something went wrong while executing your query"
@@ -605,13 +605,18 @@ def _check_graphql_response(*, response: requests.Response, context: str) -> dic
 
     """
     status = response.status_code
+    request_id = format_request_id(response)
     try:
         result = response.json()
     except requests.exceptions.JSONDecodeError as exception:
         response_body = response.text.strip() or "<empty response body>"
-        message = f"{context}\nStatus code {status}: GitHub GraphQL API response was not valid JSON: {response_body}"
+        message = (
+            f"{context}\n"
+            f"Status code {status}: GitHub GraphQL API response was not valid JSON: {response_body}\n"
+            f"{request_id}"
+        )
         raise RuntimeError(message) from exception
-    message = f"{context}\nStatus code {status}: {result}"
+    message = f"{context}\nStatus code {status}: {result}\n{request_id}"
     if status == 403:
         warnings.warn(message=message, stacklevel=3)
         raise RuntimeError(message)
@@ -621,7 +626,8 @@ def _check_graphql_response(*, response: requests.Response, context: str) -> dic
         errors = result.get("errors")
     except AttributeError as exception:
         unexpected_payload_message = (
-            f"{context}\nStatus code {status}: GitHub GraphQL API returned unexpected JSON payload: {result}"
+            f"{context}\nStatus code {status}: GitHub GraphQL API returned unexpected JSON payload: {result}\n"
+            f"{request_id}"
         )
         raise RuntimeError(unexpected_payload_message) from exception
     if errors is not None:

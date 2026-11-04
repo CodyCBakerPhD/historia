@@ -7,7 +7,7 @@ import warnings
 import beartype
 import requests
 
-from ..._github import get_github_headers, post_graphql_with_retries
+from ..._github import format_request_id, get_github_headers, post_graphql_with_retries
 from ..._globals import InfoType
 
 
@@ -260,13 +260,14 @@ def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) 
     """Run one page of a GraphQL search, returning its nodes, the next page cursor (if any), and a rate limit flag."""
     response = post_graphql_with_retries(query=query, variables=variables, headers=headers)
     status = response.status_code
+    request_id = format_request_id(response)
     if status == 403:
         hit_rate_limit = True
         try:
             rate_limit_result = response.json()
         except requests.exceptions.JSONDecodeError:
             rate_limit_result = response.text.strip() or "<empty response body>"
-        message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {rate_limit_result}"
+        message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {rate_limit_result}\n{request_id}"
         warnings.warn(message=message, stacklevel=2)
         return [], None, hit_rate_limit
     try:
@@ -275,10 +276,11 @@ def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) 
         response_body = response.text.strip() or "<empty response body>"
         message = (
             f"GitHub GraphQL API query `{query}` failed!\n"
-            f"Status code {status}: GitHub returned a non-JSON response body: {response_body}"
+            f"Status code {status}: GitHub returned a non-JSON response body: {response_body}\n"
+            f"{request_id}"
         )
         raise RuntimeError(message) from exception
-    message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}"
+    message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {result}\n{request_id}"
     if status != 200:
         raise RuntimeError(message)
     try:
@@ -291,7 +293,8 @@ def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) 
     except (AttributeError, KeyError, TypeError) as exception:
         unexpected_payload_message = (
             f"GitHub GraphQL API query `{query}` failed!\n"
-            f"Status code {status}: GitHub returned an unexpected JSON payload: {result}"
+            f"Status code {status}: GitHub returned an unexpected JSON payload: {result}\n"
+            f"{request_id}"
         )
         raise RuntimeError(unexpected_payload_message) from exception
     return nodes, next_cursor, False

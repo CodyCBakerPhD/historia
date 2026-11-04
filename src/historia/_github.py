@@ -62,6 +62,27 @@ def is_server_error_or_not_json(response: requests.Response, /) -> bool:
     return False
 
 
+def format_request_id(response: requests.Response, /) -> str:
+    """
+    Name the ID that GitHub gave a request, as the last line of an error message about its response.
+
+    GitHub sends this ID in the ``X-GitHub-Request-Id`` header. GitHub Support can use it to trace the request.
+
+    Parameters
+    ----------
+    response : requests.Response
+        The response from GitHub.
+
+    Returns
+    -------
+    str
+        A line such as ``GitHub request ID: F469:1E5255:A85622:22BFE56:6ABB0329``.
+
+    """
+    request_id = response.headers.get("X-GitHub-Request-Id") or "<not given>"
+    return f"GitHub request ID: {request_id}"
+
+
 def post_graphql_with_retries(
     *,
     query: str,
