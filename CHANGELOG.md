@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
+
+- The searches behind `prs_assigned`, `prs_review_requested`, `prs_reviewed` and `issues_assigned` now also require the item to have been created on or before the date. They used to match every item updated since the date, a set that grows every day for a date in the past. GitHub search returns only the first 1,000 results, so for an old date the items that could hold that day's activity were often never reached. For 2026-02-07, the four searches matched 4,643 items. All 86 of the assigned pull requests that existed that day fell outside the first 1,000 results. The four searches now match 291 items. A search that still matches more than 1,000 items now warns that the rest were not checked. ([#227](https://github.com/CodyCBakerPhD/historia/pull/227))
+
 ## v0.15.0
 
 ### 🚀 Enhancement
