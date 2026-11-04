@@ -669,16 +669,25 @@ def _bad_gateway_response() -> unittest.mock.MagicMock:
     return mock_response
 
 
+def _empty_ok_response() -> unittest.mock.MagicMock:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = ""
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+    return mock_response
+
+
 @pytest.mark.ai_generated
 @pytest.mark.parametrize(
     "transient_failure",
     [
         _something_went_wrong_response(),
         _bad_gateway_response(),
+        _empty_ok_response(),
         requests.exceptions.ConnectionError("connection reset"),
         requests.exceptions.ReadTimeout("read timed out"),
     ],
-    ids=["something_went_wrong", "bad_gateway", "connection_error", "timeout"],
+    ids=["something_went_wrong", "bad_gateway", "empty_ok", "connection_error", "timeout"],
 )
 def test_add_item_to_project_retries_transient_failures(
     transient_failure: unittest.mock.MagicMock | Exception,

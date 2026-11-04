@@ -12,7 +12,7 @@ import beartype
 import requests
 import tqdm
 
-from .._github import get_github_headers, post_graphql_with_retries
+from .._github import get_github_headers, is_server_error_or_not_json, post_graphql_with_retries
 from .._models import ItemInfo, ProjectInfo
 
 _TRANSIENT_ERROR_MESSAGE_PREFIX = "Something went wrong while executing your query"
@@ -542,10 +542,10 @@ def _post_graphql(*, query: str, variables: dict, headers: dict[str, str]) -> re
     Post a GraphQL query, retrying with exponential backoff on transient GitHub failures.
 
     GitHub occasionally fails a single request for a moment: its edge answers with a 5xx page, the connection drops,
-    or the API answers 200 with only a generic "Something went wrong while executing your query" error. A repeat
-    of the same request usually succeeds, and every query and mutation posted here is safe to repeat. The last
-    response is returned regardless of its status so the caller can report it, and the last connection error is
-    re-raised.
+    or the API answers 200 with an empty body or with only a generic "Something went wrong while executing your
+    query" error. A repeat of the same request usually succeeds, and every query and mutation posted here is safe to
+    repeat. The last response is returned regardless of its status so the caller can report it, and the last
+    connection error is re-raised.
 
     Returns
     -------
@@ -562,14 +562,14 @@ def _post_graphql(*, query: str, variables: dict, headers: dict[str, str]) -> re
 
 
 def _is_transient_failure(response: requests.Response, /) -> bool:
-    """Return ``True`` for a server error, or a 200 whose only errors are GitHub's generic internal failure."""
-    if response.status_code >= 500:
+    """Return ``True`` for a server error, or a 200 that is not JSON or whose only errors are GitHub's generic one."""
+    if is_server_error_or_not_json(response):
         return True
     if response.status_code != 200:
         return False
     try:
         errors = response.json().get("errors")
-    except (requests.exceptions.JSONDecodeError, AttributeError):
+    except AttributeError:
         return False
     if not isinstance(errors, list) or len(errors) == 0:
         return False

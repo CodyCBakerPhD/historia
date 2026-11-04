@@ -1,3 +1,4 @@
+import re
 import unittest.mock
 
 import pytest
@@ -65,14 +66,34 @@ def _bad_gateway_response() -> unittest.mock.MagicMock:
     return mock_response
 
 
+def _empty_ok_response() -> unittest.mock.MagicMock:
+    mock_response = unittest.mock.MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = ""
+    mock_response.json.side_effect = requests.exceptions.JSONDecodeError("Expecting value", "", 0)
+    return mock_response
+
+
 @pytest.mark.ai_generated
-def test_fetch_info_graphql_raises_on_persistent_non_json_response(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("non_json_response", "expected_message"),
+    [
+        (_bad_gateway_response(), "Status code 502: GitHub returned a non-JSON response body: <html>"),
+        (_empty_ok_response(), "Status code 200: GitHub returned a non-JSON response body: <empty response body>"),
+    ],
+    ids=["bad_gateway", "empty_ok"],
+)
+def test_fetch_info_graphql_raises_on_persistent_non_json_response(
+    monkeypatch: pytest.MonkeyPatch,
+    non_json_response: unittest.mock.MagicMock,
+    expected_message: str,
+) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
 
     with (
-        unittest.mock.patch("requests.post", return_value=_bad_gateway_response()) as mock_post,
+        unittest.mock.patch("requests.post", return_value=non_json_response) as mock_post,
         unittest.mock.patch("time.sleep") as mock_sleep,
-        pytest.raises(RuntimeError, match="non-JSON response body"),
+        pytest.raises(RuntimeError, match=re.escape(expected_message)),
     ):
         historia.data.github.fetch_info_for_date(
             info_type="issues_opened",
@@ -90,10 +111,11 @@ def test_fetch_info_graphql_raises_on_persistent_non_json_response(monkeypatch: 
     "transient_failure",
     [
         _bad_gateway_response(),
+        _empty_ok_response(),
         requests.exceptions.ConnectionError("connection reset"),
         requests.exceptions.ReadTimeout("read timed out"),
     ],
-    ids=["bad_gateway", "connection_error", "timeout"],
+    ids=["bad_gateway", "empty_ok", "connection_error", "timeout"],
 )
 def test_fetch_info_graphql_retries_transient_failures(
     monkeypatch: pytest.MonkeyPatch,

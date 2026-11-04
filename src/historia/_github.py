@@ -33,8 +33,33 @@ def get_github_headers() -> dict[str, str]:
     return {"Authorization": f"token {github_token}"}
 
 
-def _is_server_error(response: requests.Response, /) -> bool:
-    return response.status_code >= 500
+def is_server_error_or_not_json(response: requests.Response, /) -> bool:
+    """
+    Whether a response is a server error (5xx), or a 200 whose body is not JSON.
+
+    GitHub occasionally answers a GraphQL request with 200 and an empty body. That carries no GraphQL payload at all,
+    so it is as transient as a 502.
+
+    Parameters
+    ----------
+    response : requests.Response
+        The response to classify.
+
+    Returns
+    -------
+    bool
+        Whether the response is a server error or a 200 without a JSON body.
+
+    """
+    if response.status_code >= 500:
+        return True
+    if response.status_code != 200:
+        return False
+    try:
+        response.json()
+    except requests.exceptions.JSONDecodeError:
+        return True
+    return False
 
 
 def post_graphql_with_retries(
@@ -42,14 +67,15 @@ def post_graphql_with_retries(
     query: str,
     variables: dict,
     headers: dict[str, str],
-    is_transient: collections.abc.Callable[[requests.Response], bool] = _is_server_error,
+    is_transient: collections.abc.Callable[[requests.Response], bool] = is_server_error_or_not_json,
 ) -> requests.Response:
     """
     Post a GraphQL query, retrying with exponential backoff on transient failures and dropped connections.
 
     GitHub occasionally fails a single request for a moment. Its edge answers with a 502 or 503 whose body is an
-    HTML page rather than a GraphQL payload, or the connection drops, and a repeat of the same request usually
-    succeeds. Up to five attempts are made, with waits of 2, 4, 8, and 16 seconds between them.
+    HTML page rather than a GraphQL payload, the API answers 200 with an empty body, or the connection drops. A
+    repeat of the same request usually succeeds. Up to five attempts are made, with waits of 2, 4, 8, and 16 seconds
+    between them.
 
     Parameters
     ----------
@@ -60,7 +86,8 @@ def post_graphql_with_retries(
     headers : dict[str, str]
         The request headers, including the Authorization token.
     is_transient : callable, optional
-        Whether a response is a transient failure worth repeating. By default, only a server error (5xx) is.
+        Whether a response is a transient failure worth repeating. By default, a server error (5xx) or a 200 whose
+        body is not JSON is.
 
     Returns
     -------

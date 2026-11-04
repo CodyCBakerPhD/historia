@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+### 🐛 Bug Fix
+
+- A GraphQL request that GitHub answers with `200` and an empty body is now retried with the same backoff as a server error. This applies to `fetch_info_for_date` and the project commands. A single such response used to abort `historia update github` and fail the daily scheduled run. `create_project_page` checks whether the project was already made before it posts again. ([#226](https://github.com/CodyCBakerPhD/historia/pull/226))
+
 ## v0.15.0
 
 ### 🚀 Enhancement
