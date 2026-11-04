@@ -1,5 +1,6 @@
 import re
 import unittest.mock
+import warnings
 
 import pytest
 import requests
@@ -271,11 +272,11 @@ def test_fetch_info_graphql_requires_token(monkeypatch: pytest.MonkeyPatch) -> N
     ("info_type", "expected_search_query"),
     [
         ("prs_opened", "author:codycbakerphd type:pr created:2026-01-05..2026-01-05"),
-        ("prs_assigned", "assignee:codycbakerphd type:pr updated:>=2026-01-05"),
-        ("prs_review_requested", "review-requested:codycbakerphd type:pr updated:>=2026-01-05"),
-        ("prs_reviewed", "reviewed-by:codycbakerphd type:pr updated:>=2026-01-05"),
+        ("prs_assigned", "assignee:codycbakerphd type:pr created:<=2026-01-05 updated:>=2026-01-05"),
+        ("prs_review_requested", "review-requested:codycbakerphd type:pr created:<=2026-01-05 updated:>=2026-01-05"),
+        ("prs_reviewed", "reviewed-by:codycbakerphd type:pr created:<=2026-01-05 updated:>=2026-01-05"),
         ("issues_opened", "author:codycbakerphd type:issue created:2026-01-05..2026-01-05"),
-        ("issues_assigned", "assignee:codycbakerphd type:issue updated:>=2026-01-05"),
+        ("issues_assigned", "assignee:codycbakerphd type:issue created:<=2026-01-05 updated:>=2026-01-05"),
     ],
 )
 def test_fetch_info_graphql_search_query(
@@ -299,12 +300,18 @@ def test_fetch_info_graphql_search_query(
     assert f'query: "{expected_search_query}"' in sent_graphql_query
 
 
-def _assigned_search_response(*, nodes: list[dict], has_next_page: bool = False) -> unittest.mock.MagicMock:
+def _assigned_search_response(
+    *,
+    nodes: list[dict],
+    has_next_page: bool = False,
+    issue_count: int = 1,
+) -> unittest.mock.MagicMock:
     mock_response = unittest.mock.MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
         "data": {
             "search": {
+                "issueCount": issue_count,
                 "pageInfo": {"hasNextPage": has_next_page, "endCursor": "cursor-1" if has_next_page else None},
                 "edges": [{"node": node} for node in nodes],
             },
@@ -380,3 +387,54 @@ def test_fetch_info_graphql_assigned_paginates(monkeypatch: pytest.MonkeyPatch) 
     assert test_info == expected_info
     sent_after_cursors = [call.kwargs["json"]["variables"]["after"] for call in mock_post.call_args_list]
     assert sent_after_cursors == [None, "cursor-1"]
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("issue_count", "expected_warning_lines"),
+    [
+        (1000, []),
+        (
+            2463,
+            [
+                (
+                    "` matched 2463 items, but GitHub search returns only the first 1000. "
+                    "The rest were not checked, so activity on 2026-01-05 may be missing."
+                ),
+            ],
+        ),
+    ],
+    ids=["at_limit", "over_limit"],
+)
+def test_fetch_info_graphql_warns_once_when_a_search_passes_the_result_limit(
+    monkeypatch: pytest.MonkeyPatch,
+    issue_count: int,
+    expected_warning_lines: list[str],
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+    assigned_event = {"createdAt": "2026-01-05T17:25:36Z", "actor": {"login": "codycbakerphd"}}
+    first_page = _assigned_search_response(
+        nodes=[{"url": "https://github.com/con/nwb2bids/pull/1", "timelineItems": {"nodes": [assigned_event]}}],
+        has_next_page=True,
+        issue_count=issue_count,
+    )
+    second_page = _assigned_search_response(
+        nodes=[{"url": "https://github.com/con/nwb2bids/pull/2", "timelineItems": {"nodes": [assigned_event]}}],
+        issue_count=issue_count,
+    )
+
+    with (
+        unittest.mock.patch("requests.post", side_effect=[first_page, second_page]),
+        warnings.catch_warnings(record=True) as caught_warnings,
+    ):
+        warnings.simplefilter("always")
+        test_info, hit_rate_limit = historia.data.github.fetch_info_for_date(
+            info_type="prs_assigned",
+            date="2026-01-05",
+            username="codycbakerphd",
+        )
+
+    assert hit_rate_limit is False
+    expected_info = ["https://github.com/con/nwb2bids/pull/1", "https://github.com/con/nwb2bids/pull/2"]
+    assert test_info == expected_info
+    assert [str(warning.message).splitlines()[-1] for warning in caught_warnings] == expected_warning_lines

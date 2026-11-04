@@ -10,6 +10,8 @@ import requests
 from ..._github import format_request_id, get_github_headers, post_graphql_with_retries
 from ..._globals import InfoType
 
+_SEARCH_RESULT_LIMIT = 1000
+
 
 @beartype.beartype
 def fetch_info_for_date(
@@ -23,9 +25,13 @@ def fetch_info_for_date(
 
     The `assigned` types instead match items with an assignment event to the user on that date, read from each
     item's timeline. GitHub search has no qualifier for the date of assignment, so the search only narrows the
-    candidates to items the user is currently assigned to and that were updated on or after the date.
+    candidates to items the user is currently assigned to that were created on or before the date and updated on or
+    after it. An item cannot be assigned before it exists, so the creation bound drops no candidate. It keeps an old
+    date from matching every item made since then.
     The `prs_review_requested` and `prs_reviewed` types work the same way, matching a review request to the user or
     a review submitted by the user on that date.
+    GitHub search returns at most 1,000 results. When more items match, a warning says that the rest were not
+    checked.
 
     Parameters
     ----------
@@ -92,11 +98,12 @@ query OpenPRs($first: Int!) {
             """
 query AssignedPRs($first: Int!, $after: String) {
     search(
-        query: "assignee:{username} type:pr updated:>={date}"
+        query: "assignee:{username} type:pr created:<={date} updated:>={date}"
         type: ISSUE
         first: $first
         after: $after
     ) {
+        issueCount
         pageInfo { hasNextPage endCursor }
         edges {
             node {
@@ -116,11 +123,12 @@ query AssignedPRs($first: Int!, $after: String) {
             """
 query ReviewRequestedPRs($first: Int!, $after: String) {
     search(
-        query: "review-requested:{username} type:pr updated:>={date}"
+        query: "review-requested:{username} type:pr created:<={date} updated:>={date}"
         type: ISSUE
         first: $first
         after: $after
     ) {
+        issueCount
         pageInfo { hasNextPage endCursor }
         edges {
             node {
@@ -142,11 +150,12 @@ query ReviewRequestedPRs($first: Int!, $after: String) {
             """
 query ReviewedPRs($first: Int!, $after: String) {
     search(
-        query: "reviewed-by:{username} type:pr updated:>={date}"
+        query: "reviewed-by:{username} type:pr created:<={date} updated:>={date}"
         type: ISSUE
         first: $first
         after: $after
     ) {
+        issueCount
         pageInfo { hasNextPage endCursor }
         edges {
             node {
@@ -179,11 +188,12 @@ query OpenIssues($first: Int!) {
             """
 query AssignedIssues($first: Int!, $after: String) {
     search(
-        query: "assignee:{username} type:issue updated:>={date}"
+        query: "assignee:{username} type:issue created:<={date} updated:>={date}"
         type: ISSUE
         first: $first
         after: $after
     ) {
+        issueCount
         pageInfo { hasNextPage endCursor }
         edges {
             node {
@@ -224,7 +234,7 @@ def _fetch_info_for_date_graphql(
         return urls, hit_rate_limit
 
     # The query requires a page size. 100 should be enough for a single day
-    nodes, _, hit_rate_limit = _post_search_query(query=query, variables={"first": 100}, headers=headers)
+    nodes, _, _, hit_rate_limit = _post_search_query(query=query, variables={"first": 100}, headers=headers)
     if hit_rate_limit:
         return [], hit_rate_limit
     urls = [node["url"] for node in nodes]
@@ -236,11 +246,22 @@ def _fetch_event_urls(*, query: str, date: str, username: str, headers: dict[str
     after_cursor = None
     while True:
         variables = {"first": 100, "after": after_cursor}
-        nodes, after_cursor, hit_rate_limit = _post_search_query(query=query, variables=variables, headers=headers)
+        nodes, after_cursor, issue_count, hit_rate_limit = _post_search_query(
+            query=query,
+            variables=variables,
+            headers=headers,
+        )
         if hit_rate_limit:
             return [], hit_rate_limit
         urls.extend(node["url"] for node in nodes if _has_event_on_date(node=node, date=date, username=username))
         if after_cursor is None:
+            if (issue_count or 0) > _SEARCH_RESULT_LIMIT:
+                message = (
+                    f"GitHub GraphQL API query `{query}` matched {issue_count} items, but GitHub search returns only "
+                    f"the first {_SEARCH_RESULT_LIMIT}. "
+                    f"The rest were not checked, so activity on {date} may be missing."
+                )
+                warnings.warn(message=message, stacklevel=2)
             return urls, False
 
 
@@ -256,8 +277,13 @@ def _has_event_on_date(*, node: dict, date: str, username: str) -> bool:
     return False
 
 
-def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) -> tuple[list[dict], str | None, bool]:
-    """Run one page of a GraphQL search, returning its nodes, the next page cursor (if any), and a rate limit flag."""
+def _post_search_query(
+    *,
+    query: str,
+    variables: dict,
+    headers: dict[str, str],
+) -> tuple[list[dict], str | None, int | None, bool]:
+    """Run one page of a GraphQL search, returning its nodes, next page cursor, match count, and a rate limit flag."""
     response = post_graphql_with_retries(query=query, variables=variables, headers=headers)
     status = response.status_code
     request_id = format_request_id(response)
@@ -269,7 +295,7 @@ def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) 
             rate_limit_result = response.text.strip() or "<empty response body>"
         message = f"GitHub GraphQL API query `{query}` failed!\nStatus code {status}: {rate_limit_result}\n{request_id}"
         warnings.warn(message=message, stacklevel=2)
-        return [], None, hit_rate_limit
+        return [], None, None, hit_rate_limit
     try:
         result = response.json()
     except requests.exceptions.JSONDecodeError as exception:
@@ -290,6 +316,7 @@ def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) 
         nodes = [edge["node"] for edge in search["edges"]]
         page_info = search.get("pageInfo") or {}
         next_cursor = page_info["endCursor"] if page_info.get("hasNextPage") else None
+        issue_count = search.get("issueCount")
     except (AttributeError, KeyError, TypeError) as exception:
         unexpected_payload_message = (
             f"GitHub GraphQL API query `{query}` failed!\n"
@@ -297,4 +324,4 @@ def _post_search_query(*, query: str, variables: dict, headers: dict[str, str]) 
             f"{request_id}"
         )
         raise RuntimeError(unexpected_payload_message) from exception
-    return nodes, next_cursor, False
+    return nodes, next_cursor, issue_count, False
