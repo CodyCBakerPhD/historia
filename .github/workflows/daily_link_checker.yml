@@ -15,8 +15,10 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Check links
+        id: check
         uses: lycheeverse/lychee-action@v2
-        with:
+        continue-on-error: true
+        with: &lychee
           args: >
             --verbose
             --no-progress
@@ -32,6 +34,19 @@ jobs:
             '**/*.rst'
             '**/*.py'
           fail: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # lychee never retries a 5xx or a dropped connection, and 503 stays rejected because a dead site can
+      # answer it forever. A GitHub outage usually clears within minutes, so only a repeated failure counts.
+      - name: Wait before rechecking
+        if: steps.check.outcome == 'failure'
+        run: sleep 600
+
+      - name: Recheck links
+        if: steps.check.outcome == 'failure'
+        uses: lycheeverse/lychee-action@v2
+        with: *lychee
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
